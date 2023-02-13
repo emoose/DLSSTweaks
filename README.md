@@ -1,10 +1,8 @@
 # DLSSTweaks
 
-Issue tracking github for DLSSTweaks, please feel free to post on the [issues page](https://github.com/emoose/DLSSTweaks/issues).
-
 DLSSTweaks binaries can be found in the [releases section](https://github.com/emoose/DLSSTweaks/releases).
 
-Source code is currently unpublished, but will be posted sometime soon.
+Please feel free to post any issues on the [issues page](https://github.com/emoose/DLSSTweaks/issues).
 
 ```
 ; DLSSTweaks by emoose - https://github.com/emoose/DLSSTweaks

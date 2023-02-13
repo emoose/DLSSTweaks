@@ -1,0 +1,23 @@
+EXPORTS
+  DllMain_stub  @1
+  XInputGetState @2
+  XInputSetState @3
+  XInputGetCapabilities @4
+  XInputEnable @5
+  XInputGetDSoundAudioDeviceGuids @6
+  XInputGetBatteryInformation @7
+  XInputGetKeystroke @8
+  DirectInput8Create @9
+  DXGIDumpJournal @10
+  CreateDXGIFactory @11
+  CreateDXGIFactory1 @12
+  CreateDXGIFactory2 @13
+  DXGID3D10CreateDevice @14
+  DXGID3D10CreateLayeredDevice @15
+  DXGID3D10GetLayeredDeviceSize @17
+  DXGID3D10RegisterLayers @18
+  DXGIGetDebugInterface1 @19
+  DXGIReportAdapterConfiguration @20
+  X3DAudioInitialize @21
+  X3DAudioCalculate @22
+  CreateFX @23
