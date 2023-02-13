@@ -142,6 +142,47 @@ uint64_t __fastcall NVSDK_NGX_D3D12_Init_ProjectID_Hook(const char* InProjectId,
 	return NVSDK_NGX_D3D12_Init_ProjectID(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 
+typedef uint64_t(__fastcall* NVSDK_NGX_VULKAN_Init_Fn)(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6);
+NVSDK_NGX_VULKAN_Init_Fn NVSDK_NGX_VULKAN_Init;
+uint64_t __fastcall NVSDK_NGX_VULKAN_Init_Hook(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6)
+{
+	if (overrideAppId)
+		InApplicationId = appIdOverride;
+	return NVSDK_NGX_VULKAN_Init(InApplicationId, a2, a3, a4, a5, a6);
+}
+typedef uint64_t(__fastcall* NVSDK_NGX_VULKAN_Init_Ext_Fn)(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7);
+NVSDK_NGX_VULKAN_Init_Ext_Fn NVSDK_NGX_VULKAN_Init_Ext;
+uint64_t __fastcall NVSDK_NGX_VULKAN_Init_Ext_Hook(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7)
+{
+	if (overrideAppId)
+		InApplicationId = appIdOverride;
+	return NVSDK_NGX_VULKAN_Init_Ext(InApplicationId, a2, a3, a4, a5, a6, a7);
+}
+typedef uint64_t(__fastcall* NVSDK_NGX_VULKAN_Init_Ext2_Fn)(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9);
+NVSDK_NGX_VULKAN_Init_Ext2_Fn NVSDK_NGX_VULKAN_Init_Ext2;
+uint64_t __fastcall NVSDK_NGX_VULKAN_Init_Ext2_Hook(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
+{
+	if (overrideAppId)
+		InApplicationId = appIdOverride;
+	return NVSDK_NGX_VULKAN_Init_Ext2(InApplicationId, a2, a3, a4, a5, a6, a7, a8, a9);
+}
+typedef uint64_t(__fastcall* NVSDK_NGX_VULKAN_Init_ProjectID_Fn)(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9);
+NVSDK_NGX_VULKAN_Init_ProjectID_Fn NVSDK_NGX_VULKAN_Init_ProjectID;
+uint64_t __fastcall NVSDK_NGX_VULKAN_Init_ProjectID_Hook(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
+{
+	if (overrideAppId)
+		InProjectId = projectIdOverride;
+	return NVSDK_NGX_VULKAN_Init_ProjectID(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9);
+}
+typedef uint64_t(__fastcall* NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Fn)(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11);
+NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Fn NVSDK_NGX_VULKAN_Init_ProjectID_Ext;
+uint64_t __fastcall NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11)
+{
+	if (overrideAppId)
+		InProjectId = projectIdOverride;
+	return NVSDK_NGX_VULKAN_Init_ProjectID_Ext(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+}
+
 enum NVSDK_NGX_DLSS_Feature_Flags
 {
 	NVSDK_NGX_DLSS_Feature_Flags_None = 0,
@@ -158,7 +199,7 @@ typedef void(__fastcall* NVSDK_NGX_Parameter_SetI_Fn)(void* InParameter, const c
 NVSDK_NGX_Parameter_SetI_Fn NVSDK_NGX_Parameter_SetI;
 void __fastcall NVSDK_NGX_Parameter_SetI_Hook(void* InParameter, const char* InName, int InValue)
 {
-	if (!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags) && forceAutoExposure)
+	if (forceAutoExposure && !_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags))
 		InValue |= NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
 
 	NVSDK_NGX_Parameter_SetI(InParameter, InName, InValue);
@@ -232,6 +273,9 @@ void* NVSDK_NGX_D3D11_GetParameters_Target = nullptr;
 void* NVSDK_NGX_D3D12_AllocateParameters_Target = nullptr;
 void* NVSDK_NGX_D3D12_GetCapabilityParameters_Target = nullptr;
 void* NVSDK_NGX_D3D12_GetParameters_Target = nullptr;
+void* NVSDK_NGX_VULKAN_AllocateParameters_Target = nullptr;
+void* NVSDK_NGX_VULKAN_GetCapabilityParameters_Target = nullptr;
+void* NVSDK_NGX_VULKAN_GetParameters_Target = nullptr;
 
 std::mutex paramHookMutex;
 bool isParamFuncsHooked = false;
@@ -268,6 +312,9 @@ bool DLSSApplyParamFunctionHooks(NVSDK_NGX_Parameter_vftable* vftable)
 		MH_DisableHook(NVSDK_NGX_D3D12_AllocateParameters_Target);
 		MH_DisableHook(NVSDK_NGX_D3D12_GetCapabilityParameters_Target);
 		MH_DisableHook(NVSDK_NGX_D3D12_GetParameters_Target);
+		MH_DisableHook(NVSDK_NGX_VULKAN_AllocateParameters_Target);
+		MH_DisableHook(NVSDK_NGX_VULKAN_GetCapabilityParameters_Target);
+		MH_DisableHook(NVSDK_NGX_VULKAN_GetParameters_Target);
 
 		isParamFuncsHooked = true;
 	}
@@ -326,6 +373,31 @@ uint64_t __fastcall NVSDK_NGX_D3D11_GetParameters_Hook(NVSDK_NGX_Parameter** Out
 	return ret;
 }
 
+NVSDK_NGX_D3D_AllocateParameters_Fn NVSDK_NGX_VULKAN_AllocateParameters;
+uint64_t __fastcall NVSDK_NGX_VULKAN_AllocateParameters_Hook(NVSDK_NGX_Parameter** OutParameters)
+{
+	uint64_t ret = NVSDK_NGX_VULKAN_AllocateParameters(OutParameters);
+	if (*OutParameters)
+		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+	return ret;
+}
+NVSDK_NGX_D3D_AllocateParameters_Fn NVSDK_NGX_VULKAN_GetCapabilityParameters;
+uint64_t __fastcall NVSDK_NGX_VULKAN_GetCapabilityParameters_Hook(NVSDK_NGX_Parameter** OutParameters)
+{
+	uint64_t ret = NVSDK_NGX_VULKAN_GetCapabilityParameters(OutParameters);
+	if (*OutParameters)
+		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+	return ret;
+}
+NVSDK_NGX_D3D_AllocateParameters_Fn NVSDK_NGX_VULKAN_GetParameters;
+uint64_t __fastcall NVSDK_NGX_VULKAN_GetParameters_Hook(NVSDK_NGX_Parameter** OutParameters)
+{
+	uint64_t ret = NVSDK_NGX_VULKAN_GetParameters(OutParameters);
+	if (*OutParameters)
+		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+	return ret;
+}
+
 void* LoadLibraryExW_Target = nullptr;
 
 std::mutex scanMutex;
@@ -344,7 +416,6 @@ bool ScanForDLSSFunctions()
 	auto* NVSDK_NGX_D3D11_Init_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_Init");
 	auto* NVSDK_NGX_D3D11_Init_Ext_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_Init_Ext");
 	auto* NVSDK_NGX_D3D11_Init_ProjectID_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_Init_ProjectID");
-
 	NVSDK_NGX_D3D11_AllocateParameters_Target = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_AllocateParameters");
 	NVSDK_NGX_D3D11_GetCapabilityParameters_Target = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_GetCapabilityParameters");
 	NVSDK_NGX_D3D11_GetParameters_Target = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_GetParameters");
@@ -352,16 +423,27 @@ bool ScanForDLSSFunctions()
 	auto* NVSDK_NGX_D3D12_Init_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_Init");
 	auto* NVSDK_NGX_D3D12_Init_Ext_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_Init_Ext");
 	auto* NVSDK_NGX_D3D12_Init_ProjectID_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_Init_ProjectID");
-
 	NVSDK_NGX_D3D12_AllocateParameters_Target = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_AllocateParameters");
 	NVSDK_NGX_D3D12_GetCapabilityParameters_Target = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_GetCapabilityParameters");
 	NVSDK_NGX_D3D12_GetParameters_Target = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_GetParameters");
+
+	auto* NVSDK_NGX_VULKAN_Init_orig = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_Init");
+	auto* NVSDK_NGX_VULKAN_Init_Ext_orig = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_Init_Ext");
+	auto* NVSDK_NGX_VULKAN_Init_Ext2_orig = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_Init_Ext2");
+	auto* NVSDK_NGX_VULKAN_Init_ProjectID_orig = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_Init_ProjectID");
+	auto* NVSDK_NGX_VULKAN_Init_ProjectID_Ext_orig = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_Init_ProjectID_Ext");
+	NVSDK_NGX_VULKAN_AllocateParameters_Target = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_AllocateParameters");
+	NVSDK_NGX_VULKAN_GetCapabilityParameters_Target = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_GetCapabilityParameters");
+	NVSDK_NGX_VULKAN_GetParameters_Target = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_GetParameters");
 
 	// Make sure we only try hooking if we found all the procs above...
 	if (NVSDK_NGX_D3D11_Init_orig && NVSDK_NGX_D3D11_Init_Ext_orig && NVSDK_NGX_D3D11_Init_ProjectID_orig &&
 		NVSDK_NGX_D3D11_AllocateParameters_Target && NVSDK_NGX_D3D11_GetCapabilityParameters_Target && NVSDK_NGX_D3D11_GetParameters_Target &&
 		NVSDK_NGX_D3D12_Init_orig && NVSDK_NGX_D3D12_Init_Ext_orig && NVSDK_NGX_D3D12_Init_ProjectID_orig &&
-		NVSDK_NGX_D3D12_AllocateParameters_Target && NVSDK_NGX_D3D12_GetCapabilityParameters_Target && NVSDK_NGX_D3D12_GetParameters_Target)
+		NVSDK_NGX_D3D12_AllocateParameters_Target && NVSDK_NGX_D3D12_GetCapabilityParameters_Target && NVSDK_NGX_D3D12_GetParameters_Target &&
+		NVSDK_NGX_VULKAN_Init_orig && NVSDK_NGX_VULKAN_Init_Ext_orig && NVSDK_NGX_VULKAN_Init_Ext2_orig && NVSDK_NGX_VULKAN_Init_ProjectID_orig && 
+		NVSDK_NGX_VULKAN_Init_ProjectID_Ext_orig &&
+		NVSDK_NGX_VULKAN_AllocateParameters_Target && NVSDK_NGX_VULKAN_GetCapabilityParameters_Target && NVSDK_NGX_VULKAN_GetParameters_Target)
 	{
 		MH_CreateHook(NVSDK_NGX_D3D11_Init_orig, NVSDK_NGX_D3D11_Init_Hook, (LPVOID*)&NVSDK_NGX_D3D11_Init);
 		MH_EnableHook(NVSDK_NGX_D3D11_Init_orig);
@@ -390,6 +472,24 @@ bool ScanForDLSSFunctions()
 		MH_EnableHook(NVSDK_NGX_D3D12_GetCapabilityParameters_Target);
 		MH_CreateHook(NVSDK_NGX_D3D12_GetParameters_Target, NVSDK_NGX_D3D12_GetParameters_Hook, (LPVOID*)&NVSDK_NGX_D3D12_GetParameters);
 		MH_EnableHook(NVSDK_NGX_D3D12_GetParameters_Target);
+
+		MH_CreateHook(NVSDK_NGX_VULKAN_Init_orig, NVSDK_NGX_VULKAN_Init_Hook, (LPVOID*)&NVSDK_NGX_VULKAN_Init);
+		MH_EnableHook(NVSDK_NGX_VULKAN_Init_orig);
+		MH_CreateHook(NVSDK_NGX_VULKAN_Init_Ext_orig, NVSDK_NGX_VULKAN_Init_Ext_Hook, (LPVOID*)&NVSDK_NGX_VULKAN_Init_Ext);
+		MH_EnableHook(NVSDK_NGX_VULKAN_Init_Ext_orig);
+		MH_CreateHook(NVSDK_NGX_VULKAN_Init_Ext2_orig, NVSDK_NGX_VULKAN_Init_Ext2_Hook, (LPVOID*)&NVSDK_NGX_VULKAN_Init_Ext2);
+		MH_EnableHook(NVSDK_NGX_VULKAN_Init_Ext2_orig);
+		MH_CreateHook(NVSDK_NGX_VULKAN_Init_ProjectID_orig, NVSDK_NGX_VULKAN_Init_ProjectID_Hook, (LPVOID*)&NVSDK_NGX_VULKAN_Init_ProjectID);
+		MH_EnableHook(NVSDK_NGX_VULKAN_Init_ProjectID_orig);
+		MH_CreateHook(NVSDK_NGX_VULKAN_Init_ProjectID_Ext_orig, NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook, (LPVOID*)&NVSDK_NGX_VULKAN_Init_ProjectID_Ext);
+		MH_EnableHook(NVSDK_NGX_VULKAN_Init_ProjectID_Ext_orig);
+
+		MH_CreateHook(NVSDK_NGX_VULKAN_AllocateParameters_Target, NVSDK_NGX_VULKAN_AllocateParameters_Hook, (LPVOID*)&NVSDK_NGX_VULKAN_AllocateParameters);
+		MH_EnableHook(NVSDK_NGX_VULKAN_AllocateParameters_Target);
+		MH_CreateHook(NVSDK_NGX_VULKAN_GetCapabilityParameters_Target, NVSDK_NGX_VULKAN_GetCapabilityParameters_Hook, (LPVOID*)&NVSDK_NGX_VULKAN_GetCapabilityParameters);
+		MH_EnableHook(NVSDK_NGX_VULKAN_GetCapabilityParameters_Target);
+		MH_CreateHook(NVSDK_NGX_VULKAN_GetParameters_Target, NVSDK_NGX_VULKAN_GetParameters_Hook, (LPVOID*)&NVSDK_NGX_VULKAN_GetParameters);
+		MH_EnableHook(NVSDK_NGX_VULKAN_GetParameters_Target);
 
 		dlog("Applied _nvngx.dll DLL export hooks, waiting for game to call them...\n");
 
@@ -459,7 +559,7 @@ unsigned int GetPrivateProfileDlssPreset(const wchar_t* path, const wchar_t* app
 
 DWORD WINAPI HookThread(LPVOID lpParam)
 {
-	printf("DLSSTweaks v0.123.7, by emoose\n");
+	printf("DLSSTweaks v0.123.8, by emoose\n");
 	printf("https://github.com/emoose/DLSSTweaks\n");
 
 	WCHAR exePath[4096];
@@ -481,7 +581,7 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 	presetPerformance = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"Performance");
 	presetUltraPerformance = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"UltraPerformance");
 
-	dlog("\nDLSSTweaks v0.123.7, by emoose: DLL wrapper loaded, watching for DLSS library load...\n");
+	dlog("\nDLSSTweaks v0.123.8, by emoose: DLL wrapper loaded, watching for DLSS library load...\n");
 
 	MH_Initialize();
 	MH_CreateHookApiEx(L"kernel32", "LoadLibraryExW", LoadLibraryExW_Hook, (LPVOID*)&LoadLibraryExW_Orig, &LoadLibraryExW_Target);
@@ -498,7 +598,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved
 		ourModule = hModule;
 		Proxy_Attach();
 
-		CreateThread(NULL, 0, HookThread, NULL, 0, NULL);   // returns the thread identifier 
+		CreateThread(NULL, 0, HookThread, NULL, 0, NULL);
 	}
 	if (ul_reason_for_call == DLL_PROCESS_DETACH)
 	{
