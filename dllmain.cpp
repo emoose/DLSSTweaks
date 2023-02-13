@@ -36,15 +36,8 @@ void Proxy_Detach();
 //   was able to workaround that with the NGX_XXX_Init hooks below, not fully sure whether override will work across all 3 types though (_Init, _Init_Ext, _Init_ProjectId...)
 //   very strange though, seems devs can't change their preset at all once NV has forced one on them...
 
-// TODO:
-// - add dev overlay override (so reg wouldn't be needed)
-// - add dev watermark remover
-// - force-run NGX update function
-// - vk functions
-
 std::filesystem::path LogPath;
 bool DebugLog = true;
-
 void dlog(const char* Format, ...)
 {
 	if (!DebugLog)
@@ -71,6 +64,7 @@ void dlog(const char* Format, ...)
 #define NVSDK_NGX_Parameter_Height "Height"
 #define NVSDK_NGX_Parameter_OutWidth "OutWidth"
 #define NVSDK_NGX_Parameter_OutHeight "OutHeight"
+#define NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags "DLSS.Feature.Create.Flags"
 #define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA "DLSS.Hint.Render.Preset.DLAA"
 #define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality "DLSS.Hint.Render.Preset.Quality"
 #define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced "DLSS.Hint.Render.Preset.Balanced"
@@ -89,6 +83,7 @@ enum NVSDK_NGX_DLSS_Hint_Render_Preset
 };
 
 bool forceDLAA = false;
+bool forceAutoExposure = false;
 bool overrideAppId = false;
 unsigned int presetDLAA = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 unsigned int presetQuality = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
@@ -145,6 +140,28 @@ uint64_t __fastcall NVSDK_NGX_D3D12_Init_ProjectID_Hook(const char* InProjectId,
 	if (overrideAppId)
 		InProjectId = projectIdOverride;
 	return NVSDK_NGX_D3D12_Init_ProjectID(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
+}
+
+enum NVSDK_NGX_DLSS_Feature_Flags
+{
+	NVSDK_NGX_DLSS_Feature_Flags_None = 0,
+	NVSDK_NGX_DLSS_Feature_Flags_IsHDR = 1 << 0,
+	NVSDK_NGX_DLSS_Feature_Flags_MVLowRes = 1 << 1,
+	NVSDK_NGX_DLSS_Feature_Flags_MVJittered = 1 << 2,
+	NVSDK_NGX_DLSS_Feature_Flags_DepthInverted = 1 << 3,
+	NVSDK_NGX_DLSS_Feature_Flags_Reserved_0 = 1 << 4,
+	NVSDK_NGX_DLSS_Feature_Flags_DoSharpening = 1 << 5,
+	NVSDK_NGX_DLSS_Feature_Flags_AutoExposure = 1 << 6,
+};
+
+typedef void(__fastcall* NVSDK_NGX_Parameter_SetI_Fn)(void* InParameter, const char* InName, int InValue);
+NVSDK_NGX_Parameter_SetI_Fn NVSDK_NGX_Parameter_SetI;
+void __fastcall NVSDK_NGX_Parameter_SetI_Hook(void* InParameter, const char* InName, int InValue)
+{
+	if (!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags) && forceAutoExposure)
+		InValue |= NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+
+	NVSDK_NGX_Parameter_SetI(InParameter, InName, InValue);
 }
 
 typedef void(__fastcall* NVSDK_NGX_Parameter_SetUI_Fn)(void* InParameter, const char* InName, unsigned int InValue);
@@ -225,18 +242,24 @@ bool DLSSApplyParamFunctionHooks(NVSDK_NGX_Parameter_vftable* vftable)
 	if (isParamFuncsHooked)
 		return true;
 
+	auto* NVSDK_NGX_Parameter_SetI_orig = vftable->SetI;
 	auto* NVSDK_NGX_Parameter_SetUI_orig = vftable->SetUI;
 	auto* NVSDK_NGX_Parameter_GetUI_orig = vftable->GetUI;
 
-	if (NVSDK_NGX_Parameter_SetUI_orig && NVSDK_NGX_Parameter_GetUI_orig)
+	if (NVSDK_NGX_Parameter_SetI_orig && NVSDK_NGX_Parameter_SetUI_orig && NVSDK_NGX_Parameter_GetUI_orig)
 	{
+		MH_CreateHook(NVSDK_NGX_Parameter_SetI_orig, NVSDK_NGX_Parameter_SetI_Hook, (LPVOID*)&NVSDK_NGX_Parameter_SetI);
 		MH_CreateHook(NVSDK_NGX_Parameter_SetUI_orig, NVSDK_NGX_Parameter_SetUI_Hook, (LPVOID*)&NVSDK_NGX_Parameter_SetUI);
 		MH_CreateHook(NVSDK_NGX_Parameter_GetUI_orig, NVSDK_NGX_Parameter_GetUI_Hook, (LPVOID*)&NVSDK_NGX_Parameter_GetUI);
+		MH_EnableHook(NVSDK_NGX_Parameter_SetI_orig);
 		MH_EnableHook(NVSDK_NGX_Parameter_SetUI_orig);
 		MH_EnableHook(NVSDK_NGX_Parameter_GetUI_orig);
 
 		dlog("DLSS functions found & parameter hooks applied!\n");
-		dlog("Settings:\n - ForceDLAA: %s\n - OverrideAppId: %s\n", forceDLAA ? "true" : "false", overrideAppId ? "true" : "false");
+		dlog("Settings:\n - ForceDLAA: %s\n - ForceAutoExposure: %s\n - OverrideAppId: %s\n", 
+			forceDLAA ? "true" : "false", 
+			forceAutoExposure ? "true" : "false",
+			overrideAppId ? "true" : "false");
 
 		// disable NGX param export hooks since they aren't needed now
 		MH_DisableHook(NVSDK_NGX_D3D11_AllocateParameters_Target);
@@ -377,8 +400,7 @@ bool ScanForDLSSFunctions()
 		dlog("Failed to locate all _nvngx.dll functions, may have been changed by driver update :/\n");
 	}
 
-	// _nvngx.dll found and was hopefully hooked, disable LoadLibraryExW hook now
-	// (disable even if hook failed, since it's not going to suddenly start working...)
+	// _nvngx.dll was found & hook attempted, disable LoadLibraryExW hook now
 	MH_DisableHook(LoadLibraryExW_Target);
 
 	return isNgxInitHooked;
@@ -437,7 +459,7 @@ unsigned int GetPrivateProfileDlssPreset(const wchar_t* path, const wchar_t* app
 
 DWORD WINAPI HookThread(LPVOID lpParam)
 {
-	printf("DLSSTweaks v0.123.6, by emoose\n");
+	printf("DLSSTweaks v0.123.7, by emoose\n");
 	printf("https://github.com/emoose/DLSSTweaks\n");
 
 	WCHAR exePath[4096];
@@ -451,6 +473,7 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 
 	DebugLog = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"DebugLog", DebugLog);
 	forceDLAA = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"ForceDLAA", forceDLAA);
+	forceAutoExposure = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"ForceAutoExposure", forceAutoExposure);
 	overrideAppId = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"OverrideAppId", overrideAppId);
 	presetDLAA = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"DLAA");
 	presetQuality = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"Quality");
@@ -458,25 +481,13 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 	presetPerformance = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"Performance");
 	presetUltraPerformance = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"UltraPerformance");
 
-	dlog("\nDLSSTweaks v0.123.6, by emoose: DLL wrapper loaded, watching for DLSS library load...\n");
+	dlog("\nDLSSTweaks v0.123.7, by emoose: DLL wrapper loaded, watching for DLSS library load...\n");
 
 	MH_Initialize();
 	MH_CreateHookApiEx(L"kernel32", "LoadLibraryExW", LoadLibraryExW_Hook, (LPVOID*)&LoadLibraryExW_Orig, &LoadLibraryExW_Target);
 	MH_EnableHook(LoadLibraryExW_Target);
 
 	return 0;
-}
-
-DWORD hookThreadId = 0;
-void Patch_Init()
-{
-	CreateThread(
-		NULL,                   // default security attributes
-		0,                      // use default stack size  
-		HookThread,       // thread function name
-		NULL,          // argument to thread function 
-		0,                      // use default creation flags 
-		&hookThreadId);   // returns the thread identifier 
 }
 
 HMODULE ourModule = 0;
@@ -487,7 +498,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved
 		ourModule = hModule;
 		Proxy_Attach();
 
-		Patch_Init();
+		CreateThread(NULL, 0, HookThread, NULL, 0, NULL);   // returns the thread identifier 
 	}
 	if (ul_reason_for_call == DLL_PROCESS_DETACH)
 	{
