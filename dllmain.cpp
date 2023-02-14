@@ -84,7 +84,7 @@ enum NVSDK_NGX_DLSS_Hint_Render_Preset
 };
 
 bool forceDLAA = false;
-bool forceAutoExposure = false;
+int overrideAutoExposure = 0;
 bool overrideAppId = false;
 bool overrideQualityRatios = false;
 unsigned int presetDLAA = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
@@ -212,18 +212,18 @@ typedef void(__cdecl* NVSDK_NGX_Parameter_SetI_Fn)(void* InParameter, const char
 NVSDK_NGX_Parameter_SetI_Fn NVSDK_NGX_Parameter_SetI;
 void __cdecl NVSDK_NGX_Parameter_SetI_Hook(void* InParameter, const char* InName, int InValue)
 {
-	if (forceAutoExposure && !_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags))
-		InValue |= NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+	if (overrideAutoExposure != 0 && !_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags))
+	{
+		if (overrideAutoExposure >= 1) // force auto-exposure
+			InValue |= NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+		else if (overrideAutoExposure < 0) // force disable auto-exposure
+			InValue = InValue & ~NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+	}
 
 	// Cache the chosen quality value so we can make decisions on it later on
 	// TODO: maybe should setup NVSDK_NGX_Parameter class so we could call GetI to fetch this instead, might be more reliable...
 	if (!_stricmp(InName, NVSDK_NGX_Parameter_PerfQualityValue))
-	{
-		//InValue = NVSDK_NGX_PerfQuality_Value_UltraQuality;
-		auto val = NVSDK_NGX_PerfQuality_Value(InValue);
-		if (prevQualityValue != val)
-			prevQualityValue = val;
-	}
+		prevQualityValue = NVSDK_NGX_PerfQuality_Value(InValue);
 
 	NVSDK_NGX_Parameter_SetI(InParameter, InName, InValue);
 }
@@ -356,9 +356,9 @@ bool DLSSApplyParamFunctionHooks(NVSDK_NGX_Parameter_vftable* vftable)
 		MH_EnableHook(NVSDK_NGX_Parameter_GetUI_orig);
 
 		dlog("DLSS functions found & parameter hooks applied!\n");
-		dlog("Settings:\n - ForceDLAA: %s\n - ForceAutoExposure: %s\n - OverrideAppId: %s\n", 
+		dlog("Settings:\n - ForceDLAA: %s\n - OverrideAutoExposure: %s\n - OverrideAppId: %s\n", 
 			forceDLAA ? "true" : "false", 
-			forceAutoExposure ? "true" : "false",
+			overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"),
 			overrideAppId ? "true" : "false");
 
 		// disable NGX param export hooks since they aren't needed now
@@ -647,7 +647,7 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 
 	DebugLog = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"DebugLog", DebugLog);
 	forceDLAA = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"ForceDLAA", forceDLAA);
-	forceAutoExposure = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"ForceAutoExposure", forceAutoExposure);
+	overrideAutoExposure = GetPrivateProfileIntW(L"DLSS", L"OverrideAutoExposure", overrideAutoExposure, cfg_IniName);
 	overrideAppId = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"OverrideAppId", overrideAppId);
 	overrideQualityRatios = GetPrivateProfileBool(cfg_IniName, L"DLSSQualityRatios", L"Enable", overrideQualityRatios);
 	if (overrideQualityRatios)
