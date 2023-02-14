@@ -7,10 +7,6 @@
 #include <fstream>
 #include <mutex>
 
-// proxy.cpp
-bool Proxy_Attach();
-void Proxy_Detach();
-
 // Method of operation:
 // - Our DLL gets loaded in via DLL wrapping, with our code being ran right before program execution
 //  - At our entrypoint we spawn a new thread which then hooks the LoadLibraryExW win32 function, which is used by NGX library code to load in the NGX DLL
@@ -86,12 +82,20 @@ enum NVSDK_NGX_DLSS_Hint_Render_Preset
 bool forceDLAA = false;
 int overrideAutoExposure = 0;
 bool overrideAppId = false;
-bool overrideQualityRatios = false;
+bool overrideQualityLevels = false;
 unsigned int presetDLAA = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 unsigned int presetQuality = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 unsigned int presetBalanced = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 unsigned int presetPerformance = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 unsigned int presetUltraPerformance = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
+
+float qualityLevelRatios[] = {
+	0.5f, // NVSDK_NGX_PerfQuality_Value_MaxPerf
+	0.58f, // NVSDK_NGX_PerfQuality_Value_Balanced
+	0.66666667f, // NVSDK_NGX_PerfQuality_Value_MaxQuality
+	0.33333334f, // NVSDK_NGX_PerfQuality_Value_UltraPerformance
+	0.77f, // UNSURE: NVSDK_NGX_PerfQuality_Value_UltraQuality
+};
 
 const char* projectIdOverride = "24480451-f00d-face-1304-0308dabad187";
 const unsigned long long appIdOverride = 0x24480451;
@@ -246,14 +250,6 @@ void __cdecl NVSDK_NGX_Parameter_SetUI_Hook(void* InParameter, const char* InNam
 		NVSDK_NGX_Parameter_SetUI(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance, presetUltraPerformance);
 }
 
-float qualityLevelRatios[] = {
-	0.5f, // NVSDK_NGX_PerfQuality_Value_MaxPerf
-	0.58f, // NVSDK_NGX_PerfQuality_Value_Balanced
-	0.66666667f, // NVSDK_NGX_PerfQuality_Value_MaxQuality
-	0.33333334f, // NVSDK_NGX_PerfQuality_Value_UltraPerformance
-	0.77f, // UNSURE: NVSDK_NGX_PerfQuality_Value_UltraQuality
-};
-
 typedef uint64_t(__cdecl* NVSDK_NGX_Parameter_GetUI_Fn)(void* InParameter, const char* InName, unsigned int* OutValue);
 NVSDK_NGX_Parameter_GetUI_Fn NVSDK_NGX_Parameter_GetUI;
 uint64_t __cdecl NVSDK_NGX_Parameter_GetUI_Hook(void* InParameter, const char* InName, unsigned int* OutValue)
@@ -264,7 +260,7 @@ uint64_t __cdecl NVSDK_NGX_Parameter_GetUI_Hook(void* InParameter, const char* I
 	{
 		bool isOutWidth = !_stricmp(InName, NVSDK_NGX_Parameter_OutWidth);
 		bool isOutHeight = !_stricmp(InName, NVSDK_NGX_Parameter_OutHeight);
-		if (overrideQualityRatios)
+		if (overrideQualityLevels)
 		{
 			if (isOutWidth)
 			{
@@ -633,7 +629,7 @@ unsigned int GetPrivateProfileDlssPreset(const wchar_t* path, const wchar_t* app
 
 DWORD WINAPI HookThread(LPVOID lpParam)
 {
-	printf("DLSSTweaks v0.123.8, by emoose\n");
+	printf("DLSSTweaks v0.123.9, by emoose\n");
 	printf("https://github.com/emoose/DLSSTweaks\n");
 
 	WCHAR exePath[4096];
@@ -649,14 +645,14 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 	forceDLAA = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"ForceDLAA", forceDLAA);
 	overrideAutoExposure = GetPrivateProfileIntW(L"DLSS", L"OverrideAutoExposure", overrideAutoExposure, cfg_IniName);
 	overrideAppId = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"OverrideAppId", overrideAppId);
-	overrideQualityRatios = GetPrivateProfileBool(cfg_IniName, L"DLSSQualityRatios", L"Enable", overrideQualityRatios);
-	if (overrideQualityRatios)
+	overrideQualityLevels = GetPrivateProfileBool(cfg_IniName, L"DLSSQualityLevels", L"Enable", overrideQualityLevels);
+	if (overrideQualityLevels)
 	{
-		qualityLevelRatios[0] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityRatios", L"Performance", qualityLevelRatios[0]); // NVSDK_NGX_PerfQuality_Value_MaxPerf
-		qualityLevelRatios[1] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityRatios", L"Balanced", qualityLevelRatios[1]); // NVSDK_NGX_PerfQuality_Value_Balanced
-		qualityLevelRatios[2] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityRatios", L"Quality", qualityLevelRatios[2]); // NVSDK_NGX_PerfQuality_Value_MaxQuality
-		qualityLevelRatios[3] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityRatios", L"UltraPerformance", qualityLevelRatios[3]); // NVSDK_NGX_PerfQuality_Value_UltraPerformance
-		qualityLevelRatios[4] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityRatios", L"UltraQuality", qualityLevelRatios[4]); // NVSDK_NGX_PerfQuality_Value_UltraQuality
+		qualityLevelRatios[0] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityLevels", L"Performance", qualityLevelRatios[0]); // NVSDK_NGX_PerfQuality_Value_MaxPerf
+		qualityLevelRatios[1] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityLevels", L"Balanced", qualityLevelRatios[1]); // NVSDK_NGX_PerfQuality_Value_Balanced
+		qualityLevelRatios[2] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityLevels", L"Quality", qualityLevelRatios[2]); // NVSDK_NGX_PerfQuality_Value_MaxQuality
+		qualityLevelRatios[3] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityLevels", L"UltraPerformance", qualityLevelRatios[3]); // NVSDK_NGX_PerfQuality_Value_UltraPerformance
+		qualityLevelRatios[4] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityLevels", L"UltraQuality", qualityLevelRatios[4]); // NVSDK_NGX_PerfQuality_Value_UltraQuality
 	}
 	presetDLAA = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"DLAA");
 	presetQuality = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"Quality");
@@ -664,7 +660,7 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 	presetPerformance = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"Performance");
 	presetUltraPerformance = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"UltraPerformance");
 
-	dlog("\nDLSSTweaks v0.123.8, by emoose: DLL wrapper loaded, watching for DLSS library load...\n");
+	dlog("\nDLSSTweaks v0.123.9, by emoose: DLL wrapper loaded, watching for DLSS library load...\n");
 
 	MH_Initialize();
 	MH_CreateHookApiEx(L"kernel32", "LoadLibraryExW", LoadLibraryExW_Hook, (LPVOID*)&LoadLibraryExW_Orig, &LoadLibraryExW_Target);
@@ -672,6 +668,10 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 
 	return 0;
 }
+
+// proxy.cpp
+bool Proxy_Attach();
+void Proxy_Detach();
 
 HMODULE ourModule = 0;
 BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)
