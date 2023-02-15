@@ -33,6 +33,8 @@
 //   very strange though, seems devs can't change their preset at all once NV has forced one on them...
 
 std::filesystem::path LogPath;
+std::filesystem::path IniPath;
+
 bool DebugLog = true;
 void dlog(const char* Format, ...)
 {
@@ -79,6 +81,10 @@ enum NVSDK_NGX_DLSS_Hint_Render_Preset
 	NVSDK_NGX_DLSS_Hint_Render_Preset_F,
 };
 
+const wchar_t* LogFileName = L"dlsstweaks.log";
+const wchar_t* IniFileName = L"dlsstweaks.ini";
+
+bool watchIniUpdates = false;
 bool forceDLAA = false;
 int overrideAutoExposure = 0;
 bool overrideAppId = false;
@@ -627,21 +633,12 @@ unsigned int GetPrivateProfileDlssPreset(const wchar_t* path, const wchar_t* app
 	return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 }
 
-DWORD WINAPI HookThread(LPVOID lpParam)
+void INIReadSettings()
 {
-	printf("DLSSTweaks v0.123.9, by emoose\n");
-	printf("https://github.com/emoose/DLSSTweaks\n");
-
-	WCHAR exePath[4096];
-	GetModuleFileNameW(GetModuleHandleA(0), exePath, 4096);
-
-	LogPath = std::filesystem::path(exePath).parent_path() / "dlsstweaks.log";
-
-	std::filesystem::path iniPath = std::filesystem::path(exePath).parent_path() / "dlsstweaks.ini";
-	std::wstring iniPathStr = iniPath.wstring();
+	std::wstring iniPathStr = IniPath.wstring();
 	const wchar_t* cfg_IniName = iniPathStr.c_str();
-
 	DebugLog = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"DebugLog", DebugLog);
+	watchIniUpdates = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"WatchIniUpdates", watchIniUpdates);
 	forceDLAA = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"ForceDLAA", forceDLAA);
 	overrideAutoExposure = GetPrivateProfileIntW(L"DLSS", L"OverrideAutoExposure", overrideAutoExposure, cfg_IniName);
 	overrideAppId = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"OverrideAppId", overrideAppId);
@@ -659,12 +656,92 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 	presetBalanced = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"Balanced");
 	presetPerformance = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"Performance");
 	presetUltraPerformance = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"UltraPerformance");
+}
+
+DWORD WINAPI HookThread(LPVOID lpParam)
+{
+	printf("DLSSTweaks v0.123.9, by emoose\n");
+	printf("https://github.com/emoose/DLSSTweaks\n");
+
+	WCHAR exePath[4096];
+	GetModuleFileNameW(GetModuleHandleA(0), exePath, 4096);
+
+	LogPath = std::filesystem::path(exePath).parent_path() / LogFileName;
+	IniPath = std::filesystem::path(exePath).parent_path() / IniFileName;
+	INIReadSettings();
 
 	dlog("\nDLSSTweaks v0.123.9, by emoose: DLL wrapper loaded, watching for DLSS library load...\n");
 
 	MH_Initialize();
 	MH_CreateHookApiEx(L"kernel32", "LoadLibraryExW", LoadLibraryExW_Hook, (LPVOID*)&LoadLibraryExW_Orig, &LoadLibraryExW_Target);
 	MH_EnableHook(LoadLibraryExW_Target);
+
+	if (!watchIniUpdates)
+		return 0;
+
+	std::wstring iniFolder = IniPath.parent_path().wstring();
+	HANDLE file = CreateFile(iniFolder.c_str(),
+		FILE_LIST_DIRECTORY,
+		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		NULL,
+		OPEN_EXISTING,
+		FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
+		NULL);
+
+	if (!file)
+		return 0;
+
+	OVERLAPPED overlapped;
+	overlapped.hEvent = CreateEvent(NULL, FALSE, 0, NULL);
+	if (!overlapped.hEvent)
+		return 0;
+
+	uint8_t change_buf[1024];
+	BOOL success = ReadDirectoryChangesW(
+		file, change_buf, 1024, TRUE,
+		FILE_NOTIFY_CHANGE_FILE_NAME |
+		FILE_NOTIFY_CHANGE_DIR_NAME |
+		FILE_NOTIFY_CHANGE_LAST_WRITE,
+		NULL, &overlapped, NULL);
+
+	while (true)
+	{
+		DWORD result = WaitForSingleObject(overlapped.hEvent, INFINITE);
+
+		if (result == WAIT_OBJECT_0)
+		{
+			DWORD bytes_transferred;
+			GetOverlappedResult(file, &overlapped, &bytes_transferred, FALSE);
+
+			FILE_NOTIFY_INFORMATION* event = (FILE_NOTIFY_INFORMATION*)change_buf;
+
+			for (;;)
+			{
+				if (event->Action == FILE_ACTION_MODIFIED)
+				{
+					DWORD name_len = event->FileNameLength / sizeof(wchar_t);
+					// event->FileName isn't null-terminated, so construct wstring for it based on name_len
+					std::wstring name = std::wstring(event->FileName, name_len);
+					if (!_wcsicmp(name.c_str(), IniFileName))
+						INIReadSettings();
+				}
+
+				// Any more events to handle?
+				if (event->NextEntryOffset)
+					*((uint8_t**)&event) += event->NextEntryOffset;
+				else
+					break;
+			}
+
+			// Queue the next event
+			BOOL success = ReadDirectoryChangesW(
+				file, change_buf, 1024, TRUE,
+				FILE_NOTIFY_CHANGE_FILE_NAME |
+				FILE_NOTIFY_CHANGE_DIR_NAME |
+				FILE_NOTIFY_CHANGE_LAST_WRITE,
+				NULL, &overlapped, NULL);
+		}
+	}
 
 	return 0;
 }
