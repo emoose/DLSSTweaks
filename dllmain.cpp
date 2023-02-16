@@ -1,11 +1,4 @@
 #include "stdafx.h"
-#include <stdio.h>
-#include <string>
-#include <psapi.h>
-#include "MinHook/MinHook.h"
-#include <filesystem>
-#include <fstream>
-#include <mutex>
 
 // Method of operation:
 // - Our DLL gets loaded in via DLL wrapping, with our code being ran right before program execution
@@ -32,58 +25,13 @@
 //   was able to workaround that with the NGX_XXX_Init hooks below, not fully sure whether override will work across all 3 types though (_Init, _Init_Ext, _Init_ProjectId...)
 //   very strange though, seems devs can't change their preset at all once NV has forced one on them...
 
+const wchar_t* LogFileName = L"dlsstweaks.log";
+const wchar_t* IniFileName = L"dlsstweaks.ini";
+
 std::filesystem::path LogPath;
 std::filesystem::path IniPath;
 
 bool DebugLog = true;
-void dlog(const char* Format, ...)
-{
-	if (!DebugLog)
-		return;
-
-	char str[4096] = { 0 };
-	va_list ap;
-	va_start(ap, Format);
-
-	vsnprintf(str, 4096, Format, ap);
-	va_end(ap);
-
-	std::ofstream file;
-	file.open(LogPath, std::ofstream::out | std::ofstream::app);
-	if (!file.is_open())
-		return;
-
-	file << str;
-
-	file.close();
-}
-
-#define NVSDK_NGX_Parameter_Width "Width"
-#define NVSDK_NGX_Parameter_Height "Height"
-#define NVSDK_NGX_Parameter_OutWidth "OutWidth"
-#define NVSDK_NGX_Parameter_OutHeight "OutHeight"
-#define NVSDK_NGX_Parameter_PerfQualityValue "PerfQualityValue"
-#define NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags "DLSS.Feature.Create.Flags"
-#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA "DLSS.Hint.Render.Preset.DLAA"
-#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality "DLSS.Hint.Render.Preset.Quality"
-#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced "DLSS.Hint.Render.Preset.Balanced"
-#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance "DLSS.Hint.Render.Preset.Performance"
-#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance "DLSS.Hint.Render.Preset.UltraPerformance"
-
-enum NVSDK_NGX_DLSS_Hint_Render_Preset
-{
-	NVSDK_NGX_DLSS_Hint_Render_Preset_Default,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_A,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_B,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_C,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_D,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_E,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_F,
-};
-
-const wchar_t* LogFileName = L"dlsstweaks.log";
-const wchar_t* IniFileName = L"dlsstweaks.ini";
-
 bool watchIniUpdates = false;
 bool forceDLAA = false;
 int overrideAutoExposure = 0;
@@ -338,7 +286,7 @@ void* NVSDK_NGX_VULKAN_GetParameters_Target = nullptr;
 
 std::mutex paramHookMutex;
 bool isParamFuncsHooked = false;
-bool DLSSApplyParamFunctionHooks(NVSDK_NGX_Parameter_vftable* vftable)
+bool DLSS_HookParamFunctions(NVSDK_NGX_Parameter_vftable* vftable)
 {
 	std::lock_guard<std::mutex> lock(paramHookMutex);
 
@@ -387,7 +335,7 @@ uint64_t __cdecl NVSDK_NGX_D3D12_AllocateParameters_Hook(NVSDK_NGX_Parameter** O
 {
 	uint64_t ret = NVSDK_NGX_D3D12_AllocateParameters(OutParameters);
 	if (*OutParameters)
-		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+		DLSS_HookParamFunctions((*OutParameters)->_vftable);
 	return ret;
 }
 NVSDK_NGX_D3D_AllocateParameters_Fn NVSDK_NGX_D3D12_GetCapabilityParameters;
@@ -395,7 +343,7 @@ uint64_t __cdecl NVSDK_NGX_D3D12_GetCapabilityParameters_Hook(NVSDK_NGX_Paramete
 {
 	uint64_t ret = NVSDK_NGX_D3D12_GetCapabilityParameters(OutParameters);
 	if (*OutParameters)
-		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+		DLSS_HookParamFunctions((*OutParameters)->_vftable);
 	return ret;
 }
 NVSDK_NGX_D3D_AllocateParameters_Fn NVSDK_NGX_D3D12_GetParameters;
@@ -403,7 +351,7 @@ uint64_t __cdecl NVSDK_NGX_D3D12_GetParameters_Hook(NVSDK_NGX_Parameter** OutPar
 {
 	uint64_t ret = NVSDK_NGX_D3D12_GetParameters(OutParameters);
 	if (*OutParameters)
-		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+		DLSS_HookParamFunctions((*OutParameters)->_vftable);
 	return ret;
 }
 
@@ -412,7 +360,7 @@ uint64_t __cdecl NVSDK_NGX_D3D11_AllocateParameters_Hook(NVSDK_NGX_Parameter** O
 {
 	uint64_t ret = NVSDK_NGX_D3D11_AllocateParameters(OutParameters);
 	if (*OutParameters)
-		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+		DLSS_HookParamFunctions((*OutParameters)->_vftable);
 	return ret;
 }
 NVSDK_NGX_D3D_AllocateParameters_Fn NVSDK_NGX_D3D11_GetCapabilityParameters;
@@ -420,7 +368,7 @@ uint64_t __cdecl NVSDK_NGX_D3D11_GetCapabilityParameters_Hook(NVSDK_NGX_Paramete
 {
 	uint64_t ret = NVSDK_NGX_D3D11_GetCapabilityParameters(OutParameters);
 	if (*OutParameters)
-		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+		DLSS_HookParamFunctions((*OutParameters)->_vftable);
 	return ret;
 }
 NVSDK_NGX_D3D_AllocateParameters_Fn NVSDK_NGX_D3D11_GetParameters;
@@ -428,7 +376,7 @@ uint64_t __cdecl NVSDK_NGX_D3D11_GetParameters_Hook(NVSDK_NGX_Parameter** OutPar
 {
 	uint64_t ret = NVSDK_NGX_D3D11_GetParameters(OutParameters);
 	if (*OutParameters)
-		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+		DLSS_HookParamFunctions((*OutParameters)->_vftable);
 	return ret;
 }
 
@@ -437,7 +385,7 @@ uint64_t __cdecl NVSDK_NGX_VULKAN_AllocateParameters_Hook(NVSDK_NGX_Parameter** 
 {
 	uint64_t ret = NVSDK_NGX_VULKAN_AllocateParameters(OutParameters);
 	if (*OutParameters)
-		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+		DLSS_HookParamFunctions((*OutParameters)->_vftable);
 	return ret;
 }
 NVSDK_NGX_D3D_AllocateParameters_Fn NVSDK_NGX_VULKAN_GetCapabilityParameters;
@@ -445,7 +393,7 @@ uint64_t __cdecl NVSDK_NGX_VULKAN_GetCapabilityParameters_Hook(NVSDK_NGX_Paramet
 {
 	uint64_t ret = NVSDK_NGX_VULKAN_GetCapabilityParameters(OutParameters);
 	if (*OutParameters)
-		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+		DLSS_HookParamFunctions((*OutParameters)->_vftable);
 	return ret;
 }
 NVSDK_NGX_D3D_AllocateParameters_Fn NVSDK_NGX_VULKAN_GetParameters;
@@ -453,24 +401,25 @@ uint64_t __cdecl NVSDK_NGX_VULKAN_GetParameters_Hook(NVSDK_NGX_Parameter** OutPa
 {
 	uint64_t ret = NVSDK_NGX_VULKAN_GetParameters(OutParameters);
 	if (*OutParameters)
-		DLSSApplyParamFunctionHooks((*OutParameters)->_vftable);
+		DLSS_HookParamFunctions((*OutParameters)->_vftable);
 	return ret;
 }
 
-void* LoadLibraryExW_Target = nullptr;
-
-std::mutex scanMutex;
-bool isNgxInitHooked = false;
-bool ScanForDLSSFunctions()
+std::mutex hookMutex;
+bool isNgxHookAttempted = false;
+bool isNgxDlssHookAttemped = false;
+bool DLSS_HookNGX()
 {
-	std::lock_guard<std::mutex> lock(scanMutex);
+	std::lock_guard<std::mutex> lock(hookMutex);
 
-	if (isNgxInitHooked)
-		return isNgxInitHooked;
+	if (isNgxHookAttempted)
+		return isNgxHookAttempted;
 
 	HMODULE ngx_module = GetModuleHandleA("_nvngx.dll");
 	if (!ngx_module)
-		return isNgxInitHooked;
+		return isNgxHookAttempted;
+
+	isNgxHookAttempted = true;
 
 	auto* NVSDK_NGX_D3D11_Init_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_Init");
 	auto* NVSDK_NGX_D3D11_Init_Ext_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_Init_Ext");
@@ -551,38 +500,20 @@ bool ScanForDLSSFunctions()
 		MH_EnableHook(NVSDK_NGX_VULKAN_GetParameters_Target);
 
 		dlog("Applied _nvngx.dll DLL export hooks, waiting for game to call them...\n");
-
-		isNgxInitHooked = true;
 	}
 	else
 	{
 		dlog("Failed to locate all _nvngx.dll functions, may have been changed by driver update :/\n");
 	}
 
-	// _nvngx.dll was found & hook attempted, disable LoadLibraryExW hook now
-	MH_DisableHook(LoadLibraryExW_Target);
-
-	return isNgxInitHooked;
-}
-
-// Hook LoadLibraryExW so we can scan it for the DLSS funcs immediately after the module is loaded in
-HMODULE(__stdcall* LoadLibraryExW_Orig)(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
-HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
-{
-	HMODULE ret = LoadLibraryExW_Orig(lpLibFileName, hFile, dwFlags);
-
-	ScanForDLSSFunctions();
-
-	return ret;
+	return isNgxHookAttempted;
 }
 
 // Allow force enabling/disabling the DLSS debug display via RegQueryValueExW hook
-// TODO: make this only hook the nvngx_dlss.dll IAT instead of whole program (if that's possible?)
 // TODO: DLSS only seems to check this once at startup, so changes to OverrideDlssHud during runtime won't have any effect
 //   Would be nicer to actually hook the DLSS code that draws the HUD & checks against its cached ShowDlssIndicator value
 //   Good chance that code might change depending on DLSS version though, so might not be as compatible as this RegQueryValueExW hook...
 LSTATUS(__stdcall* RegQueryValueExW_Orig)(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData);
-void* RegQueryValueExW_Target = nullptr;
 LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
 {
 	LSTATUS ret = RegQueryValueExW_Orig(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
@@ -602,62 +533,53 @@ LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD 
 	return ret;
 }
 
-bool GetPrivateProfileBool(const wchar_t* path, const wchar_t* app, const wchar_t* key, bool default_val)
+bool DLSS_HookNGXDLSS()
 {
-	WCHAR val[256];
-	const wchar_t* default_val_str = default_val ? L"true" : L"false";
-	GetPrivateProfileStringW(app, key, default_val_str, val, 256, path);
+	std::lock_guard<std::mutex> lock(hookMutex);
 
-	if (!_wcsicmp(val, L"true"))
-		return true;
-	if (!_wcsicmp(val, L"yes"))
-		return true;
-	if (!_wcsicmp(val, L"1"))
-		return true;
+	if (isNgxDlssHookAttemped)
+		return isNgxDlssHookAttemped;
 
-	return false;
+	HMODULE ngx_module = GetModuleHandleA("nvngx_dlss.dll");
+	if (!ngx_module)
+		return isNgxDlssHookAttemped;
+
+	isNgxDlssHookAttemped = true;
+
+	// Hook RegQueryValueExW so we can override the ShowDlssIndicator value
+	HMODULE advapi = GetModuleHandleA("advapi32.dll");
+	if (advapi)
+	{
+		RegQueryValueExW_Orig = (decltype(RegQueryValueExW_Orig))GetProcAddress(advapi, "RegQueryValueExW");
+		if (RegQueryValueExW_Orig)
+			HookIAT(ngx_module, "advapi32.dll", RegQueryValueExW_Orig, RegQueryValueExW_Hook);
+	}
+
+	return true;
 }
 
-float GetPrivateProfileFloat(const wchar_t* path, const wchar_t* app, const wchar_t* key, float default_val)
+// Hook LoadLibraryExW so we can scan it for the DLSS funcs immediately after the module is loaded in
+HMODULE(__stdcall* LoadLibraryExW_Orig)(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
+void* LoadLibraryExW_Target = nullptr;
+HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
-	WCHAR val[256];
-	const wchar_t* default_val_str = default_val ? L"true" : L"false";
-	GetPrivateProfileStringW(app, key, default_val_str, val, 256, path);
+	HMODULE ret = LoadLibraryExW_Orig(lpLibFileName, hFile, dwFlags);
 
-	float ret = default_val;
-	try
+	DLSS_HookNGX();
+	DLSS_HookNGXDLSS();
+
+	if (isNgxDlssHookAttemped && isNgxHookAttempted)
 	{
-		ret = std::stof(val);
+		// we've looked at both nvngx & nvngx_dlss, no need for the LoadLibraryExW hook anymore
+		std::lock_guard<std::mutex> lock(hookMutex);
+		if (LoadLibraryExW_Target)
+		{
+			MH_DisableHook(LoadLibraryExW_Target);
+			LoadLibraryExW_Target = nullptr;
+		}
 	}
-	catch (const std::exception&)
-	{
-		ret = default_val;
-	}
+
 	return ret;
-}
-
-unsigned int GetPrivateProfileDlssPreset(const wchar_t* path, const wchar_t* app, const wchar_t* key)
-{
-	WCHAR val[256];
-	const wchar_t* default_val = L"Default";
-	GetPrivateProfileStringW(app, key, default_val, val, 256, path);
-
-	if (!_wcsicmp(val, default_val))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
-	if (!_wcsicmp(val, L"A"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_A;
-	if (!_wcsicmp(val, L"B"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_B;
-	if (!_wcsicmp(val, L"C"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_C;
-	if (!_wcsicmp(val, L"D"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_D;
-	if (!_wcsicmp(val, L"E"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_E;
-	if (!_wcsicmp(val, L"F"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_F;
-
-	return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 }
 
 void INIReadSettings()
@@ -702,8 +624,6 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 
 	MH_Initialize();
 	MH_CreateHookApiEx(L"kernel32", "LoadLibraryExW", LoadLibraryExW_Hook, (LPVOID*)&LoadLibraryExW_Orig, &LoadLibraryExW_Target);
-	MH_CreateHookApiEx(L"advapi32", "RegQueryValueExW", RegQueryValueExW_Hook, (LPVOID*)&RegQueryValueExW_Orig, &RegQueryValueExW_Target);
-	MH_EnableHook(RegQueryValueExW_Target);
 	MH_EnableHook(LoadLibraryExW_Target);
 
 	if (!watchIniUpdates)
@@ -724,7 +644,10 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 	OVERLAPPED overlapped;
 	overlapped.hEvent = CreateEvent(NULL, FALSE, 0, NULL);
 	if (!overlapped.hEvent)
+	{
+		CloseHandle(file);
 		return 0;
+	}
 
 	uint8_t change_buf[1024];
 	BOOL success = ReadDirectoryChangesW(
@@ -734,7 +657,7 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 		FILE_NOTIFY_CHANGE_LAST_WRITE,
 		NULL, &overlapped, NULL);
 
-	while (true)
+	while (success)
 	{
 		DWORD result = WaitForSingleObject(overlapped.hEvent, INFINITE);
 
@@ -764,7 +687,7 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 			}
 
 			// Queue the next event
-			BOOL success = ReadDirectoryChangesW(
+			success = ReadDirectoryChangesW(
 				file, change_buf, 1024, TRUE,
 				FILE_NOTIFY_CHANGE_FILE_NAME |
 				FILE_NOTIFY_CHANGE_DIR_NAME |
@@ -773,12 +696,9 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 		}
 	}
 
+	CloseHandle(file);
 	return 0;
 }
-
-// proxy.cpp
-bool Proxy_Attach();
-void Proxy_Detach();
 
 HMODULE ourModule = 0;
 BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)

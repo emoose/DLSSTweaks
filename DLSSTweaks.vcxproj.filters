@@ -19,6 +19,7 @@
     <ClCompile Include="MinHook\trampoline.c">
       <Filter>MinHook</Filter>
     </ClCompile>
+    <ClCompile Include="utility.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
