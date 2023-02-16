@@ -87,6 +87,7 @@ const wchar_t* IniFileName = L"dlsstweaks.ini";
 bool watchIniUpdates = false;
 bool forceDLAA = false;
 int overrideAutoExposure = 0;
+int overrideDlssHud = 0;
 bool overrideAppId = false;
 bool overrideQualityLevels = false;
 unsigned int presetDLAA = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
@@ -575,6 +576,32 @@ HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD
 	return ret;
 }
 
+// Allow force enabling/disabling the DLSS debug display via RegQueryValueExW hook
+// TODO: make this only hook the nvngx_dlss.dll IAT instead of whole program (if that's possible?)
+// TODO: DLSS only seems to check this once at startup, so changes to OverrideDlssHud during runtime won't have any effect
+//   Would be nicer to actually hook the DLSS code that draws the HUD & checks against its cached ShowDlssIndicator value
+//   Good chance that code might change depending on DLSS version though, so might not be as compatible as this RegQueryValueExW hook...
+LSTATUS(__stdcall* RegQueryValueExW_Orig)(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData);
+void* RegQueryValueExW_Target = nullptr;
+LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
+{
+	LSTATUS ret = RegQueryValueExW_Orig(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
+	if (overrideDlssHud != 0 && !_wcsicmp(lpValueName, L"ShowDlssIndicator"))
+		if (lpcbData && *lpcbData >= 4 && lpData)
+		{
+			DWORD* outData = (DWORD*)lpData;
+			if (overrideDlssHud >= 1)
+			{
+				*outData = 0x400;
+				return ERROR_SUCCESS; // always return success for DLSS to accept the result
+			}
+			else if (overrideDlssHud < 0)
+				*outData = 0;
+		}
+
+	return ret;
+}
+
 bool GetPrivateProfileBool(const wchar_t* path, const wchar_t* app, const wchar_t* key, bool default_val)
 {
 	WCHAR val[256];
@@ -641,6 +668,7 @@ void INIReadSettings()
 	watchIniUpdates = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"WatchIniUpdates", watchIniUpdates);
 	forceDLAA = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"ForceDLAA", forceDLAA);
 	overrideAutoExposure = GetPrivateProfileIntW(L"DLSS", L"OverrideAutoExposure", overrideAutoExposure, cfg_IniName);
+	overrideDlssHud = GetPrivateProfileIntW(L"DLSS", L"OverrideDlssHud", overrideDlssHud, cfg_IniName);
 	overrideAppId = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"OverrideAppId", overrideAppId);
 	overrideQualityLevels = GetPrivateProfileBool(cfg_IniName, L"DLSSQualityLevels", L"Enable", overrideQualityLevels);
 	if (overrideQualityLevels)
@@ -674,6 +702,8 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 
 	MH_Initialize();
 	MH_CreateHookApiEx(L"kernel32", "LoadLibraryExW", LoadLibraryExW_Hook, (LPVOID*)&LoadLibraryExW_Orig, &LoadLibraryExW_Target);
+	MH_CreateHookApiEx(L"advapi32", "RegQueryValueExW", RegQueryValueExW_Hook, (LPVOID*)&RegQueryValueExW_Orig, &RegQueryValueExW_Target);
+	MH_EnableHook(RegQueryValueExW_Target);
 	MH_EnableHook(LoadLibraryExW_Target);
 
 	if (!watchIniUpdates)
