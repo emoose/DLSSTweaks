@@ -13,6 +13,7 @@
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <SafetyHook.hpp>
+#include <Patterns.h>
 
 #include "Utility.hpp"
 #include "Proxy.hpp"
@@ -474,9 +475,7 @@ bool DLSS_HookNGX()
 }
 
 // Allow force enabling/disabling the DLSS debug display via RegQueryValueExW hook
-// TODO: DLSS only seems to check this once at startup, so changes to OverrideDlssHud during runtime won't have any effect
-//   Would be nicer to actually hook the DLSS code that draws the HUD & checks against its cached ShowDlssIndicator value
-//   Good chance that code might change depending on DLSS version though, so might not be as compatible as this RegQueryValueExW hook...
+// (fallback method if we couldn't find the indicator value check pattern in the DLL)
 LSTATUS(__stdcall* RegQueryValueExW_Orig)(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData);
 LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
 {
@@ -497,6 +496,8 @@ LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD 
 	return ret;
 }
 
+SafetyHookMid dlssIndicatorHudHook{};
+
 bool DLSS_HookNGXDLSS()
 {
 	std::lock_guard<std::mutex> lock(hookMutex);
@@ -510,11 +511,27 @@ bool DLSS_HookNGXDLSS()
 
 	isNgxDlssHookAttemped = true;
 
-	// Hook RegQueryValueExW so we can override the ShowDlssIndicator value
-	HMODULE advapi = GetModuleHandleA("advapi32.dll");
-	RegQueryValueExW_Orig = advapi ? (decltype(RegQueryValueExW_Orig))GetProcAddress(advapi, "RegQueryValueExW") : nullptr;
-	if (RegQueryValueExW_Orig)
-		utility::HookIAT(ngx_module, "advapi32.dll", RegQueryValueExW_Orig, RegQueryValueExW_Hook);
+	auto indicatorValueCheck = hook::pattern((void*)ngx_module, "75 ? 8B 83 10 01 00 00 89");
+	if (indicatorValueCheck.size())
+	{
+		auto builder = SafetyHookFactory::acquire();
+
+		dlssIndicatorHudHook = builder.create_mid(indicatorValueCheck.count(1).get_first(2), [](safetyhook::Context& ctx)
+			{
+				if (overrideDlssHud == 0)
+					return;
+				*(uint32_t*)(ctx.rbx + 0x110) = overrideDlssHud > 0 ? 0x400 : 0;
+			});
+	}
+	else
+	{
+		// Failed to locate indicator value check inside DLSS
+		// Fallback to RegQueryValueExW hook so we can override the ShowDlssIndicator value
+		HMODULE advapi = GetModuleHandleA("advapi32.dll");
+		RegQueryValueExW_Orig = advapi ? (decltype(RegQueryValueExW_Orig))GetProcAddress(advapi, "RegQueryValueExW") : nullptr;
+		if (RegQueryValueExW_Orig)
+			utility::HookIAT(ngx_module, "advapi32.dll", RegQueryValueExW_Orig, RegQueryValueExW_Hook);
+	}
 
 	return isNgxDlssHookAttemped;
 }

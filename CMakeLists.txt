@@ -97,9 +97,11 @@ set(dlsstweaks_SOURCES
 	"src/Utility.cpp"
 	"src/Proxy.def"
 	"src/Resource.rc"
+	"external/ModUtils/Patterns.cpp"
 	"src/Proxy.hpp"
 	"src/Utility.hpp"
 	"src/resource.h"
+	"external/ModUtils/Patterns.h"
 	cmake.toml
 )
 
@@ -126,6 +128,7 @@ target_include_directories(dlsstweaks PUBLIC
 	"shared/"
 	"src/"
 	"include/"
+	"external/ModUtils/"
 )
 
 target_link_libraries(dlsstweaks PUBLIC
