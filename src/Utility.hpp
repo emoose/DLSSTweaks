@@ -1,20 +1,12 @@
 #pragma once
 
-#include <SDKDDKVer.h>
-
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
-#include <Shlobj.h>
-
-#include <cstdint>
-#include <stdio.h>
-#include <string>
-#include <psapi.h>
-#include "MinHook/MinHook.h"
-#include <filesystem>
-#include <fstream>
-#include <mutex>
+namespace utility
+{
+BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction);
+bool GetPrivateProfileBool(const wchar_t* path, const wchar_t* app, const wchar_t* key, bool default_val);
+float GetPrivateProfileFloat(const wchar_t* path, const wchar_t* app, const wchar_t* key, float default_val);
+unsigned int GetPrivateProfileDlssPreset(const wchar_t* path, const wchar_t* app, const wchar_t* key);
+};
 
 #define NVSDK_NGX_Parameter_Width "Width"
 #define NVSDK_NGX_Parameter_Height "Height"
@@ -38,14 +30,3 @@ enum NVSDK_NGX_DLSS_Hint_Render_Preset
 	NVSDK_NGX_DLSS_Hint_Render_Preset_E,
 	NVSDK_NGX_DLSS_Hint_Render_Preset_F,
 };
-
-// proxy.cpp
-bool Proxy_Attach();
-void Proxy_Detach();
-
-// utility.cpp
-BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction);
-bool GetPrivateProfileBool(const wchar_t* path, const wchar_t* app, const wchar_t* key, bool default_val);
-float GetPrivateProfileFloat(const wchar_t* path, const wchar_t* app, const wchar_t* key, float default_val);
-unsigned int GetPrivateProfileDlssPreset(const wchar_t* path, const wchar_t* app, const wchar_t* key);
-void dlog(const char* Format, ...);

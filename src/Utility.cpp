@@ -1,4 +1,13 @@
-#include "stdafx.h"
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <cstdint>
+#include <string>
+#include <fstream>
+#include <filesystem>
+#include "Utility.hpp"
+
+namespace utility
+{
 
 BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction)
 {
@@ -97,27 +106,4 @@ unsigned int GetPrivateProfileDlssPreset(const wchar_t* path, const wchar_t* app
 	return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 }
 
-void dlog(const char* Format, ...)
-{
-	extern bool DebugLog;
-	extern std::filesystem::path LogPath;
-
-	if (!DebugLog)
-		return;
-
-	char str[4096] = { 0 };
-	va_list ap;
-	va_start(ap, Format);
-
-	vsnprintf(str, 4096, Format, ap);
-	va_end(ap);
-
-	std::ofstream file;
-	file.open(LogPath, std::ofstream::out | std::ofstream::app);
-	if (!file.is_open())
-		return;
-
-	file << str;
-
-	file.close();
-}
+};
