@@ -516,7 +516,7 @@ bool DLSS_HookNGXDLSS()
 	isNgxDlssHookAttemped = true;
 
 	auto indicatorValueCheck = hook::pattern((void*)ngx_module, "75 ? 8B 83 10 01 00 00 89");
-	if (indicatorValueCheck.size())
+	if (watchIniUpdates && indicatorValueCheck.size())
 	{
 		auto builder = SafetyHookFactory::acquire();
 
