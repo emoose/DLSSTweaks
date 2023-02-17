@@ -67,8 +67,8 @@ bool GetPrivateProfileBool(const wchar_t* path, const wchar_t* app, const wchar_
 float GetPrivateProfileFloat(const wchar_t* path, const wchar_t* app, const wchar_t* key, float default_val)
 {
 	WCHAR val[256];
-	const wchar_t* default_val_str = default_val ? L"true" : L"false";
-	GetPrivateProfileStringW(app, key, default_val_str, val, 256, path);
+	auto default_val_str = std::to_wstring(default_val);
+	GetPrivateProfileStringW(app, key, default_val_str.c_str(), val, 256, path);
 
 	float ret = default_val;
 	try
