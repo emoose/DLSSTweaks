@@ -14,6 +14,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <SafetyHook.hpp>
 #include <Patterns.h>
+#include <ini.h>
 
 #include "Utility.hpp"
 #include "Proxy.hpp"
@@ -559,32 +560,64 @@ HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD
 	return ret;
 }
 
-void INIReadSettings()
+unsigned int DLSS_ReadPresetFromIni(inih::INIReader& ini, const std::string& section, const std::string& key)
+{
+	std::string default_val = "Default";
+	std::string val = ini.Get<std::string>(section, key, std::move(default_val));
+
+	if (!stricmp(val.c_str(), default_val.c_str()))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
+	if (!stricmp(val.c_str(), "A"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_A;
+	if (!stricmp(val.c_str(), "B"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_B;
+	if (!stricmp(val.c_str(), "C"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_C;
+	if (!stricmp(val.c_str(), "D"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_D;
+	if (!stricmp(val.c_str(), "E"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_E;
+	if (!stricmp(val.c_str(), "F"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_F;
+
+	return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
+}
+
+bool INIReadSettings()
 {
 	using namespace utility;
 
 	std::wstring iniPathStr = IniPath.wstring();
-	const wchar_t* cfg_IniName = iniPathStr.c_str();
-	watchIniUpdates = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"WatchIniUpdates", watchIniUpdates);
-	forceDLAA = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"ForceDLAA", forceDLAA);
-	overrideAutoExposure = GetPrivateProfileIntW(L"DLSS", L"OverrideAutoExposure", overrideAutoExposure, cfg_IniName);
-	overrideDlssHud = GetPrivateProfileIntW(L"DLSS", L"OverrideDlssHud", overrideDlssHud, cfg_IniName);
-	disableDevWatermark = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"DisableDevWatermark", disableDevWatermark);
-	overrideAppId = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"OverrideAppId", overrideAppId);
-	overrideQualityLevels = GetPrivateProfileBool(cfg_IniName, L"DLSSQualityLevels", L"Enable", overrideQualityLevels);
+
+	FILE* iniFile;
+	if (_wfopen_s(&iniFile, iniPathStr.c_str(), L"r") != 0 || !iniFile)
+		return false;
+
+	inih::INIReader ini(iniFile);
+	fclose(iniFile);
+
+	watchIniUpdates = ini.Get<bool>("DLSS", "WatchIniUpdates", std::move(watchIniUpdates));
+	forceDLAA = ini.Get<bool>("DLSS", "ForceDLAA", std::move(forceDLAA));
+	overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(overrideAutoExposure));
+	overrideDlssHud = ini.Get<int>("DLSS", "OverrideDlssHud", std::move(overrideDlssHud));
+	disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(disableDevWatermark));
+	overrideAppId = ini.Get<bool>("DLSS", "OverrideAppId", std::move(overrideAppId));
+	overrideQualityLevels = ini.Get<bool>("DLSSQualityLevels", "Enable", std::move(overrideQualityLevels));
 	if (overrideQualityLevels)
 	{
-		qualityLevelRatios[0] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityLevels", L"Performance", qualityLevelRatios[0]); // NVSDK_NGX_PerfQuality_Value_MaxPerf
-		qualityLevelRatios[1] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityLevels", L"Balanced", qualityLevelRatios[1]); // NVSDK_NGX_PerfQuality_Value_Balanced
-		qualityLevelRatios[2] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityLevels", L"Quality", qualityLevelRatios[2]); // NVSDK_NGX_PerfQuality_Value_MaxQuality
-		qualityLevelRatios[3] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityLevels", L"UltraPerformance", qualityLevelRatios[3]); // NVSDK_NGX_PerfQuality_Value_UltraPerformance
-		qualityLevelRatios[4] = GetPrivateProfileFloat(cfg_IniName, L"DLSSQualityLevels", L"UltraQuality", qualityLevelRatios[4]); // NVSDK_NGX_PerfQuality_Value_UltraQuality
+		qualityLevelRatios[0] = ini.Get<float>("DLSSQualityLevels", "Performance", std::move(qualityLevelRatios[0])); // NVSDK_NGX_PerfQuality_Value_MaxPerf
+		qualityLevelRatios[1] = ini.Get<float>("DLSSQualityLevels", "Balanced", std::move(qualityLevelRatios[1])); // NVSDK_NGX_PerfQuality_Value_Balanced
+		qualityLevelRatios[2] = ini.Get<float>("DLSSQualityLevels", "Quality", std::move(qualityLevelRatios[2])); // NVSDK_NGX_PerfQuality_Value_MaxQuality
+		qualityLevelRatios[3] = ini.Get<float>("DLSSQualityLevels", "UltraPerformance", std::move(qualityLevelRatios[3])); // NVSDK_NGX_PerfQuality_Value_UltraPerformance
+		qualityLevelRatios[4] = ini.Get<float>("DLSSQualityLevels", "UltraQuality", std::move(qualityLevelRatios[4])); // NVSDK_NGX_PerfQuality_Value_UltraQuality
 	}
-	presetDLAA = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"DLAA");
-	presetQuality = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"Quality");
-	presetBalanced = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"Balanced");
-	presetPerformance = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"Performance");
-	presetUltraPerformance = GetPrivateProfileDlssPreset(cfg_IniName, L"DLSSPresets", L"UltraPerformance");
+	presetDLAA = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "DLAA");
+	presetQuality = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Quality");
+	presetBalanced = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Balanced");
+	presetPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Performance");
+	presetUltraPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "UltraPerformance");
+
+	return true;
 }
 
 DWORD WINAPI HookThread(LPVOID lpParam)
@@ -626,7 +659,7 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 	std::wstring iniFolder = IniPath.parent_path().wstring();
 	HANDLE file = CreateFileW(iniFolder.c_str(),
 		FILE_LIST_DIRECTORY,
-		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		FILE_SHARE_WRITE | FILE_SHARE_READ | FILE_SHARE_DELETE,
 		NULL,
 		OPEN_EXISTING,
 		FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
@@ -670,7 +703,17 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 					// event->FileName isn't null-terminated, so construct wstring for it based on name_len
 					std::wstring name = std::wstring(event->FileName, name_len);
 					if (!_wcsicmp(name.c_str(), IniFileName))
-						INIReadSettings();
+					{
+						// INI read might fail if it's still being updated by a text editor etc
+						// so try attempting a few times, Sleep(1000) between attempts should hopefully let us read it fine
+						int attempts = 3;
+						while (attempts--)
+						{
+							if (INIReadSettings())
+								break;
+							Sleep(1000);
+						}
+					}
 				}
 
 				// Any more events to handle?

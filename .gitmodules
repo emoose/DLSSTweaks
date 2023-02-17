@@ -5,3 +5,6 @@
 	path = external/ModUtils
 	url = https://github.com/CookiePLMonster/ModUtils
 
+[submodule "external/ini-cpp"]
+	path = external/ini-cpp
+	url = https://github.com/SSARCandy/ini-cpp

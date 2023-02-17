@@ -3,9 +3,6 @@
 namespace utility
 {
 BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction);
-bool GetPrivateProfileBool(const wchar_t* path, const wchar_t* app, const wchar_t* key, bool default_val);
-float GetPrivateProfileFloat(const wchar_t* path, const wchar_t* app, const wchar_t* key, float default_val);
-unsigned int GetPrivateProfileDlssPreset(const wchar_t* path, const wchar_t* app, const wchar_t* key);
 };
 
 #define NVSDK_NGX_Parameter_Width "Width"
