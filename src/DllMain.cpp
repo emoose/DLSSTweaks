@@ -28,6 +28,7 @@ bool watchIniUpdates = false;
 bool forceDLAA = false;
 int overrideAutoExposure = 0;
 int overrideDlssHud = 0;
+bool disableDevWatermark = false;
 bool overrideAppId = false;
 bool overrideQualityLevels = false;
 unsigned int presetDLAA = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
@@ -185,6 +186,8 @@ void __cdecl NVSDK_NGX_Parameter_SetUI_Hook(void* InParameter, const char* InNam
 		NVSDK_NGX_Parameter_SetUI->call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance, presetPerformance);
 	if (presetUltraPerformance != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
 		NVSDK_NGX_Parameter_SetUI->call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance, presetUltraPerformance);
+
+	NVSDK_NGX_Parameter_SetUI->call(InParameter, NVSDK_NGX_Parameter_Disable_Watermark, disableDevWatermark ? 1 : 0);
 }
 
 SafetyHookInline NVSDK_NGX_Parameter_GetUI;
@@ -566,6 +569,7 @@ void INIReadSettings()
 	forceDLAA = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"ForceDLAA", forceDLAA);
 	overrideAutoExposure = GetPrivateProfileIntW(L"DLSS", L"OverrideAutoExposure", overrideAutoExposure, cfg_IniName);
 	overrideDlssHud = GetPrivateProfileIntW(L"DLSS", L"OverrideDlssHud", overrideDlssHud, cfg_IniName);
+	disableDevWatermark = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"DisableDevWatermark", disableDevWatermark);
 	overrideAppId = GetPrivateProfileBool(cfg_IniName, L"DLSS", L"OverrideAppId", overrideAppId);
 	overrideQualityLevels = GetPrivateProfileBool(cfg_IniName, L"DLSSQualityLevels", L"Enable", overrideQualityLevels);
 	if (overrideQualityLevels)

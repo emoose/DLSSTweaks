@@ -19,6 +19,7 @@ unsigned int GetPrivateProfileDlssPreset(const wchar_t* path, const wchar_t* app
 #define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced "DLSS.Hint.Render.Preset.Balanced"
 #define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance "DLSS.Hint.Render.Preset.Performance"
 #define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance "DLSS.Hint.Render.Preset.UltraPerformance"
+#define NVSDK_NGX_Parameter_Disable_Watermark "Disable.Watermark"
 
 enum NVSDK_NGX_DLSS_Hint_Render_Preset
 {
