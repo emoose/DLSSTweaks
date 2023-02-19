@@ -49,7 +49,7 @@ If anyone would like to support future development my ko-fi page is https://ko-f
 - Assetto Corsa Competizione (UE4)
 - Returnal (UE4)
 
-UE4 games usually include two EXEs, one for the main game, and one that simply launches the main game - the DLL usually needs to be placed next to main game EXE (normally found inside a `[gameName]\Binaries\Win64\` folder) - most UE4 titles need the DLL renamed to `XInput1_3.dll` or `XInput9_1_0.dll` to work.
+UE4 games usually include two EXEs, one for the main game, and one that simply launches the main game - the DLL usually needs to be placed next to main game EXE. (normally found inside a `[gameName]\Binaries\Win64\` folder)
 
 Some titles listed here might have native DLAA support already, but you can still tweak scaling ratios/DLSS3.1 presets for those using DLSSTweaks.
 
