@@ -195,39 +195,38 @@ SafetyHookInline NVSDK_NGX_Parameter_GetUI;
 uint64_t __cdecl NVSDK_NGX_Parameter_GetUI_Hook(void* InParameter, const char* InName, unsigned int* OutValue)
 {
 	uint64_t ret = NVSDK_NGX_Parameter_GetUI->call<uint64_t>(InParameter, InName, OutValue);
+	if (ret != 1)
+		return ret;
 
-	if (ret == 1)
+	bool isOutWidth = !_stricmp(InName, NVSDK_NGX_Parameter_OutWidth);
+	bool isOutHeight = !_stricmp(InName, NVSDK_NGX_Parameter_OutHeight);
+	if (overrideQualityLevels)
 	{
-		bool isOutWidth = !_stricmp(InName, NVSDK_NGX_Parameter_OutWidth);
-		bool isOutHeight = !_stricmp(InName, NVSDK_NGX_Parameter_OutHeight);
-		if (overrideQualityLevels)
+		if (isOutWidth)
 		{
-			if (isOutWidth)
-			{
-				unsigned int targetWidth = 0;
-				NVSDK_NGX_Parameter_GetUI->call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
-				targetWidth = unsigned int(roundf(float(targetWidth) * qualityLevelRatios[int(prevQualityValue)])); // calculate new width from custom ratio
-				*OutValue = targetWidth;
-			}
-			if (isOutHeight)
-			{
-				unsigned int targetHeight = 0;
-				NVSDK_NGX_Parameter_GetUI->call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
-				targetHeight = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[int(prevQualityValue)])); // calculate new height from custom ratio
-				*OutValue = targetHeight;
-			}
+			unsigned int targetWidth = 0;
+			NVSDK_NGX_Parameter_GetUI->call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
+			targetWidth = unsigned int(roundf(float(targetWidth) * qualityLevelRatios[int(prevQualityValue)])); // calculate new width from custom ratio
+			*OutValue = targetWidth;
 		}
+		if (isOutHeight)
+		{
+			unsigned int targetHeight = 0;
+			NVSDK_NGX_Parameter_GetUI->call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
+			targetHeight = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[int(prevQualityValue)])); // calculate new height from custom ratio
+			*OutValue = targetHeight;
+		}
+	}
 
-		// DLAA force by overwriting OutWidth/OutHeight with the full res
-		bool overrideWidth = forceDLAA && isOutWidth;
-		bool overrideHeight = forceDLAA && isOutHeight;
-		if (overrideWidth || overrideHeight)
-		{
-			if (overrideWidth && *OutValue != 0)
-				NVSDK_NGX_Parameter_GetUI->call(InParameter, NVSDK_NGX_Parameter_Width, OutValue);
-			if (overrideHeight && *OutValue != 0)
-				NVSDK_NGX_Parameter_GetUI->call(InParameter, NVSDK_NGX_Parameter_Height, OutValue);
-		}
+	// DLAA force by overwriting OutWidth/OutHeight with the full res
+	bool overrideWidth = forceDLAA && isOutWidth;
+	bool overrideHeight = forceDLAA && isOutHeight;
+	if (overrideWidth || overrideHeight)
+	{
+		if (overrideWidth && *OutValue != 0)
+			NVSDK_NGX_Parameter_GetUI->call(InParameter, NVSDK_NGX_Parameter_Width, OutValue);
+		if (overrideHeight && *OutValue != 0)
+			NVSDK_NGX_Parameter_GetUI->call(InParameter, NVSDK_NGX_Parameter_Height, OutValue);
 	}
 
 	return ret;
@@ -472,7 +471,7 @@ bool DLSS_HookNGX()
 	}
 	else
 	{
-		spdlog::error("Failed to locate all _nvngx.dll functions, may have been changed by driver update :/");
+		spdlog::error("Failed to locate all _nvngx.dll functions, may have been changed by driver update...");
 	}
 
 	return isNgxHookAttempted;
@@ -515,6 +514,7 @@ bool DLSS_HookNGXDLSS()
 
 	isNgxDlssHookAttemped = true;
 
+	// TODO: older DLSS versions use a different offset than 0x110, preventing this pattern from working
 	auto indicatorValueCheck = hook::pattern((void*)ngx_module, "75 ? 8B 83 10 01 00 00 89");
 	if (watchIniUpdates && indicatorValueCheck.size())
 	{
@@ -562,10 +562,9 @@ HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD
 
 unsigned int DLSS_ReadPresetFromIni(inih::INIReader& ini, const std::string& section, const std::string& key)
 {
-	std::string default_val = "Default";
-	std::string val = ini.Get<std::string>(section, key, std::move(default_val));
+	std::string val = ini.Get<std::string>(section, key, "Default");
 
-	if (!stricmp(val.c_str(), default_val.c_str()))
+	if (!stricmp(val.c_str(), "Default"))
 		return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 	if (!stricmp(val.c_str(), "A"))
 		return NVSDK_NGX_DLSS_Hint_Render_Preset_A;
@@ -589,6 +588,7 @@ bool INIReadSettings()
 
 	std::wstring iniPathStr = IniPath.wstring();
 
+	// Read INI via FILE* since INIReader doesn't support wstring
 	FILE* iniFile;
 	if (_wfopen_s(&iniFile, iniPathStr.c_str(), L"r") != 0 || !iniFile)
 		return false;
@@ -620,7 +620,7 @@ bool INIReadSettings()
 	return true;
 }
 
-DWORD WINAPI HookThread(LPVOID lpParam)
+unsigned int __stdcall InitThread(void* param)
 {
 	WCHAR exePath[4096];
 	GetModuleFileNameW(GetModuleHandleA(0), exePath, 4096);
@@ -693,15 +693,15 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 			DWORD bytes_transferred;
 			GetOverlappedResult(file, &overlapped, &bytes_transferred, FALSE);
 
-			FILE_NOTIFY_INFORMATION* event = (FILE_NOTIFY_INFORMATION*)change_buf;
+			FILE_NOTIFY_INFORMATION* evt = (FILE_NOTIFY_INFORMATION*)change_buf;
 
 			for (;;)
 			{
-				if (event->Action == FILE_ACTION_MODIFIED)
+				if (evt->Action == FILE_ACTION_MODIFIED)
 				{
-					DWORD name_len = event->FileNameLength / sizeof(wchar_t);
-					// event->FileName isn't null-terminated, so construct wstring for it based on name_len
-					std::wstring name = std::wstring(event->FileName, name_len);
+					// evt->FileName isn't null-terminated, so construct wstring for it based on FileNameLength
+					DWORD name_len = evt->FileNameLength / sizeof(wchar_t);
+					std::wstring name = std::wstring(evt->FileName, name_len);
 					if (!_wcsicmp(name.c_str(), IniFileName))
 					{
 						// INI read might fail if it's still being updated by a text editor etc
@@ -717,8 +717,8 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 				}
 
 				// Any more events to handle?
-				if (event->NextEntryOffset)
-					*((uint8_t**)&event) += event->NextEntryOffset;
+				if (evt->NextEntryOffset)
+					*((uint8_t**)&evt) += evt->NextEntryOffset;
 				else
 					break;
 			}
@@ -740,17 +740,17 @@ DWORD WINAPI HookThread(LPVOID lpParam)
 HMODULE ourModule = 0;
 BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)
 {
-    if (ul_reason_for_call == DLL_PROCESS_ATTACH)
-    {
-        ourModule = hModule;
-        proxy::on_attach(ourModule);
+	if (ul_reason_for_call == DLL_PROCESS_ATTACH)
+	{
+		ourModule = hModule;
+		proxy::on_attach(ourModule);
 
-        CreateThread(NULL, 0, HookThread, NULL, 0, NULL);
-    }
-    if (ul_reason_for_call == DLL_PROCESS_DETACH)
-    {
-        proxy::on_detach();
-    }
+		_beginthreadex(NULL, 0, InitThread, NULL, 0, NULL);
+	}
+	else if (ul_reason_for_call == DLL_PROCESS_DETACH)
+	{
+		proxy::on_detach();
+	}
 
-    return TRUE;
+	return TRUE;
 }
