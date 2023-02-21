@@ -43,7 +43,11 @@ float qualityLevelRatios[] = {
 	0.58f, // NVSDK_NGX_PerfQuality_Value_Balanced
 	0.66666667f, // NVSDK_NGX_PerfQuality_Value_MaxQuality
 	0.33333334f, // NVSDK_NGX_PerfQuality_Value_UltraPerformance
-	0.77f, // UNSURE: NVSDK_NGX_PerfQuality_Value_UltraQuality
+
+	// note: if this is non-zero, some games may detect that we're passing a valid resolution and show an Ultra Quality option as a result
+	// very few games support this though, and right now DLSS seems to refuse to render if UltraQuality gets passed to it, so we'll keep it zero for now
+	// maybe overriding the value we pass to DLSS could allow this to work as an extra quality option though, worth looking at in future
+	0.0f, // NVSDK_NGX_PerfQuality_Value_UltraQuality
 };
 
 const char* projectIdOverride = "24480451-f00d-face-1304-0308dabad187";
