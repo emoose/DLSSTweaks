@@ -26,40 +26,9 @@ The way the hook works is similar to how some game cheats modify games, it's ver
 If anyone would like to support future development my ko-fi page is https://ko-fi.com/emoose, any help is appreciated :)
 
 ---
-### Titles known to hopefully work with it:
-- Dying Light 2
-- Shadow of the Tomb Raider
-- Judgment
-- Lost Judgment
-- Death Stranding
-- Cyberpunk 2077
-- Red Dead Redemption 2 (rename to `XInput9_1_0.dll`)
-- Plague Tale Requiem
-- Chernobylite (UE4)
-- Ghostwire Tokyo (UE4)
-- God of War
-- Uncharted 4
-- Horizon Zero Dawn
-- Deathloop
-- Ready Or Not (UE4)
-- HITMAN 3
-- Nioh 2 (`OverrideAutoExposure = 1` can be used to fix the graphics issues it has with DLSS3.1)
-- FIST: Forged in Shadow Torch (UE4)
-- Metro Exodus Enhanced Edition (may need rename to `XInput1_3.dll` or `XInput9_1_0.dll`)
-- Assetto Corsa Competizione (UE4)
-- Returnal (UE4)
+### Game Compatibility
+A list of games tested against DLSSTweaks can be found here: https://github.com/emoose/DLSSTweaks/wiki/Games
 
-UE4 games usually include two EXEs, one for the main game, and one that simply launches the main game - the DLL usually needs to be placed next to main game EXE. (normally found inside a `[gameName]\Binaries\Win64\` folder)
-
-Some titles listed here might have native DLAA support already, but you can still tweak scaling ratios/DLSS3.1 presets for those using DLSSTweaks.
-
-### Titles that may have issues with DLAA:
-- Mortal Shell
-- Minecraft Bedrock Edition (DLAA causes screen cut in half)
-- Crysis 3 Remastered
-
-DLSS3.1 preset overrides may still work fine in the titles above.
+If you try out any game that isn't mentioned there please let us know how it went on the [issue tracker](https://github.com/emoose/DLSSTweaks/issues)!
 
 Many thanks to [DoktorSleepless](https://www.reddit.com/user/DoktorSleepless) & [OrganizationOk4516](https://www.reddit.com/user/OrganizationOk4516) for helping test the DLL with most of these games before release!
-
-If you try out any game that isn't mentioned here please let us know how it went on the [issue tracker](https://github.com/emoose/DLSSTweaks/issues)!
