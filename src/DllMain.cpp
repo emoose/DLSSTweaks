@@ -635,13 +635,21 @@ unsigned int __stdcall InitThread(void* param)
 
 	std::vector<spdlog::sink_ptr> sinks;
 	sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_st>());
-	sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(LogPath.string(), true));
+	try
+	{
+		sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(LogPath.string(), true));
+	}
+	catch (const std::exception&)
+	{
+		// spdlog failed to open log file for writing (happens in some WinStore apps)
+		// let's just try to continue instead of crashing
+	}
 
 	auto combined_logger = std::make_shared<spdlog::logger>("", begin(sinks), end(sinks));
 	combined_logger->set_level(spdlog::level::trace);
 	spdlog::set_default_logger(combined_logger);
 
-	spdlog::info("DLSSTweaks v0.123.10, by emoose: DLL wrapper loaded, watching for DLSS library load...");	
+	spdlog::info("DLSSTweaks v0.123.11, by emoose: DLL wrapper loaded, watching for DLSS library load...");	
 
 	auto* kernel32 = GetModuleHandleA("kernel32.dll");
 	auto* LoadLibraryExW_addr = kernel32 ? GetProcAddress(kernel32, "LoadLibraryExW") : nullptr;
