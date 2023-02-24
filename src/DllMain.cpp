@@ -25,6 +25,7 @@ const wchar_t* LogFileName = L"dlsstweaks.log";
 const wchar_t* IniFileName = L"dlsstweaks.ini";
 
 std::filesystem::path ExePath;
+std::filesystem::path DllPath;
 std::filesystem::path LogPath;
 std::filesystem::path IniPath;
 
@@ -368,10 +369,10 @@ bool DLSS_HookParamFunctions(NVSDK_NGX_Parameter* params)
 		}
 
 		spdlog::info("DLSS functions found & parameter hooks applied!");
-		spdlog::info("Settings:\n - ForceDLAA: {}\n - OverrideAutoExposure: {}\n - OverrideAppId: {}",
-			forceDLAA ? "true" : "false",
-			overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"),
-			overrideAppId ? "true" : "false");
+		spdlog::info("Settings:");
+		spdlog::info(" - ForceDLAA: {}", forceDLAA ? "true" : "false");
+		spdlog::info(" - OverrideAutoExposure: {}", overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"));
+		spdlog::info(" - OverrideAppId: {}", overrideAppId ? "true" : "false");
 
 		// disable NGX param export hooks since they aren't needed now
 
@@ -645,36 +646,62 @@ bool INIReadSettings()
 	presetPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Performance");
 	presetUltraPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "UltraPerformance");
 
+	if (!std::filesystem::exists(overrideDlssDll))
+	{
+		spdlog::warn("Disabling OverrideDlssDll as override DLL wasn't found (path: {})", overrideDlssDll.string());
+		overrideDlssDll.clear();
+	}
+
 	return true;
 }
 
+HMODULE ourModule = 0;
+
 unsigned int __stdcall InitThread(void* param)
 {
-	WCHAR exePath[4096];
-	GetModuleFileNameW(GetModuleHandleA(0), exePath, 4096);
+	WCHAR modulePath[4096];
+	GetModuleFileNameW(GetModuleHandleA(0), modulePath, 4096);
+	ExePath = std::filesystem::path(modulePath);
+	GetModuleFileNameW(ourModule, modulePath, 4096);
+	DllPath = std::filesystem::path(modulePath);
 
-	ExePath = std::filesystem::path(exePath).parent_path();
-	LogPath = ExePath / LogFileName;
-	IniPath = ExePath / IniFileName;
+	// spdlog setup
+	{
+		// Log is always written next to our DLL
+		LogPath = DllPath.parent_path() / LogFileName;
+
+		std::vector<spdlog::sink_ptr> sinks;
+		sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_st>());
+		try
+		{
+			sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(LogPath.string(), true));
+		}
+		catch (const std::exception&)
+		{
+			// spdlog failed to open log file for writing (happens in some WinStore apps)
+			// let's just try to continue instead of crashing
+		}
+
+		auto combined_logger = std::make_shared<spdlog::logger>("", begin(sinks), end(sinks));
+		combined_logger->set_level(spdlog::level::trace);
+		spdlog::set_default_logger(combined_logger);
+		spdlog::flush_on(spdlog::level::info);
+	}
+
+	// If an INI exists next to game EXE, use that
+	// else we'll try reading INI from next to this DLL
+	IniPath = ExePath.parent_path() / IniFileName;
+	if (!std::filesystem::exists(IniPath))
+		IniPath = DllPath.parent_path() / IniFileName;
+
+	spdlog::info("DLSSTweaks v0.123.12, by emoose: DLL wrapper loaded, watching for DLSS library load.");
+	spdlog::info("Game path: {}", ExePath.string());
+	spdlog::info("DLL path: {}", DllPath.string());
+	spdlog::info("Config path: {}", IniPath.string());
+
+	spdlog::info("---");
+
 	INIReadSettings();
-
-	std::vector<spdlog::sink_ptr> sinks;
-	sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_st>());
-	try
-	{
-		sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(LogPath.string(), true));
-	}
-	catch (const std::exception&)
-	{
-		// spdlog failed to open log file for writing (happens in some WinStore apps)
-		// let's just try to continue instead of crashing
-	}
-
-	auto combined_logger = std::make_shared<spdlog::logger>("", begin(sinks), end(sinks));
-	combined_logger->set_level(spdlog::level::trace);
-	spdlog::set_default_logger(combined_logger);
-
-	spdlog::info("DLSSTweaks v0.123.12, by emoose: DLL wrapper loaded, watching for DLSS library load...");	
 
 	// Hook LoadLibraryExW so we can watch for nvngx library load
 	{
@@ -776,7 +803,6 @@ unsigned int __stdcall InitThread(void* param)
 	return 0;
 }
 
-HMODULE ourModule = 0;
 BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)
 {
 	if (ul_reason_for_call == DLL_PROCESS_ATTACH)
