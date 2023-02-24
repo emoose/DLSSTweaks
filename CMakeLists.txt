@@ -56,12 +56,12 @@ FetchContent_Declare(bddisasm
 )
 FetchContent_MakeAvailable(bddisasm)
 
-message(STATUS "Fetching safetyhook (92b0e61a1fb9051255e472979db95fd39ab866b4)...")
+message(STATUS "Fetching safetyhook (e8616d241e6937966a32863ed9f9e539de294ac0)...")
 FetchContent_Declare(safetyhook
 	GIT_REPOSITORY
 		"https://github.com/cursey/safetyhook"
 	GIT_TAG
-		92b0e61a1fb9051255e472979db95fd39ab866b4
+		e8616d241e6937966a32863ed9f9e539de294ac0
 )
 FetchContent_MakeAvailable(safetyhook)
 
