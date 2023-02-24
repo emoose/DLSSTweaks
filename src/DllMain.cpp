@@ -350,7 +350,7 @@ std::mutex paramHookMutex;
 bool isParamFuncsHooked = false;
 bool DLSS_HookParamFunctions(NVSDK_NGX_Parameter* params)
 {
-	std::lock_guard<std::mutex> lock(paramHookMutex);
+	std::scoped_lock lock{paramHookMutex};
 
 	if (isParamFuncsHooked)
 		return true;
@@ -408,7 +408,7 @@ bool isNgxHookAttempted = false;
 bool isNgxDlssHookAttemped = false;
 bool DLSS_HookNGX()
 {
-	std::lock_guard<std::mutex> lock(hookMutex);
+	std::scoped_lock lock{hookMutex};
 
 	if (isNgxHookAttempted)
 		return isNgxHookAttempted;
@@ -515,7 +515,7 @@ SafetyHookMid dlssIndicatorHudHook{};
 
 bool DLSS_HookNGXDLSS()
 {
-	std::lock_guard<std::mutex> lock(hookMutex);
+	std::scoped_lock lock{hookMutex};
 
 	if (isNgxDlssHookAttemped)
 		return isNgxDlssHookAttemped;
@@ -592,7 +592,7 @@ HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD
 	// if we've looked at both nvngx & nvngx_dlss, and we aren't overriding nvngx_dlss path, we can unhook LoadLibrary now
 	if (isNgxDlssHookAttemped && isNgxHookAttempted && overrideDlssDll.empty())
 	{
-		std::lock_guard<std::mutex> lock(hookMutex);
+		std::scoped_lock lock{hookMutex};
 		if (LoadLibraryExW_Orig)
 			LoadLibraryExW_Orig.reset();
 		if (LoadLibraryExA_Orig)
