@@ -28,3 +28,12 @@ enum NVSDK_NGX_DLSS_Hint_Render_Preset
 	NVSDK_NGX_DLSS_Hint_Render_Preset_E,
 	NVSDK_NGX_DLSS_Hint_Render_Preset_F,
 };
+
+enum NVSDK_NGX_PerfQuality_Value
+{
+	NVSDK_NGX_PerfQuality_Value_MaxPerf,
+	NVSDK_NGX_PerfQuality_Value_Balanced,
+	NVSDK_NGX_PerfQuality_Value_MaxQuality,
+	NVSDK_NGX_PerfQuality_Value_UltraPerformance,
+	NVSDK_NGX_PerfQuality_Value_UltraQuality,
+};

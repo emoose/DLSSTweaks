@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <mutex>
+#include <unordered_map>
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_sinks.h>
@@ -22,6 +23,7 @@
 const wchar_t* LogFileName = L"dlsstweaks.log";
 const wchar_t* IniFileName = L"dlsstweaks.ini";
 
+std::filesystem::path ExePath;
 std::filesystem::path LogPath;
 std::filesystem::path IniPath;
 
@@ -38,16 +40,18 @@ unsigned int presetBalanced = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 unsigned int presetPerformance = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 unsigned int presetUltraPerformance = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 
-float qualityLevelRatios[] = {
-	0.5f, // NVSDK_NGX_PerfQuality_Value_MaxPerf
-	0.58f, // NVSDK_NGX_PerfQuality_Value_Balanced
-	0.66666667f, // NVSDK_NGX_PerfQuality_Value_MaxQuality
-	0.33333334f, // NVSDK_NGX_PerfQuality_Value_UltraPerformance
+std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios =
+{
+	{NVSDK_NGX_PerfQuality_Value_UltraPerformance, 0.33333334f},
+	{NVSDK_NGX_PerfQuality_Value_MaxPerf, 0.5f},
+	{NVSDK_NGX_PerfQuality_Value_Balanced, 0.58f},
+	{NVSDK_NGX_PerfQuality_Value_MaxQuality, 0.66666667f},
 
-	// note: if this is non-zero, some games may detect that we're passing a valid resolution and show an Ultra Quality option as a result
-	// very few games support this though, and right now DLSS seems to refuse to render if UltraQuality gets passed to it, so we'll keep it zero for now
-	// maybe overriding the value we pass to DLSS could allow this to work as an extra quality option though, worth looking at in future
-	0.0f, // NVSDK_NGX_PerfQuality_Value_UltraQuality
+	// note: if NVSDK_NGX_PerfQuality_Value_UltraQuality is non-zero, some games may detect that we're passing a valid resolution and show an Ultra Quality option as a result
+	// very few games support this though, and right now DLSS seems to refuse to render if UltraQuality gets passed to it
+	// our SetI hook below can override the quality passed to DLSS if this gets used by the game, letting it think this is MaxQuality instead
+	// but we'll only do that if user overrides this in the INI to a non-zero value
+	{NVSDK_NGX_PerfQuality_Value_UltraQuality, 0.f},
 };
 
 const char* projectIdOverride = "24480451-f00d-face-1304-0308dabad187";
@@ -146,15 +150,6 @@ enum NVSDK_NGX_DLSS_Feature_Flags
 	NVSDK_NGX_DLSS_Feature_Flags_AutoExposure = 1 << 6,
 };
 
-enum NVSDK_NGX_PerfQuality_Value
-{
-	NVSDK_NGX_PerfQuality_Value_MaxPerf,
-	NVSDK_NGX_PerfQuality_Value_Balanced,
-	NVSDK_NGX_PerfQuality_Value_MaxQuality,
-	NVSDK_NGX_PerfQuality_Value_UltraPerformance,
-	NVSDK_NGX_PerfQuality_Value_UltraQuality,
-};
-
 NVSDK_NGX_PerfQuality_Value prevQualityValue;
 
 SafetyHookInline NVSDK_NGX_Parameter_SetI;
@@ -171,7 +166,17 @@ void __cdecl NVSDK_NGX_Parameter_SetI_Hook(void* InParameter, const char* InName
 	// Cache the chosen quality value so we can make decisions on it later on
 	// TODO: maybe should setup NVSDK_NGX_Parameter class so we could call GetI to fetch this instead, might be more reliable...
 	if (!_stricmp(InName, NVSDK_NGX_Parameter_PerfQualityValue))
-		prevQualityValue = NVSDK_NGX_PerfQuality_Value(InValue);
+	{
+		auto value = NVSDK_NGX_PerfQuality_Value(InValue);
+		prevQualityValue = value;
+
+		// Some games may expose an UltraQuality option if we returned a valid resolution for it
+		// DLSS usually doesn't like UltraQuality being applied though, and will break rendering/crash altogether if set
+		// So we'll just tell DLSS to use MaxQuality instead, while keeping UltraQuality stored in prevQualityValue
+		if (value == NVSDK_NGX_PerfQuality_Value_UltraQuality && qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality] > 0.f)
+			InValue = int(NVSDK_NGX_PerfQuality_Value_MaxQuality);
+	}
+
 
 	NVSDK_NGX_Parameter_SetI->call(InParameter, InName, InValue);
 }
@@ -204,20 +209,20 @@ uint64_t __cdecl NVSDK_NGX_Parameter_GetUI_Hook(void* InParameter, const char* I
 
 	bool isOutWidth = !_stricmp(InName, NVSDK_NGX_Parameter_OutWidth);
 	bool isOutHeight = !_stricmp(InName, NVSDK_NGX_Parameter_OutHeight);
-	if (overrideQualityLevels)
+	if (overrideQualityLevels && qualityLevelRatios.count(prevQualityValue))
 	{
 		if (isOutWidth)
 		{
 			unsigned int targetWidth = 0;
 			NVSDK_NGX_Parameter_GetUI->call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
-			targetWidth = unsigned int(roundf(float(targetWidth) * qualityLevelRatios[int(prevQualityValue)])); // calculate new width from custom ratio
+			targetWidth = unsigned int(roundf(float(targetWidth) * qualityLevelRatios[prevQualityValue])); // calculate new width from custom ratio
 			*OutValue = targetWidth;
 		}
 		if (isOutHeight)
 		{
 			unsigned int targetHeight = 0;
 			NVSDK_NGX_Parameter_GetUI->call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
-			targetHeight = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[int(prevQualityValue)])); // calculate new height from custom ratio
+			targetHeight = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[prevQualityValue])); // calculate new height from custom ratio
 			*OutValue = targetHeight;
 		}
 	}
@@ -609,11 +614,11 @@ bool INIReadSettings()
 	overrideQualityLevels = ini.Get<bool>("DLSSQualityLevels", "Enable", std::move(overrideQualityLevels));
 	if (overrideQualityLevels)
 	{
-		qualityLevelRatios[0] = ini.Get<float>("DLSSQualityLevels", "Performance", std::move(qualityLevelRatios[0])); // NVSDK_NGX_PerfQuality_Value_MaxPerf
-		qualityLevelRatios[1] = ini.Get<float>("DLSSQualityLevels", "Balanced", std::move(qualityLevelRatios[1])); // NVSDK_NGX_PerfQuality_Value_Balanced
-		qualityLevelRatios[2] = ini.Get<float>("DLSSQualityLevels", "Quality", std::move(qualityLevelRatios[2])); // NVSDK_NGX_PerfQuality_Value_MaxQuality
-		qualityLevelRatios[3] = ini.Get<float>("DLSSQualityLevels", "UltraPerformance", std::move(qualityLevelRatios[3])); // NVSDK_NGX_PerfQuality_Value_UltraPerformance
-		qualityLevelRatios[4] = ini.Get<float>("DLSSQualityLevels", "UltraQuality", std::move(qualityLevelRatios[4])); // NVSDK_NGX_PerfQuality_Value_UltraQuality
+		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxPerf] = ini.Get<float>("DLSSQualityLevels", "Performance", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxPerf]));
+		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_Balanced] = ini.Get<float>("DLSSQualityLevels", "Balanced", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_Balanced]));
+		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxQuality] = ini.Get<float>("DLSSQualityLevels", "Quality", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxQuality]));
+		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraPerformance] = ini.Get<float>("DLSSQualityLevels", "UltraPerformance", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraPerformance]));
+		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality] = ini.Get<float>("DLSSQualityLevels", "UltraQuality", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality]));
 	}
 	presetDLAA = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "DLAA");
 	presetQuality = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Quality");
@@ -629,8 +634,9 @@ unsigned int __stdcall InitThread(void* param)
 	WCHAR exePath[4096];
 	GetModuleFileNameW(GetModuleHandleA(0), exePath, 4096);
 
-	LogPath = std::filesystem::path(exePath).parent_path() / LogFileName;
-	IniPath = std::filesystem::path(exePath).parent_path() / IniFileName;
+	ExePath = std::filesystem::path(exePath).parent_path();
+	LogPath = ExePath / LogFileName;
+	IniPath = ExePath / IniFileName;
 	INIReadSettings();
 
 	std::vector<spdlog::sink_ptr> sinks;
@@ -649,7 +655,7 @@ unsigned int __stdcall InitThread(void* param)
 	combined_logger->set_level(spdlog::level::trace);
 	spdlog::set_default_logger(combined_logger);
 
-	spdlog::info("DLSSTweaks v0.123.11, by emoose: DLL wrapper loaded, watching for DLSS library load...");	
+	spdlog::info("DLSSTweaks v0.123.12, by emoose: DLL wrapper loaded, watching for DLSS library load...");	
 
 	auto* kernel32 = GetModuleHandleA("kernel32.dll");
 	auto* LoadLibraryExW_addr = kernel32 ? GetProcAddress(kernel32, "LoadLibraryExW") : nullptr;
