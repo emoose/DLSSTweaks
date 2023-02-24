@@ -65,21 +65,21 @@ uint64_t __cdecl NVSDK_NGX_D3D11_Init_Hook(unsigned long long InApplicationId, c
 {
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
-	return NVSDK_NGX_D3D11_Init.call<uint64_t>(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
+	return NVSDK_NGX_D3D11_Init.unsafe_call<uint64_t>(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 SafetyHookInline NVSDK_NGX_D3D11_Init_Ext;
 uint64_t __cdecl NVSDK_NGX_D3D11_Init_Ext_Hook(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* a3, void* a4, void* a5)
 {
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
-	return NVSDK_NGX_D3D11_Init_Ext.call<uint64_t>(InApplicationId, InApplicationDataPath, a3, a4, a5);
+	return NVSDK_NGX_D3D11_Init_Ext.unsafe_call<uint64_t>(InApplicationId, InApplicationDataPath, a3, a4, a5);
 }
 SafetyHookInline NVSDK_NGX_D3D11_Init_ProjectID;
 uint64_t __cdecl NVSDK_NGX_D3D11_Init_ProjectID_Hook(const char* InProjectId, enum NVSDK_NGX_EngineType InEngineType, const char* InEngineVersion, const wchar_t* InApplicationDataPath, class ID3D11Device* InDevice, const struct NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, enum NVSDK_NGX_Version InSDKVersion)
 {
 	if (overrideAppId)
 		InProjectId = projectIdOverride;
-	return NVSDK_NGX_D3D11_Init_ProjectID.call<uint64_t>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
+	return NVSDK_NGX_D3D11_Init_ProjectID.unsafe_call<uint64_t>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 
 SafetyHookInline NVSDK_NGX_D3D12_Init;
@@ -87,21 +87,21 @@ uint64_t __cdecl NVSDK_NGX_D3D12_Init_Hook(unsigned long long InApplicationId, c
 {
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
-	return NVSDK_NGX_D3D12_Init.call<uint64_t>(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
+	return NVSDK_NGX_D3D12_Init.unsafe_call<uint64_t>(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 SafetyHookInline NVSDK_NGX_D3D12_Init_Ext;
 uint64_t __cdecl NVSDK_NGX_D3D12_Init_Ext_Hook(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* a3, void* a4, void* a5)
 {
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
-	return NVSDK_NGX_D3D12_Init_Ext.call<uint64_t>(InApplicationId, InApplicationDataPath, a3, a4, a5);
+	return NVSDK_NGX_D3D12_Init_Ext.unsafe_call<uint64_t>(InApplicationId, InApplicationDataPath, a3, a4, a5);
 }
 SafetyHookInline NVSDK_NGX_D3D12_Init_ProjectID;
 uint64_t __cdecl NVSDK_NGX_D3D12_Init_ProjectID_Hook(const char* InProjectId, enum NVSDK_NGX_EngineType InEngineType, const char* InEngineVersion, const wchar_t* InApplicationDataPath, class ID3D11Device* InDevice, const struct NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, enum NVSDK_NGX_Version InSDKVersion)
 {
 	if (overrideAppId)
 		InProjectId = projectIdOverride;
-	return NVSDK_NGX_D3D12_Init_ProjectID.call<uint64_t>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
+	return NVSDK_NGX_D3D12_Init_ProjectID.unsafe_call<uint64_t>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 
 SafetyHookInline NVSDK_NGX_VULKAN_Init;
@@ -109,35 +109,35 @@ uint64_t __cdecl NVSDK_NGX_VULKAN_Init_Hook(unsigned long long InApplicationId, 
 {
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
-	return NVSDK_NGX_VULKAN_Init.call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6);
+	return NVSDK_NGX_VULKAN_Init.unsafe_call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6);
 }
 SafetyHookInline NVSDK_NGX_VULKAN_Init_Ext;
 uint64_t __cdecl NVSDK_NGX_VULKAN_Init_Ext_Hook(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7)
 {
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
-	return NVSDK_NGX_VULKAN_Init_Ext.call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6, a7);
+	return NVSDK_NGX_VULKAN_Init_Ext.unsafe_call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6, a7);
 }
 SafetyHookInline NVSDK_NGX_VULKAN_Init_Ext2;
 uint64_t __cdecl NVSDK_NGX_VULKAN_Init_Ext2_Hook(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
 {
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
-	return NVSDK_NGX_VULKAN_Init_Ext2.call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6, a7, a8, a9);
+	return NVSDK_NGX_VULKAN_Init_Ext2.unsafe_call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6, a7, a8, a9);
 }
 SafetyHookInline NVSDK_NGX_VULKAN_Init_ProjectID;
 uint64_t __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Hook(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
 {
 	if (overrideAppId)
 		InProjectId = projectIdOverride;
-	return NVSDK_NGX_VULKAN_Init_ProjectID.call<uint64_t>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9);
+	return NVSDK_NGX_VULKAN_Init_ProjectID.unsafe_call<uint64_t>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9);
 }
 SafetyHookInline NVSDK_NGX_VULKAN_Init_ProjectID_Ext;
 uint64_t __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11)
 {
 	if (overrideAppId)
 		InProjectId = projectIdOverride;
-	return NVSDK_NGX_VULKAN_Init_ProjectID_Ext.call<uint64_t>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+	return NVSDK_NGX_VULKAN_Init_ProjectID_Ext.unsafe_call<uint64_t>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
 }
 
 enum NVSDK_NGX_DLSS_Feature_Flags
