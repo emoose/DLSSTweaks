@@ -9,6 +9,7 @@
 #include <fstream>
 #include <mutex>
 #include <unordered_map>
+#include <cwctype>
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_sinks.h>
@@ -33,6 +34,7 @@ int overrideAutoExposure = 0;
 int overrideDlssHud = 0;
 bool disableDevWatermark = false;
 bool overrideAppId = false;
+std::filesystem::path overrideDlssDll = "";
 bool overrideQualityLevels = false;
 unsigned int presetDLAA = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 unsigned int presetQuality = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
@@ -519,7 +521,15 @@ bool DLSS_HookNGXDLSS()
 
 	HMODULE ngx_module = GetModuleHandleA("nvngx_dlss.dll");
 	if (!ngx_module)
-		return isNgxDlssHookAttemped;
+	{
+		if (!overrideDlssDll.empty())
+		{
+			std::string dlssName = overrideDlssDll.filename().string();
+			ngx_module = GetModuleHandleA(dlssName.c_str());
+		}
+		if (!ngx_module)
+			return isNgxDlssHookAttemped;
+	}
 
 	isNgxDlssHookAttemped = true;
 
@@ -553,14 +563,22 @@ bool DLSS_HookNGXDLSS()
 SafetyHookInline LoadLibraryExW_Orig;
 HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
-	HMODULE ret = LoadLibraryExW_Orig->stdcall<HMODULE>(lpLibFileName, hFile, dwFlags);
+	std::filesystem::path libPath = lpLibFileName;
+	auto filenameStr = libPath.filename().wstring();
+	std::transform(filenameStr.begin(), filenameStr.end(), filenameStr.begin(), std::towlower);
+
+	if (filenameStr == L"nvngx_dlss.dll" && !overrideDlssDll.empty())
+		libPath = overrideDlssDll;
+
+	std::wstring libPathStr = libPath.wstring();
+	HMODULE ret = LoadLibraryExW_Orig->stdcall<HMODULE>(libPathStr.c_str(), hFile, dwFlags);
 
 	DLSS_HookNGX();
 	DLSS_HookNGXDLSS();
 
-	if (isNgxDlssHookAttemped && isNgxHookAttempted)
+	// if we've looked at both nvngx & nvngx_dlss, and we aren't overriding nvngx_dlss path, we can unhook LoadLibrary now
+	if (isNgxDlssHookAttemped && isNgxHookAttempted && overrideDlssDll.empty())
 	{
-		// we've looked at both nvngx & nvngx_dlss, no need for the LoadLibraryExW hook anymore
 		std::lock_guard<std::mutex> lock(hookMutex);
 		if (LoadLibraryExW_Orig)
 			LoadLibraryExW_Orig.reset();
@@ -611,6 +629,7 @@ bool INIReadSettings()
 	overrideDlssHud = ini.Get<int>("DLSS", "OverrideDlssHud", std::move(overrideDlssHud));
 	disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(disableDevWatermark));
 	overrideAppId = ini.Get<bool>("DLSS", "OverrideAppId", std::move(overrideAppId));
+	overrideDlssDll = ini.Get<std::filesystem::path>("DLSS", "OverrideDlssDll", "");
 	overrideQualityLevels = ini.Get<bool>("DLSSQualityLevels", "Enable", std::move(overrideQualityLevels));
 	if (overrideQualityLevels)
 	{
@@ -657,18 +676,20 @@ unsigned int __stdcall InitThread(void* param)
 
 	spdlog::info("DLSSTweaks v0.123.12, by emoose: DLL wrapper loaded, watching for DLSS library load...");	
 
-	auto* kernel32 = GetModuleHandleA("kernel32.dll");
-	auto* LoadLibraryExW_addr = kernel32 ? GetProcAddress(kernel32, "LoadLibraryExW") : nullptr;
-	if (!LoadLibraryExW_addr)
-	{
-		spdlog::error("Failed to find LoadLibraryExW address?");
-		return 0;
-	}
-
 	// Hook LoadLibraryExW so we can watch for nvngx library load
 	{
-		auto builder = SafetyHookFactory::acquire();
-		LoadLibraryExW_Orig = builder.create_inline(LoadLibraryExW_addr, LoadLibraryExW_Hook);
+		auto* kernel32 = GetModuleHandleA("kernel32.dll");
+		auto* LoadLibraryExW_addr = kernel32 ? GetProcAddress(kernel32, "LoadLibraryExW") : nullptr;
+		if (!LoadLibraryExW_addr)
+		{
+			spdlog::error("Failed to find LoadLibraryExW address?");
+			return 0;
+		}
+
+		{
+			auto builder = SafetyHookFactory::acquire();
+			LoadLibraryExW_Orig = builder.create_inline(LoadLibraryExW_addr, LoadLibraryExW_Hook);
+		}
 	}
 
 	if (!watchIniUpdates)
