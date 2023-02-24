@@ -562,6 +562,12 @@ bool DLSS_HookNGXDLSS()
 
 // Hook LoadLibraryExW so we can scan it for the DLSS funcs immediately after the module is loaded in
 SafetyHookInline LoadLibraryExW_Orig;
+SafetyHookInline LoadLibraryExA_Orig;
+SafetyHookInline LoadLibraryA_Orig;
+SafetyHookInline LoadLibraryW_Orig;
+
+std::once_flag dlssOverrideMessage;
+
 HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
 	std::filesystem::path libPath = lpLibFileName;
@@ -569,7 +575,13 @@ HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD
 	std::transform(filenameStr.begin(), filenameStr.end(), filenameStr.begin(), std::towlower);
 
 	if (filenameStr == L"nvngx_dlss.dll" && !overrideDlssDll.empty())
+	{
+		std::call_once(dlssOverrideMessage, []() { 
+			spdlog::info("Game is loading DLSS, overriding with DLL path: {}", overrideDlssDll.string());
+		});
+
 		libPath = overrideDlssDll;
+	}
 
 	std::wstring libPathStr = libPath.wstring();
 	HMODULE ret = LoadLibraryExW_Orig.stdcall<HMODULE>(libPathStr.c_str(), hFile, dwFlags);
@@ -583,9 +595,33 @@ HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD
 		std::lock_guard<std::mutex> lock(hookMutex);
 		if (LoadLibraryExW_Orig)
 			LoadLibraryExW_Orig.reset();
+		if (LoadLibraryExA_Orig)
+			LoadLibraryExA_Orig.reset();
+		if (LoadLibraryW_Orig)
+			LoadLibraryW_Orig.reset();
+		if (LoadLibraryA_Orig)
+			LoadLibraryA_Orig.reset();
 	}
 
 	return ret;
+}
+
+HMODULE __stdcall LoadLibraryExA_Hook(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
+{
+	std::filesystem::path libPath = lpLibFileName;
+	auto libPathStr = libPath.wstring();
+
+	return LoadLibraryExW_Hook(libPathStr.c_str(), hFile, dwFlags);
+}
+
+HMODULE __stdcall LoadLibraryW_Hook(LPCWSTR lpLibFileName)
+{
+	return LoadLibraryExW_Hook(lpLibFileName, 0, 0);
+}
+
+HMODULE __stdcall LoadLibraryA_Hook(LPCSTR lpLibFileName)
+{
+	return LoadLibraryExA_Hook(lpLibFileName, 0, 0);
 }
 
 unsigned int DLSS_ReadPresetFromIni(inih::INIReader& ini, const std::string& section, const std::string& key)
@@ -707,15 +743,21 @@ unsigned int __stdcall InitThread(void* param)
 	{
 		auto* kernel32 = GetModuleHandleA("kernel32.dll");
 		auto* LoadLibraryExW_addr = kernel32 ? GetProcAddress(kernel32, "LoadLibraryExW") : nullptr;
-		if (!LoadLibraryExW_addr)
+		auto* LoadLibraryExA_addr = kernel32 ? GetProcAddress(kernel32, "LoadLibraryExA") : nullptr;
+		auto* LoadLibraryW_addr = kernel32 ? GetProcAddress(kernel32, "LoadLibraryW") : nullptr;
+		auto* LoadLibraryA_addr = kernel32 ? GetProcAddress(kernel32, "LoadLibraryA") : nullptr;
+		if (!LoadLibraryExW_addr || !LoadLibraryExA_addr || !LoadLibraryW_addr || !LoadLibraryA_addr)
 		{
-			spdlog::error("Failed to find LoadLibraryExW address?");
+			spdlog::error("Failed to find LoadLibrary address?");
 			return 0;
 		}
 
 		{
 			auto builder = SafetyHookFactory::acquire();
 			LoadLibraryExW_Orig = builder.create_inline(LoadLibraryExW_addr, LoadLibraryExW_Hook);
+			LoadLibraryExA_Orig = builder.create_inline(LoadLibraryExA_addr, LoadLibraryExA_Hook);
+			LoadLibraryW_Orig = builder.create_inline(LoadLibraryW_addr, LoadLibraryW_Hook);
+			LoadLibraryA_Orig = builder.create_inline(LoadLibraryA_addr, LoadLibraryA_Hook);
 		}
 	}
 
