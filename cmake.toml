@@ -37,7 +37,7 @@ tag = "v1.34.10"
 
 [fetch-content.safetyhook]
 git = "https://github.com/cursey/safetyhook"
-tag = "55cf247d54c5efc11d6bbb125c720a3f42735f1e"
+tag = "891956890eca963adbc87d4d8ee915c20054f2d7"
 
 [target.dlsstweaks]
 type = "shared"
