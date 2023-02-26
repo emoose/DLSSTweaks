@@ -1,5 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
+#include <ntstatus.h>
+#define WIN32_NO_STATUS
 #include <Windows.h>
+#include <winternl.h>
 
 #include <cstdio>
 #include <cstdint>
@@ -411,11 +414,11 @@ bool DLSS_HookNGX()
 	std::scoped_lock lock{hookMutex};
 
 	if (isNgxHookAttempted)
-		return isNgxHookAttempted;
+		return true;
 
 	HMODULE ngx_module = GetModuleHandleA("_nvngx.dll");
 	if (!ngx_module)
-		return isNgxHookAttempted;
+		return false;
 
 	isNgxHookAttempted = true;
 
@@ -518,7 +521,7 @@ bool DLSS_HookNGXDLSS()
 	std::scoped_lock lock{hookMutex};
 
 	if (isNgxDlssHookAttemped)
-		return isNgxDlssHookAttemped;
+		return true;
 
 	HMODULE ngx_module = GetModuleHandleA("nvngx_dlss.dll");
 	if (!ngx_module)
@@ -529,7 +532,7 @@ bool DLSS_HookNGXDLSS()
 			ngx_module = GetModuleHandleA(dlssName.c_str());
 		}
 		if (!ngx_module)
-			return isNgxDlssHookAttemped;
+			return false;
 	}
 
 	isNgxDlssHookAttemped = true;
@@ -622,6 +625,17 @@ HMODULE __stdcall LoadLibraryW_Hook(LPCWSTR lpLibFileName)
 HMODULE __stdcall LoadLibraryA_Hook(LPCSTR lpLibFileName)
 {
 	return LoadLibraryExA_Hook(lpLibFileName, 0, 0);
+}
+
+void* dll_notification_cookie = nullptr;
+void __stdcall LoaderNotificationCallback(unsigned long notification_reason, const LDR_DLL_NOTIFICATION_DATA* notification_data, void* context)
+{
+	if (notification_reason != LDR_DLL_NOTIFICATION_REASON_LOADED)
+		return;
+
+	// A module was loaded in, try applying NGX hooks
+	DLSS_HookNGX();
+	DLSS_HookNGXDLSS();
 }
 
 unsigned int DLSS_ReadPresetFromIni(inih::INIReader& ini, const std::string& section, const std::string& key)
@@ -739,8 +753,25 @@ unsigned int __stdcall InitThread(void* param)
 
 	INIReadSettings();
 
-	// Hook LoadLibraryExW so we can watch for nvngx library load
+	LdrRegisterDllNotificationFunc LdrRegisterDllNotification =
+		(LdrRegisterDllNotificationFunc)GetProcAddress(GetModuleHandle("ntdll.dll"), "LdrRegisterDllNotification");
+
+	bool dllNotificationRegistered = false;
+	if (overrideDlssDll.empty() && LdrRegisterDllNotification)
 	{
+		// User didn't specify a DLL override, so we can just use LdrRegisterDllNotification to watch for nvngx load
+		dllNotificationRegistered = 
+			LdrRegisterDllNotification(0, &LoaderNotificationCallback, nullptr, &dll_notification_cookie) == STATUS_SUCCESS;
+
+		if (dllNotificationRegistered)
+			spdlog::info("Watching for nvngx via LdrRegisterDllNotification");
+	}
+	
+	if(!dllNotificationRegistered)
+	{
+		spdlog::info("Watching for nvngx via LoadLibrary hook");
+
+		// We didn't use LdrRegisterDllNotification or it failed, hook LoadLibraryExW so we can watch for nvngx library load
 		auto* kernel32 = GetModuleHandleA("kernel32.dll");
 		auto* LoadLibraryExW_addr = kernel32 ? GetProcAddress(kernel32, "LoadLibraryExW") : nullptr;
 		auto* LoadLibraryExA_addr = kernel32 ? GetProcAddress(kernel32, "LoadLibraryExA") : nullptr;
