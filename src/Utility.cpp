@@ -22,7 +22,7 @@ BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunctio
 
 		void** thunk = (void**)(base + imports[i].FirstThunk);
 
-		for (; thunk; thunk++)
+		for (; *thunk; thunk++)
 		{
 			void* import = *thunk;
 
