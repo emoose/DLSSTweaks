@@ -3,6 +3,12 @@
 namespace utility
 {
 BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction);
+inline void* ModuleEntryPoint(HMODULE hmod)
+{
+	PIMAGE_DOS_HEADER dos_header = (PIMAGE_DOS_HEADER)hmod;
+	PIMAGE_NT_HEADERS nt_headers = (PIMAGE_NT_HEADERS)((PBYTE)hmod + dos_header->e_lfanew);
+	return (PBYTE)hmod + nt_headers->OptionalHeader.AddressOfEntryPoint;
+}
 };
 
 #define NVSDK_NGX_Parameter_Width "Width"
@@ -38,6 +44,43 @@ enum NVSDK_NGX_PerfQuality_Value
 	NVSDK_NGX_PerfQuality_Value_UltraQuality,
 };
 
+enum NVSDK_NGX_DLSS_Feature_Flags
+{
+	NVSDK_NGX_DLSS_Feature_Flags_None = 0,
+	NVSDK_NGX_DLSS_Feature_Flags_IsHDR = 1 << 0,
+	NVSDK_NGX_DLSS_Feature_Flags_MVLowRes = 1 << 1,
+	NVSDK_NGX_DLSS_Feature_Flags_MVJittered = 1 << 2,
+	NVSDK_NGX_DLSS_Feature_Flags_DepthInverted = 1 << 3,
+	NVSDK_NGX_DLSS_Feature_Flags_Reserved_0 = 1 << 4,
+	NVSDK_NGX_DLSS_Feature_Flags_DoSharpening = 1 << 5,
+	NVSDK_NGX_DLSS_Feature_Flags_AutoExposure = 1 << 6,
+};
+
+// Matches the order of NVSDK_NGX_Parameter vftable inside _nvngx.dll (which should never change unless they want to break compatibility)
+struct NVSDK_NGX_Parameter_vftable
+{
+	void* SetVoidPointer;
+	void* SetD3d12Resource;
+	void* SetD3d11Resource;
+	void* SetI;
+	void* SetUI;
+	void* SetD;
+	void* SetF;
+	void* SetULL;
+	void* GetVoidPointer;
+	void* GetD3d12Resource;
+	void* GetD3d11Resource;
+	void* GetI;
+	void* GetUI;
+	void* GetD;
+	void* GetF;
+	void* GetULL;
+	void* Reset;
+};
+struct NVSDK_NGX_Parameter
+{
+	NVSDK_NGX_Parameter_vftable* _vftable;
+};
 
 // defs below from chromium: https://source.chromium.org/chromium/chromium/src/+/main:chrome/common/conflicts/module_watcher_win.cc
 
