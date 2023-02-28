@@ -435,6 +435,8 @@ void hook(HMODULE ngx_module)
 
 void unhook(HMODULE ngx_module)
 {
+	spdlog::debug("nvngx: begin unhook");
+
 	NVSDK_NGX_D3D11_Init.reset();
 	NVSDK_NGX_D3D11_Init_Ext.reset();
 	NVSDK_NGX_D3D11_Init_ProjectID.reset();
