@@ -379,6 +379,8 @@ bool DLSS_HookParamFunctions(NVSDK_NGX_Parameter* params)
 		spdlog::info(" - forceDLAA: {}", forceDLAA ? "true" : "false");
 		spdlog::info(" - overrideAutoExposure: {}", overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"));
 		spdlog::info(" - overrideAppId: {}", overrideAppId ? "true" : "false");
+		spdlog::info(" - watchIniUpdates: {}", watchIniUpdates ? "true" : "false");
+		spdlog::info(" - overrideQualityLevels: {}", overrideQualityLevels ? "true" : "false");
 
 		// disable NGX param export hooks since they aren't needed now
 
