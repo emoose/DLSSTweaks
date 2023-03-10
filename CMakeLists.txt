@@ -146,7 +146,7 @@ target_link_options(dlsstweaks PUBLIC
 
 set_target_properties(dlsstweaks PROPERTIES
 	OUTPUT_NAME
-		dxgi
+		nvngx
 	RUNTIME_OUTPUT_DIRECTORY_RELEASE
 		"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 	RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
