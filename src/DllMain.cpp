@@ -261,6 +261,19 @@ uint64_t __cdecl NVSDK_NGX_Parameter_GetUI(void* InParameter, const char* InName
 
 	bool isOutWidth = !_stricmp(InName, NVSDK_NGX_Parameter_OutWidth);
 	bool isOutHeight = !_stricmp(InName, NVSDK_NGX_Parameter_OutHeight);
+
+	// DLAA force by overwriting OutWidth/OutHeight with the full res
+	bool overrideWidth = forceDLAA && isOutWidth;
+	bool overrideHeight = forceDLAA && isOutHeight;
+	if (overrideWidth || overrideHeight)
+	{
+		if (overrideWidth && *OutValue != 0)
+			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, OutValue);
+		if (overrideHeight && *OutValue != 0)
+			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, OutValue);
+	}
+
+	// Override with DLSSQualityLevels value if user set it
 	if (overrideQualityLevels && qualityLevelRatios.count(prevQualityValue))
 	{
 		if (isOutWidth)
@@ -277,17 +290,6 @@ uint64_t __cdecl NVSDK_NGX_Parameter_GetUI(void* InParameter, const char* InName
 			targetHeight = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[prevQualityValue])); // calculate new height from custom ratio
 			*OutValue = targetHeight;
 		}
-	}
-
-	// DLAA force by overwriting OutWidth/OutHeight with the full res
-	bool overrideWidth = forceDLAA && isOutWidth;
-	bool overrideHeight = forceDLAA && isOutHeight;
-	if (overrideWidth || overrideHeight)
-	{
-		if (overrideWidth && *OutValue != 0)
-			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, OutValue);
-		if (overrideHeight && *OutValue != 0)
-			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, OutValue);
 	}
 
 	return ret;
@@ -844,7 +846,7 @@ unsigned int __stdcall InitThread(void* param)
 	if (!std::filesystem::exists(IniPath))
 		IniPath = DllPath.parent_path() / IniFileName;
 
-	spdlog::info("DLSSTweaks v0.200.1alpha, by emoose: {} wrapper loaded", DllPath.filename().string());
+	spdlog::info("DLSSTweaks v0.200.2alpha, by emoose: {} wrapper loaded", DllPath.filename().string());
 	spdlog::info("Game path: {}", ExePath.string());
 	spdlog::info("DLL path: {}", DllPath.string());
 	spdlog::info("Config path: {}", IniPath.string());
