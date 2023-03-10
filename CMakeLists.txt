@@ -94,7 +94,6 @@ target_include_directories(spdlog PUBLIC
 set(dlsstweaks_SOURCES
 	"src/DllMain.cpp"
 	"src/Proxy.cpp"
-	"src/ProxyNvngx.cpp"
 	"src/Utility.cpp"
 	"src/Proxy.def"
 	"src/Resource.rc"
@@ -146,7 +145,7 @@ target_link_options(dlsstweaks PUBLIC
 
 set_target_properties(dlsstweaks PROPERTIES
 	OUTPUT_NAME
-		dxgi
+		nvngx
 	RUNTIME_OUTPUT_DIRECTORY_RELEASE
 		"${CMAKE_BINARY_DIR}/bin/${CMKR_TARGET}"
 	RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO
