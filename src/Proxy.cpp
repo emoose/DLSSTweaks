@@ -3,8 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
-#define PLUGIN_API extern "C" __declspec(dllexport)
+#include "Proxy.hpp"
 
 // XAPOFX1_5.dll
 typedef DWORD(WINAPI* CreateFX_ptr)(REFCLSID clsid, void* pEffect);
@@ -1146,6 +1145,7 @@ PLUGIN_API void wod32Message()
 namespace proxy
 {
 HMODULE origModule = NULL;
+bool is_wrapping_nvngx = false;
 
 bool on_attach(HMODULE ourModule)
 {
@@ -1160,6 +1160,12 @@ bool on_attach(HMODULE ourModule)
     WCHAR exeName[MAX_PATH] = {0};
     WCHAR extName[MAX_PATH] = {0};
     _wsplitpath_s(ourModulePath, NULL, NULL, NULL, NULL, exeName, MAX_PATH, extName, MAX_PATH);
+
+    if (!_wcsicmp(exeName, L"nvngx"))
+    {
+        is_wrapping_nvngx = true;
+        return proxy_nvngx::on_attach(ourModule);
+    }
 
     WCHAR origModulePath[MAX_PATH] = {0};
     swprintf_s(origModulePath, MAX_PATH, L"%ws\\%ws%ws", modulePath, exeName, extName);
@@ -1394,6 +1400,9 @@ bool on_attach(HMODULE ourModule)
 
 void on_detach()
 {
+    if (is_wrapping_nvngx)
+        proxy_nvngx::on_detach();
+
     if (!origModule)
         return;
 

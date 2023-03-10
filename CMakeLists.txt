@@ -94,6 +94,7 @@ target_include_directories(spdlog PUBLIC
 set(dlsstweaks_SOURCES
 	"src/DllMain.cpp"
 	"src/Proxy.cpp"
+	"src/ProxyNvngx.cpp"
 	"src/Utility.cpp"
 	"src/Proxy.def"
 	"src/Resource.rc"

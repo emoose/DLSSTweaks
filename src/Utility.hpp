@@ -82,6 +82,11 @@ struct NVSDK_NGX_Parameter
 	NVSDK_NGX_Parameter_vftable* _vftable;
 };
 
+namespace nvngx
+{
+	void hook_params(NVSDK_NGX_Parameter* params);
+}
+
 // defs below from chromium: https://source.chromium.org/chromium/chromium/src/+/main:chrome/common/conflicts/module_watcher_win.cc
 
 // These structures and functions are documented in MSDN, see
