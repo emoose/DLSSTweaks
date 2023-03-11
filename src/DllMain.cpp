@@ -404,9 +404,11 @@ void hook_params(NVSDK_NGX_Parameter* params)
 
 		spdlog::info("DLSS functions found & parameter hooks applied!");
 		spdlog::info("Settings:");
-		spdlog::info(" - ForceDLAA: {}", forceDLAA ? "true" : "false");
-		spdlog::info(" - OverrideAutoExposure: {}", overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"));
-		spdlog::info(" - OverrideAppId: {}", overrideAppId ? "true" : "false");
+		spdlog::info(" - forceDLAA: {}", forceDLAA ? "true" : "false");
+		spdlog::info(" - overrideAutoExposure: {}", overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"));
+		spdlog::info(" - overrideAppId: {}", overrideAppId ? "true" : "false");
+		spdlog::info(" - watchIniUpdates: {}", watchIniUpdates ? "true" : "false");
+		spdlog::info(" - overrideQualityLevels: {}", overrideQualityLevels ? "true" : "false");
 
 		// disable NGX param export hooks since they aren't needed now
 		NVSDK_NGX_D3D11_AllocateParameters_Hook.reset();
