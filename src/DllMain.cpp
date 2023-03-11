@@ -603,22 +603,56 @@ LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD 
 	return ret;
 }
 
+SafetyHookInline DLSS_GetIndicatorValue_Hook;
+uint32_t __fastcall DLSS_GetIndicatorValue(void* thisptr, uint32_t* OutValue)
+{
+	auto ret = DLSS_GetIndicatorValue_Hook.thiscall<uint32_t>(thisptr, OutValue);
+	if (overrideDlssHud == 0)
+		return ret;
+	*OutValue = overrideDlssHud > 0 ? 0x400 : 0;
+	return ret;
+}
+
 SafetyHookMid dlssIndicatorHudHook{};
 bool hook(HMODULE ngx_module)
 {
-	// TODO: older DLSS versions use a different offset than 0x110, preventing this pattern from working
-	auto indicatorValueCheck = hook::pattern((void*)ngx_module, "75 ? 8B 83 10 01 00 00 89");
+	// This pattern finds 2 matches in latest DLSS, but only 1 in older ones
+	// The one we're trying to find seems to always be first match
+	// TODO: scan for RegQueryValue call and grab the offset from that, use offset instead of wildcards below
+
+	auto indicatorValueCheck = hook::pattern((void*)ngx_module, "8B 81 ? ? ? ? 89 02 33 C0 C3");
 	if (watchIniUpdates && indicatorValueCheck.size())
 	{
-		auto builder = SafetyHookFactory::acquire();
+		spdlog::debug("nvngx_dlss: WatchIniUpdates enabled, applying hud hook via vftable hook...");
 
-		dlssIndicatorHudHook = builder.create_mid(indicatorValueCheck.count(1).get_first(2), [](safetyhook::Context& ctx)
-			{
-				if (overrideDlssHud == 0)
-					return;
-				*(uint32_t*)(ctx.rbx + 0x110) = overrideDlssHud > 0 ? 0x400 : 0;
-			});
-		spdlog::debug("nvngx_dlss: applied hud hook via pattern");
+		auto indicatorValueCheck_addr = indicatorValueCheck.get(0).get<void>();
+		{
+			auto builder = SafetyHookFactory::acquire();
+			DLSS_GetIndicatorValue_Hook = builder.create_inline(indicatorValueCheck_addr, DLSS_GetIndicatorValue);
+		}
+
+		// Unfortunately it's not enough to just hook the function, HUD render code seems to have an optimization where it checks funcptr and inlines code if it matches
+		// So we also need to search for the address of the function, find vftable that holds it, and overwrite entry to point at our hook
+
+		// Ugly way of converting our address to a pattern string...
+		uint8_t* p = (uint8_t*)&indicatorValueCheck_addr;
+
+		std::stringstream ss;
+		ss << std::hex << std::setw(2) << std::setfill('0') << (int)p[0];
+		for (int i = 1; i < 8; ++i)
+			ss << " " << std::setw(2) << std::setfill('0') << (int)p[i];
+
+		auto pattern = ss.str();
+
+		auto indicatorValueCheckMemberVf = hook::pattern((void*)ngx_module, pattern);
+		for (int i = 0; i < indicatorValueCheckMemberVf.size(); i++)
+		{
+			auto vfAddr = indicatorValueCheckMemberVf.get(i).get<uintptr_t>(0);
+			UnprotectMemory unprotect{ (uintptr_t)vfAddr, sizeof(uintptr_t) };
+			*vfAddr = (uintptr_t)&DLSS_GetIndicatorValue;
+		}
+
+		spdlog::debug("nvngx_dlss: applied hud hook via vftable hook");
 	}
 	else
 	{
@@ -627,10 +661,9 @@ bool hook(HMODULE ngx_module)
 		HMODULE advapi = GetModuleHandleA("advapi32.dll");
 		RegQueryValueExW_Orig = advapi ? (decltype(RegQueryValueExW_Orig))GetProcAddress(advapi, "RegQueryValueExW") : nullptr;
 		if (!RegQueryValueExW_Orig || !utility::HookIAT(ngx_module, "advapi32.dll", RegQueryValueExW_Orig, RegQueryValueExW_Hook))
-		{
-			spdlog::warn("Failed to hook DLSS HUD functions, OverrideDlssHud might not be available.");
-		}
-		spdlog::debug("nvngx_dlss: applied hud hook via registry");
+			spdlog::warn("nvngx_dlss: failed to hook DLSS HUD functions, OverrideDlssHud might not be available.");
+		else
+			spdlog::debug("nvngx_dlss: applied hud hook via registry");
 	}
 
 	return true;

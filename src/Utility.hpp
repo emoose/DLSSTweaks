@@ -87,6 +87,21 @@ namespace nvngx
 	void hook_params(NVSDK_NGX_Parameter* params);
 }
 
+// from safetyhook: https://github.com/cursey/safetyhook/blob/35d28aab6d10f9ed17499df8461c92721f0db025/src/InlineHook.cpp#LL15
+class UnprotectMemory {
+public:
+	UnprotectMemory(uintptr_t address, size_t size) : m_address{ address }, m_size{ size } {
+		VirtualProtect((LPVOID)m_address, m_size, PAGE_EXECUTE_READWRITE, &m_protect);
+	}
+
+	~UnprotectMemory() { VirtualProtect((LPVOID)m_address, m_size, m_protect, &m_protect); }
+
+private:
+	uintptr_t m_address{};
+	size_t m_size{};
+	DWORD m_protect{};
+};
+
 // defs below from chromium: https://source.chromium.org/chromium/chromium/src/+/main:chrome/common/conflicts/module_watcher_win.cc
 
 // These structures and functions are documented in MSDN, see
