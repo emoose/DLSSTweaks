@@ -4,15 +4,11 @@
 #include <Windows.h>
 #include <winternl.h>
 
-#include <cstdio>
 #include <cstdint>
-#include <string>
-#include <psapi.h>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <unordered_map>
-#include <cwctype>
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_sinks.h>
@@ -35,6 +31,7 @@ std::filesystem::path DllPath;
 std::filesystem::path LogPath;
 std::filesystem::path IniPath;
 
+// User settings
 bool watchIniUpdates = false;
 bool forceDLAA = false;
 int overrideAutoExposure = 0;
@@ -67,13 +64,13 @@ const char* projectIdOverride = "24480451-f00d-face-1304-0308dabad187";
 const unsigned long long appIdOverride = 0x24480451;
 
 // wrapper struct on top of SafetyHookInline
-// can either call the hook trampoline via SafetyHookInline, or call a specified function by setting dest_proc
+// can either call the hook trampoline via SafetyHookInline, or call a specified function if dest_proc is set
 struct HookOrigFn
 {
 	SafetyHookInline hook{};
 	FARPROC dest_proc = nullptr;
 
-	// only resets inline hook, as unsetting dest_proc could leave this with no function to call, causing issues
+	// only resets inline hook, as unsetting both hook & dest_proc would leave this with no function to call, causing issues
 	void reset()
 	{
 		hook.reset();
@@ -107,8 +104,24 @@ struct HookOrigFn
 	}
 };
 
+std::mutex initThreadFinishedMutex;
+std::condition_variable initThreadFinishedVar;
+bool initThreadFinished = false;
+
+// In nvngx.dll wrapper mode the game might call DLSS functions immediately after loading DLL (ie. right after DllMain)
+// before our InitThread has actually finished reading settings etc
+// This func will just check if finished & wait for it if not, seems to be safe to let the NVNGX calls wait for this
+void WaitForInitThread()
+{
+	if (initThreadFinished)
+		return;
+
+	std::unique_lock lock(initThreadFinishedMutex);
+	initThreadFinishedVar.wait(lock, [] { return initThreadFinished; });
+}
+
 // the hooks defined below work in two different methods
-// method 0: if we were loaded in via nvngx wrapper (requires reg edit), the hooks below are exported as the nvngx functions themselves, so we can do our work and then call back to original DLL via _Orig funcs above
+// method 0: if we were loaded in via nvngx wrapper (requires reg edit), the hooks below are exported as the nvngx functions themselves, so we can do our work and then call back to original DLL
 // method 1: if we were loaded in via other DLL wrapper (dxgi etc), then _nvngx.dll was hooked to call these functions instead, and call back via safetyhook unsafe_call
 // these are handled via either nvngx::hook or nvngx::init setting up the HookOrigFn structs for each function
 namespace nvngx
@@ -119,6 +132,8 @@ NVSDK_NGX_PerfQuality_Value prevQualityValue; // prev value set by game
 HookOrigFn NVSDK_NGX_D3D11_Init_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_Init(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* InDevice, const void* InFeatureInfo, void* InSDKVersion)
 {
+	WaitForInitThread();
+
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
 
@@ -127,6 +142,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_Init(unsigned long long InApplicatio
 HookOrigFn NVSDK_NGX_D3D11_Init_Ext_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_Init_Ext(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* a3, void* a4, void* a5)
 {
+	WaitForInitThread();
+
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
 
@@ -135,6 +152,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_Init_Ext(unsigned long long InApplic
 HookOrigFn NVSDK_NGX_D3D11_Init_ProjectID_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_Init_ProjectID(const char* InProjectId, enum NVSDK_NGX_EngineType InEngineType, const char* InEngineVersion, const wchar_t* InApplicationDataPath, class ID3D11Device* InDevice, const struct NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, enum NVSDK_NGX_Version InSDKVersion)
 {
+	WaitForInitThread();
+
 	if (overrideAppId)
 		InProjectId = projectIdOverride;
 
@@ -144,6 +163,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_Init_ProjectID(const char* InProject
 HookOrigFn NVSDK_NGX_D3D12_Init_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_Init(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* InDevice, const void* InFeatureInfo, void* InSDKVersion)
 {
+	WaitForInitThread();
+
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
 
@@ -152,6 +173,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_Init(unsigned long long InApplicatio
 HookOrigFn NVSDK_NGX_D3D12_Init_Ext_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_Init_Ext(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* a3, void* a4, void* a5)
 {
+	WaitForInitThread();
+
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
 
@@ -160,6 +183,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_Init_Ext(unsigned long long InApplic
 HookOrigFn NVSDK_NGX_D3D12_Init_ProjectID_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_Init_ProjectID(const char* InProjectId, enum NVSDK_NGX_EngineType InEngineType, const char* InEngineVersion, const wchar_t* InApplicationDataPath, class ID3D11Device* InDevice, const struct NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, enum NVSDK_NGX_Version InSDKVersion)
 {
+	WaitForInitThread();
+
 	if (overrideAppId)
 		InProjectId = projectIdOverride;
 
@@ -169,6 +194,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_Init_ProjectID(const char* InProject
 HookOrigFn NVSDK_NGX_VULKAN_Init_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6)
 {
+	WaitForInitThread();
+
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
 
@@ -177,6 +204,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init(unsigned long long InApplicati
 HookOrigFn NVSDK_NGX_VULKAN_Init_Ext_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_Ext(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7)
 {
+	WaitForInitThread();
+
 	if (overrideAppId)
 		InApplicationId = appIdOverride;
 
@@ -192,6 +221,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_Ext2(unsigned long long InAppl
 HookOrigFn NVSDK_NGX_VULKAN_Init_ProjectID_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_ProjectID(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
 {
+	WaitForInitThread();
+
 	if (overrideAppId)
 		InProjectId = projectIdOverride;
 
@@ -200,6 +231,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_ProjectID(const char* InProjec
 HookOrigFn NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Ext(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11)
 {
+	WaitForInitThread();
+
 	if (overrideAppId)
 		InProjectId = projectIdOverride;
 	return NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook.unsafe_call<uint64_t>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
@@ -300,6 +333,8 @@ void hook_params(NVSDK_NGX_Parameter* params);
 HookOrigFn NVSDK_NGX_D3D12_AllocateParameters_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_AllocateParameters(NVSDK_NGX_Parameter** OutParameters)
 {
+	WaitForInitThread();
+
 	uint64_t ret = NVSDK_NGX_D3D12_AllocateParameters_Hook.call<uint64_t>(OutParameters);
 
 	if (*OutParameters)
@@ -309,6 +344,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_AllocateParameters(NVSDK_NGX_Paramet
 HookOrigFn NVSDK_NGX_D3D12_GetCapabilityParameters_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_GetCapabilityParameters(NVSDK_NGX_Parameter** OutParameters)
 {
+	WaitForInitThread();
+
 	uint64_t ret = NVSDK_NGX_D3D12_GetCapabilityParameters_Hook.call<uint64_t>(OutParameters);
 
 	if (*OutParameters)
@@ -318,6 +355,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_GetCapabilityParameters(NVSDK_NGX_Pa
 HookOrigFn NVSDK_NGX_D3D12_GetParameters_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_GetParameters(NVSDK_NGX_Parameter** OutParameters)
 {
+	WaitForInitThread();
+
 	uint64_t ret = NVSDK_NGX_D3D12_GetParameters_Hook.call<uint64_t>(OutParameters);
 
 	if (*OutParameters)
@@ -328,6 +367,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_GetParameters(NVSDK_NGX_Parameter** 
 HookOrigFn NVSDK_NGX_D3D11_AllocateParameters_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_AllocateParameters(NVSDK_NGX_Parameter** OutParameters)
 {
+	WaitForInitThread();
+
 	uint64_t ret = NVSDK_NGX_D3D11_AllocateParameters_Hook.call<uint64_t>(OutParameters);
 
 	if (*OutParameters)
@@ -337,6 +378,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_AllocateParameters(NVSDK_NGX_Paramet
 HookOrigFn NVSDK_NGX_D3D11_GetCapabilityParameters_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_GetCapabilityParameters(NVSDK_NGX_Parameter** OutParameters)
 {
+	WaitForInitThread();
+
 	uint64_t ret = NVSDK_NGX_D3D11_GetCapabilityParameters_Hook.call<uint64_t>(OutParameters);
 
 	if (*OutParameters)
@@ -346,6 +389,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_GetCapabilityParameters(NVSDK_NGX_Pa
 HookOrigFn NVSDK_NGX_D3D11_GetParameters_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_GetParameters(NVSDK_NGX_Parameter** OutParameters)
 {
+	WaitForInitThread();
+
 	uint64_t ret = NVSDK_NGX_D3D11_GetParameters_Hook.call<uint64_t>(OutParameters);
 
 	if (*OutParameters)
@@ -356,6 +401,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_GetParameters(NVSDK_NGX_Parameter** 
 HookOrigFn NVSDK_NGX_VULKAN_AllocateParameters_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_AllocateParameters(NVSDK_NGX_Parameter** OutParameters)
 {
+	WaitForInitThread();
+
 	uint64_t ret = NVSDK_NGX_VULKAN_AllocateParameters_Hook.call<uint64_t>(OutParameters);
 
 	if (*OutParameters)
@@ -365,6 +412,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_AllocateParameters(NVSDK_NGX_Parame
 HookOrigFn NVSDK_NGX_VULKAN_GetCapabilityParameters_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_GetCapabilityParameters(NVSDK_NGX_Parameter** OutParameters)
 {
+	WaitForInitThread();
+
 	uint64_t ret = NVSDK_NGX_VULKAN_GetCapabilityParameters_Hook.call<uint64_t>(OutParameters);
 
 	if (*OutParameters)
@@ -374,6 +423,8 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_GetCapabilityParameters(NVSDK_NGX_P
 HookOrigFn NVSDK_NGX_VULKAN_GetParameters_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_GetParameters(NVSDK_NGX_Parameter** OutParameters)
 {
+	WaitForInitThread();
+
 	uint64_t ret = NVSDK_NGX_VULKAN_GetParameters_Hook.call<uint64_t>(OutParameters);
 
 	if (*OutParameters)
@@ -669,7 +720,6 @@ bool hook(HMODULE ngx_module)
 	return true;
 }
 
-
 void unhook(HMODULE ngx_module)
 {
 	dlssIndicatorHudHook.reset();
@@ -879,7 +929,7 @@ unsigned int __stdcall InitThread(void* param)
 	if (!std::filesystem::exists(IniPath))
 		IniPath = DllPath.parent_path() / IniFileName;
 
-	spdlog::info("DLSSTweaks v0.200.2alpha, by emoose: {} wrapper loaded", DllPath.filename().string());
+	spdlog::info("DLSSTweaks v0.200.2, by emoose: {} wrapper loaded", DllPath.filename().string());
 	spdlog::info("Game path: {}", ExePath.string());
 	spdlog::info("DLL path: {}", DllPath.string());
 	spdlog::info("Config path: {}", IniPath.string());
@@ -925,6 +975,13 @@ unsigned int __stdcall InitThread(void* param)
 			LoadLibraryW_Orig = builder.create_inline(LoadLibraryW_addr, LoadLibraryW_Hook);
 			LoadLibraryA_Orig = builder.create_inline(LoadLibraryA_addr, LoadLibraryA_Hook);
 		}
+	}
+
+	// Init finished, allow any DLSS calls to continue
+	{
+		std::lock_guard lock(initThreadFinishedMutex);
+		initThreadFinished = true;
+		initThreadFinishedVar.notify_all();
 	}
 
 	if (!watchIniUpdates)
