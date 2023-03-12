@@ -211,13 +211,6 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_Ext(unsigned long long InAppli
 
 	return NVSDK_NGX_VULKAN_Init_Ext_Hook.unsafe_call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6, a7);
 }
-HookOrigFn NVSDK_NGX_VULKAN_Init_Ext2_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_Ext2(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
-{
-	if (overrideAppId)
-		InApplicationId = appIdOverride;
-	return NVSDK_NGX_VULKAN_Init_Ext2_Hook.unsafe_call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6, a7, a8, a9);
-}
 HookOrigFn NVSDK_NGX_VULKAN_Init_ProjectID_Hook;
 PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_ProjectID(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
 {
@@ -228,8 +221,17 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_ProjectID(const char* InProjec
 
 	return NVSDK_NGX_VULKAN_Init_ProjectID_Hook.unsafe_call<uint64_t>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9);
 }
+
+// VULKAN_Init_Ext2 / VULKAN_Init_ProjectID_Ext are _nvngx.dll only, not included in nvngx.dll
+HookOrigFn NVSDK_NGX_VULKAN_Init_Ext2_Hook;
+uint64_t __cdecl NVSDK_NGX_VULKAN_Init_Ext2(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
+{
+	if (overrideAppId)
+		InApplicationId = appIdOverride;
+	return NVSDK_NGX_VULKAN_Init_Ext2_Hook.unsafe_call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6, a7, a8, a9);
+}
 HookOrigFn NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Ext(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11)
+uint64_t __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Ext(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11)
 {
 	WaitForInitThread();
 
