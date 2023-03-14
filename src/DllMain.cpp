@@ -41,6 +41,18 @@ std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios =
 	{NVSDK_NGX_PerfQuality_Value_UltraQuality, 0.f},
 };
 
+void UserSettings::print_to_log()
+{
+	spdlog::info("Settings:");
+	spdlog::info(" - ForceDLAA: {}", settings.forceDLAA ? "true" : "false");
+	spdlog::info(" - OverrideAutoExposure: {}", settings.overrideAutoExposure == 0 ? "default" : (settings.overrideAutoExposure > 0 ? "enable" : "disable"));
+	spdlog::info(" - OverrideAppId: {}", settings.overrideAppId ? "true" : "false");
+	spdlog::info(" - OverrideDlssHud: {}", settings.overrideDlssHud == 0 ? "default" : (settings.overrideDlssHud > 0 ? "enable" : "disable"));
+	spdlog::info(" - DisableDevWatermark: {}", settings.disableDevWatermark ? "true" : "false");
+	spdlog::info(" - OverrideDlssDll: {}", settings.overrideDlssDll.empty() ? "N/A" : settings.overrideDlssDll.string());
+	spdlog::info(" - WatchIniUpdates: {}", settings.watchIniUpdates ? "true" : "false");
+}
+
 std::mutex initThreadFinishedMutex;
 std::condition_variable initThreadFinishedVar;
 bool initThreadFinished = false;

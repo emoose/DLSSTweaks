@@ -6,19 +6,21 @@
 
 struct UserSettings
 {
-	bool watchIniUpdates = false;
 	bool forceDLAA = false;
 	int overrideAutoExposure = 0;
+	bool overrideAppId = false;
 	int overrideDlssHud = 0;
 	bool disableDevWatermark = false;
-	bool overrideAppId = false;
 	std::filesystem::path overrideDlssDll = "";
+	bool watchIniUpdates = false;
 	bool overrideQualityLevels = false;
 	unsigned int presetDLAA = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 	unsigned int presetQuality = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 	unsigned int presetBalanced = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 	unsigned int presetPerformance = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 	unsigned int presetUltraPerformance = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
+
+	void print_to_log();
 };
 
 // DllMain.cpp
