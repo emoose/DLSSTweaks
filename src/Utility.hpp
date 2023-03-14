@@ -1,4 +1,5 @@
 #pragma once
+#include <SafetyHook.hpp>
 
 namespace utility
 {
@@ -81,11 +82,6 @@ struct NVSDK_NGX_Parameter
 {
 	NVSDK_NGX_Parameter_vftable* _vftable;
 };
-
-namespace nvngx
-{
-	void hook_params(NVSDK_NGX_Parameter* params);
-}
 
 // from safetyhook: https://github.com/cursey/safetyhook/blob/35d28aab6d10f9ed17499df8461c92721f0db025/src/InlineHook.cpp#LL15
 class UnprotectMemory {
