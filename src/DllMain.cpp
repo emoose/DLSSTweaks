@@ -246,7 +246,7 @@ unsigned int __stdcall InitThread(void* param)
 	if (!std::filesystem::exists(IniPath))
 		IniPath = DllPath.parent_path() / IniFileName;
 
-	spdlog::info("DLSSTweaks v0.200.2, by emoose: {} wrapper loaded", DllPath.filename().string());
+	spdlog::info("DLSSTweaks v0.200.3, by emoose: {} wrapper loaded", DllPath.filename().string());
 	spdlog::info("Game path: {}", ExePath.string());
 	spdlog::info("DLL path: {}", DllPath.string());
 	spdlog::info("Config path: {}", IniPath.string());

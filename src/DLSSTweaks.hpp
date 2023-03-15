@@ -49,6 +49,8 @@ struct HookOrigFn
 	SafetyHookInline hook{};
 	FARPROC dest_proc = nullptr;
 
+	std::recursive_mutex m_mutex{};
+
 	// only resets inline hook, as unsetting both hook & dest_proc would leave this with no function to call, causing issues
 	void reset()
 	{
@@ -71,14 +73,14 @@ struct HookOrigFn
 	}
 
 	template <typename RetT = void, typename... Args> auto call(Args... args) {
-		if (dest_proc)
-			return ((RetT(*)(Args...))dest_proc)(args...);
-		return hook.call<RetT>(args...);
+		std::scoped_lock lock{m_mutex};
+
+		uintptr_t dest = dest_proc ? uintptr_t(dest_proc) : hook.trampoline();
+		return ((RetT(*)(Args...))dest)(args...);
 	}
 
 	template <typename RetT = void, typename... Args> auto unsafe_call(Args... args) {
-		if (dest_proc)
-			return ((RetT(*)(Args...))dest_proc)(args...);
-		return hook.unsafe_call<RetT>(args...);
+		uintptr_t dest = dest_proc ? uintptr_t(dest_proc) : hook.trampoline();
+		return ((RetT(*)(Args...))dest)(args...);
 	}
 };

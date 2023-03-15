@@ -16,6 +16,12 @@ const unsigned long long appIdOverride = 0x24480451;
 // method 0: if we were loaded in via nvngx wrapper (requires reg edit), the hooks below are exported as the nvngx functions themselves, so we can do our work and then call back to original DLL
 // method 1: if we were loaded in via other DLL wrapper (dxgi etc), then _nvngx.dll was hooked to call these functions instead, and call back via safetyhook unsafe_call
 // these are handled via either nvngx::hook or nvngx::init setting up the HookOrigFn structs for each function
+
+// Note: some titles are only stable with DLSSTweaks when the VS compiler decides to let these functions exit via JMP instead of via CALL
+// When exiting via CALL some titles just seem to start having really strange issues, guess maybe stack space of the thread is very limited and CALL makes it go over the edge, but not completely sure
+// After some experiments the unsafe_call/call functions below now fortunately let it exit via JMP, but any compiler change (or even building in Debug mode) may change that
+// If any crashes are noticed after these are called it might be worth checking these functions in a disassembler first
+// (https://github.com/emoose/DLSSTweaks/issues/44#issuecomment-1468518380 for more info... if anyone has any idea for a better fix I'd be happy to hear it)
 namespace nvngx
 {
 NVSDK_NGX_PerfQuality_Value prevQualityValue; // prev value set by game
