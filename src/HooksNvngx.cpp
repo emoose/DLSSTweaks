@@ -201,9 +201,15 @@ uint64_t __cdecl NVSDK_NGX_Parameter_GetUI(void* InParameter, const char* InName
 	if (overrideWidth || overrideHeight)
 	{
 		if (overrideWidth && *OutValue != 0)
+		{
 			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, OutValue);
+			*OutValue += settings.resolutionOffset;
+		}
 		if (overrideHeight && *OutValue != 0)
+		{
 			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, OutValue);
+			*OutValue += settings.resolutionOffset;
+		}
 	}
 
 	// Override with DLSSQualityLevels value if user set it
@@ -213,15 +219,17 @@ uint64_t __cdecl NVSDK_NGX_Parameter_GetUI(void* InParameter, const char* InName
 		{
 			unsigned int targetWidth = 0;
 			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
-			targetWidth = unsigned int(roundf(float(targetWidth) * qualityLevelRatios[prevQualityValue])); // calculate new width from custom ratio
-			*OutValue = targetWidth;
+			*OutValue = unsigned int(roundf(float(targetWidth) * qualityLevelRatios[prevQualityValue])); // calculate new width from custom ratio
+			if (*OutValue == targetWidth) // apply resolutionOffset compatibility hack if it matches the target screen res
+				*OutValue += settings.resolutionOffset;
 		}
 		if (isOutHeight)
 		{
 			unsigned int targetHeight = 0;
 			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
-			targetHeight = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[prevQualityValue])); // calculate new height from custom ratio
-			*OutValue = targetHeight;
+			*OutValue = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[prevQualityValue])); // calculate new height from custom ratio
+			if (*OutValue == targetHeight) // apply resolutionOffset compatibility hack if it matches the target screen res
+				*OutValue += settings.resolutionOffset;
 		}
 	}
 

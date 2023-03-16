@@ -202,6 +202,9 @@ bool INIReadSettings()
 	settings.presetPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Performance");
 	settings.presetUltraPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "UltraPerformance");
 
+	// [Compatibility]
+	settings.resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(settings.resolutionOffset));
+
 	if (!settings.overrideDlssDll.empty() && !std::filesystem::exists(settings.overrideDlssDll))
 	{
 		spdlog::warn("Disabling OverrideDlssDll as override DLL wasn't found (path: {})", settings.overrideDlssDll.string());
