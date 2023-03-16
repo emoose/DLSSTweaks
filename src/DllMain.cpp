@@ -175,13 +175,15 @@ bool INIReadSettings()
 	inih::INIReader ini(iniFile);
 	fclose(iniFile);
 
-	settings.watchIniUpdates = ini.Get<bool>("DLSS", "WatchIniUpdates", std::move(settings.watchIniUpdates));
+	// [DLSS]
 	settings.forceDLAA = ini.Get<bool>("DLSS", "ForceDLAA", std::move(settings.forceDLAA));
 	settings.overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(settings.overrideAutoExposure));
 	settings.overrideDlssHud = ini.Get<int>("DLSS", "OverrideDlssHud", std::move(settings.overrideDlssHud));
 	settings.disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(settings.disableDevWatermark));
-	settings.overrideAppId = ini.Get<bool>("DLSS", "OverrideAppId", std::move(settings.overrideAppId));
 	settings.overrideDlssDll = ini.Get<std::filesystem::path>("DLSS", "OverrideDlssDll", "");
+	settings.watchIniUpdates = ini.Get<bool>("DLSS", "WatchIniUpdates", std::move(settings.watchIniUpdates));
+
+	// [DLSSQualityLevels]
 	settings.overrideQualityLevels = ini.Get<bool>("DLSSQualityLevels", "Enable", std::move(settings.overrideQualityLevels));
 	if (settings.overrideQualityLevels)
 	{
@@ -191,6 +193,9 @@ bool INIReadSettings()
 		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraPerformance] = ini.Get<float>("DLSSQualityLevels", "UltraPerformance", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraPerformance]));
 		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality] = ini.Get<float>("DLSSQualityLevels", "UltraQuality", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality]));
 	}
+
+	// [DLSSPresets]
+	settings.overrideAppId = ini.Get<bool>("DLSSPresets", "OverrideAppId", std::move(settings.overrideAppId));
 	settings.presetDLAA = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "DLAA");
 	settings.presetQuality = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Quality");
 	settings.presetBalanced = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Balanced");
