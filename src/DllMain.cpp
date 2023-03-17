@@ -41,18 +41,6 @@ std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios =
 	{NVSDK_NGX_PerfQuality_Value_UltraQuality, 0.f},
 };
 
-void UserSettings::print_to_log()
-{
-	spdlog::info("Settings:");
-	spdlog::info(" - ForceDLAA: {}", settings.forceDLAA ? "true" : "false");
-	spdlog::info(" - OverrideAutoExposure: {}", settings.overrideAutoExposure == 0 ? "default" : (settings.overrideAutoExposure > 0 ? "enable" : "disable"));
-	spdlog::info(" - OverrideAppId: {}", settings.overrideAppId ? "true" : "false");
-	spdlog::info(" - OverrideDlssHud: {}", settings.overrideDlssHud == 0 ? "default" : (settings.overrideDlssHud > 0 ? "enable" : "disable"));
-	spdlog::info(" - DisableDevWatermark: {}", settings.disableDevWatermark ? "true" : "false");
-	spdlog::info(" - OverrideDlssDll: {}", settings.overrideDlssDll.empty() ? "N/A" : settings.overrideDlssDll.string());
-	spdlog::info(" - WatchIniUpdates: {}", settings.watchIniUpdates ? "true" : "false");
-}
-
 std::mutex initThreadFinishedMutex;
 std::condition_variable initThreadFinishedVar;
 bool initThreadFinished = false;
@@ -161,11 +149,63 @@ unsigned int DLSS_ReadPresetFromIni(inih::INIReader& ini, const std::string& sec
 	return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 }
 
-bool INIReadSettings()
+std::string DLSS_PresetEnumToName(unsigned int val)
+{
+	if (val <= NVSDK_NGX_DLSS_Hint_Render_Preset_Default || val > NVSDK_NGX_DLSS_Hint_Render_Preset_F)
+		return "Default";
+	int charVal = int(val) - 1 + 'A';
+	std::string ret(1, charVal);
+	return ret;
+}
+
+void UserSettings::print_to_log()
+{
+	spdlog::info("Settings:");
+	spdlog::info(" - ForceDLAA: {}{}", forceDLAA ? "true" : "false", overrideQualityLevels ? " (overridden by DLSSQualityLevels section)" : "");
+	spdlog::info(" - OverrideAutoExposure: {}", overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"));
+	spdlog::info(" - OverrideAppId: {}", overrideAppId ? "true" : "false");
+	spdlog::info(" - OverrideDlssHud: {}", overrideDlssHud == 0 ? "default" : (overrideDlssHud > 0 ? "enable" : "disable"));
+	spdlog::info(" - DisableDevWatermark: {}", disableDevWatermark ? "true" : "false");
+	spdlog::info(" - OverrideDlssDll: {}", overrideDlssDll.empty() ? "N/A" : overrideDlssDll.string());
+	spdlog::info(" - WatchIniUpdates: {}", watchIniUpdates ? "true" : "false");
+	spdlog::info(" - ResolutionOffset: {}", resolutionOffset);
+	spdlog::info(" - DLSSQualityLevels enabled: {}", overrideQualityLevels ? "true" : "false");
+
+	if (overrideQualityLevels)
+	{
+		spdlog::info("  - UltraPerformance ratio: {}", qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraPerformance]);
+		spdlog::info("  - Performance ratio: {}", qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxPerf]);
+		spdlog::info("  - Balanced ratio: {}", qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_Balanced]);
+		spdlog::info("  - Quality ratio: {}", qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxQuality]);
+		spdlog::info("  - UltraQuality ratio: {}", qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality]);
+	}
+
+	// only print presets if any of them have been changed
+	if (presetDLAA || presetQuality || presetBalanced || presetPerformance || presetUltraPerformance)
+	{
+		spdlog::info(" - DLSSPresets:");
+		if (presetDLAA)
+			spdlog::info("  - DLAA: {}", DLSS_PresetEnumToName(presetDLAA));
+		if (presetQuality)
+			spdlog::info("  - Quality: {}", DLSS_PresetEnumToName(presetQuality));
+		if (presetBalanced)
+			spdlog::info("  - Balanced: {}", DLSS_PresetEnumToName(presetBalanced));
+		if (presetPerformance)
+			spdlog::info("  - Performance: {}", DLSS_PresetEnumToName(presetPerformance));
+		if (presetUltraPerformance)
+			spdlog::info("  - UltraPerformance: {}", DLSS_PresetEnumToName(presetUltraPerformance));
+	}
+	else
+	{
+		spdlog::info(" - DLSSPresets: default");
+	}
+}
+
+bool UserSettings::read(const std::filesystem::path& iniPath)
 {
 	using namespace utility;
 
-	std::wstring iniPathStr = IniPath.wstring();
+	std::wstring iniPathStr = iniPath.wstring();
 
 	// Read INI via FILE* since INIReader doesn't support wstring
 	FILE* iniFile;
@@ -176,16 +216,16 @@ bool INIReadSettings()
 	fclose(iniFile);
 
 	// [DLSS]
-	settings.forceDLAA = ini.Get<bool>("DLSS", "ForceDLAA", std::move(settings.forceDLAA));
-	settings.overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(settings.overrideAutoExposure));
-	settings.overrideDlssHud = ini.Get<int>("DLSS", "OverrideDlssHud", std::move(settings.overrideDlssHud));
-	settings.disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(settings.disableDevWatermark));
-	settings.overrideDlssDll = ini.Get<std::filesystem::path>("DLSS", "OverrideDlssDll", "");
-	settings.watchIniUpdates = ini.Get<bool>("DLSS", "WatchIniUpdates", std::move(settings.watchIniUpdates));
+	forceDLAA = ini.Get<bool>("DLSS", "ForceDLAA", std::move(forceDLAA));
+	overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(overrideAutoExposure));
+	overrideDlssHud = ini.Get<int>("DLSS", "OverrideDlssHud", std::move(overrideDlssHud));
+	disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(disableDevWatermark));
+	overrideDlssDll = ini.Get<std::filesystem::path>("DLSS", "OverrideDlssDll", "");
+	watchIniUpdates = ini.Get<bool>("DLSS", "WatchIniUpdates", std::move(watchIniUpdates));
 
 	// [DLSSQualityLevels]
-	settings.overrideQualityLevels = ini.Get<bool>("DLSSQualityLevels", "Enable", std::move(settings.overrideQualityLevels));
-	if (settings.overrideQualityLevels)
+	overrideQualityLevels = ini.Get<bool>("DLSSQualityLevels", "Enable", std::move(overrideQualityLevels));
+	if (overrideQualityLevels)
 	{
 		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxPerf] = ini.Get<float>("DLSSQualityLevels", "Performance", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxPerf]));
 		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_Balanced] = ini.Get<float>("DLSSQualityLevels", "Balanced", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_Balanced]));
@@ -195,20 +235,20 @@ bool INIReadSettings()
 	}
 
 	// [DLSSPresets]
-	settings.overrideAppId = ini.Get<bool>("DLSSPresets", "OverrideAppId", std::move(settings.overrideAppId));
-	settings.presetDLAA = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "DLAA");
-	settings.presetQuality = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Quality");
-	settings.presetBalanced = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Balanced");
-	settings.presetPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Performance");
-	settings.presetUltraPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "UltraPerformance");
+	overrideAppId = ini.Get<bool>("DLSSPresets", "OverrideAppId", std::move(overrideAppId));
+	presetDLAA = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "DLAA");
+	presetQuality = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Quality");
+	presetBalanced = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Balanced");
+	presetPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Performance");
+	presetUltraPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "UltraPerformance");
 
 	// [Compatibility]
-	settings.resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(settings.resolutionOffset));
+	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));
 
-	if (!settings.overrideDlssDll.empty() && !std::filesystem::exists(settings.overrideDlssDll))
+	if (!overrideDlssDll.empty() && !std::filesystem::exists(overrideDlssDll))
 	{
-		spdlog::warn("Disabling OverrideDlssDll as override DLL wasn't found (path: {})", settings.overrideDlssDll.string());
-		settings.overrideDlssDll.clear();
+		spdlog::warn("Disabling OverrideDlssDll as override DLL wasn't found (path: {})", overrideDlssDll.string());
+		overrideDlssDll.clear();
 	}
 
 	return true;
@@ -254,14 +294,14 @@ unsigned int __stdcall InitThread(void* param)
 	if (!std::filesystem::exists(IniPath))
 		IniPath = DllPath.parent_path() / IniFileName;
 
-	spdlog::info("DLSSTweaks v0.200.3, by emoose: {} wrapper loaded", DllPath.filename().string());
+	spdlog::info("DLSSTweaks v0.200.4, by emoose: {} wrapper loaded", DllPath.filename().string());
 	spdlog::info("Game path: {}", ExePath.string());
 	spdlog::info("DLL path: {}", DllPath.string());
 	spdlog::info("Config path: {}", IniPath.string());
 
 	spdlog::info("---");
 
-	INIReadSettings();
+	settings.read(IniPath);
 
 	// print msg about wrapping to log here, as nvngx wrap stuff was setup before spdlog was inited
 	if (proxy::is_wrapping_nvngx)
@@ -370,7 +410,7 @@ unsigned int __stdcall InitThread(void* param)
 						int attempts = 3;
 						while (attempts--)
 						{
-							if (INIReadSettings())
+							if (settings.read(IniPath))
 								break;
 							Sleep(1000);
 						}
