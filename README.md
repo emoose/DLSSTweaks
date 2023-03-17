@@ -8,11 +8,18 @@ DLSS 3.1 is required for DLSSPresets overrides to be applied, but DLAA forcing /
 
 This has been tested with Nvidia driver series **528** & **531** - earlier driver versions are known to have issues, recommend updating if DLSSTweaks doesn't seem to apply to any games for you.
 
-Binaries can be found in the [releases section](https://github.com/emoose/DLSSTweaks/releases).
+Check [releases section](https://github.com/emoose/DLSSTweaks/releases) for information about releases.
 
 ---
 
-DLSSTweaks now offers two different ways to setup the wrapper, which should allow the majority of games to work with it:
+Many hours have gone into developing/testing/rewriting, along with debugging issues with different games.  
+If the tweaks have helped improve your experience, please consider buying a coffee to support future development & help to obtain more games to test with. Thank you!
+
+<a href='https://ko-fi.com/emoose' target='_blank'><img src='https://i.imgur.com/I3zDqrO.png' border='0' alt='Buy Me a Coffee at ko-fi.com' />
+
+---
+
+DLSSTweaks now offers two different ways to setup the wrapper, which should help let it work across different system configs:
 
 #### nvngx.dll
 The easiest way to install is via nvngx.dll wrapping, this should work fine for the majority of games without needing to rename any files first.
@@ -22,6 +29,8 @@ However this method requires a small registry tweak to be applied first to stop 
 The included `EnableSignatureOverride.reg` can install this tweak for you (the tweak can also be removed via the `DisableSignatureOverride.reg`)
 
 After setting up the registry tweak you should be able to just copy the `nvngx.dll` & `dlsstweaks.ini` files next to your game EXE, and it should hopefully load into the game fine.
+
+(this is the same registry tweak used by [CyberFSR2](https://github.com/PotatoOfDoom/CyberFSR2) to load in their custom nvngx.dll, haven't seen any reports of issues caused by it, but if you play games that use anti-cheat software you may want to use the method below, instead of installing this global registry tweak)
 
 #### dxgi.dll/etc
 Alternatively if you don't wish to use the registry tweak, the older methods of loading in via dxgi.dll etc wrapping are also still supported.  
@@ -40,10 +49,6 @@ Note that **the default dlsstweaks.ini won't apply any tweaks**, it must be edit
 The way the hook works is similar to how some game cheats modify games, it's very likely to be picked up by most anti-cheats.
 
 **Please don't reupload this DLL elsewhere**, linking to the [releases page](https://github.com/emoose/DLSSTweaks/releases) would be appreciated.
-
-If this release helped you out at all, consider buying a coffee to help support future mods & tweaks :)
-
-<a href='https://ko-fi.com/emoose' target='_blank'><img height='35' style='border:0px;height:46px;' src='https://az743702.vo.msecnd.net/cdn/kofi3.png?v=0' border='0' alt='Buy Me a Coffee at ko-fi.com' />
 
 ---
 ### Game Compatibility

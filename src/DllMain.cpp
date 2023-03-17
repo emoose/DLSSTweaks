@@ -36,7 +36,7 @@ std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios =
 
 	// note: if NVSDK_NGX_PerfQuality_Value_UltraQuality is non-zero, some games may detect that we're passing a valid resolution and show an Ultra Quality option as a result
 	// very few games support this though, and right now DLSS seems to refuse to render if UltraQuality gets passed to it
-	// our SetI hook below can override the quality passed to DLSS if this gets used by the game, letting it think this is MaxQuality instead
+	// our SetI hook in HooksNvngx can override the quality passed to DLSS if this gets used by the game, letting it think this is MaxQuality instead
 	// but we'll only do that if user overrides this in the INI to a non-zero value
 	{NVSDK_NGX_PerfQuality_Value_UltraQuality, 0.f},
 };
@@ -277,6 +277,10 @@ unsigned int __stdcall InitThread(void* param)
 	{
 		spdlog::debug("LdrRegisterDllNotification callback set");
 	}
+	else
+	{
+		spdlog::error("Failed to locate LdrRegisterDllNotification function address?"); // shouldn't happen
+	}
 
 	// Hook LoadLibrary so we can override DLSS path if desired
 	if (!settings.overrideDlssDll.empty())
@@ -302,7 +306,7 @@ unsigned int __stdcall InitThread(void* param)
 		}
 	}
 
-	// Init finished, allow any DLSS calls to continue
+	// Init finished, allow any pending DLSS calls to continue
 	{
 		std::lock_guard lock(initThreadFinishedMutex);
 		initThreadFinished = true;
