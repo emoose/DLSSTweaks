@@ -127,39 +127,10 @@ void __stdcall LoaderNotificationCallback(unsigned long notification_reason, con
 	}
 }
 
-unsigned int DLSS_ReadPresetFromIni(inih::INIReader& ini, const std::string& section, const std::string& key)
-{
-	std::string val = ini.Get<std::string>(section, key, "Default");
-
-	if (!stricmp(val.c_str(), "Default"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
-	if (!stricmp(val.c_str(), "A"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_A;
-	if (!stricmp(val.c_str(), "B"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_B;
-	if (!stricmp(val.c_str(), "C"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_C;
-	if (!stricmp(val.c_str(), "D"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_D;
-	if (!stricmp(val.c_str(), "E"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_E;
-	if (!stricmp(val.c_str(), "F"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_F;
-
-	return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
-}
-
-std::string DLSS_PresetEnumToName(unsigned int val)
-{
-	if (val <= NVSDK_NGX_DLSS_Hint_Render_Preset_Default || val > NVSDK_NGX_DLSS_Hint_Render_Preset_F)
-		return "Default";
-	int charVal = int(val) - 1 + 'A';
-	std::string ret(1, charVal);
-	return ret;
-}
-
 void UserSettings::print_to_log()
 {
+	using namespace utility;
+
 	spdlog::info("Settings:");
 	spdlog::info(" - ForceDLAA: {}{}", forceDLAA ? "true" : "false", overrideQualityLevels ? " (overridden by DLSSQualityLevels section)" : "");
 	spdlog::info(" - OverrideAutoExposure: {}", overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"));
@@ -236,11 +207,11 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 
 	// [DLSSPresets]
 	overrideAppId = ini.Get<bool>("DLSSPresets", "OverrideAppId", std::move(overrideAppId));
-	presetDLAA = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "DLAA");
-	presetQuality = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Quality");
-	presetBalanced = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Balanced");
-	presetPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "Performance");
-	presetUltraPerformance = DLSS_ReadPresetFromIni(ini, "DLSSPresets", "UltraPerformance");
+	presetDLAA = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "DLAA", DLSS_PresetEnumToName(presetDLAA)));
+	presetQuality = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "Quality", DLSS_PresetEnumToName(presetQuality)));
+	presetBalanced = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "Balanced", DLSS_PresetEnumToName(presetBalanced)));
+	presetPerformance = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "Performance", DLSS_PresetEnumToName(presetPerformance)));
+	presetUltraPerformance = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "UltraPerformance", DLSS_PresetEnumToName(presetUltraPerformance)));
 
 	// [Compatibility]
 	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));
@@ -288,20 +259,39 @@ unsigned int __stdcall InitThread(void* param)
 		spdlog::flush_on(spdlog::level::info);
 	}
 
-	// If an INI exists next to game EXE, use that
-	// else we'll try reading INI from next to this DLL
-	IniPath = ExePath.parent_path() / IniFileName;
-	if (!std::filesystem::exists(IniPath))
-		IniPath = DllPath.parent_path() / IniFileName;
-
 	spdlog::info("DLSSTweaks v0.200.4, by emoose: {} wrapper loaded", DllPath.filename().string());
 	spdlog::info("Game path: {}", ExePath.string());
 	spdlog::info("DLL path: {}", DllPath.string());
-	spdlog::info("Config path: {}", IniPath.string());
 
 	spdlog::info("---");
 
-	settings.read(IniPath);
+	// Read config from next to DLL first, and then from next to EXE
+	// So with a global injector, you could keep a global config stored next to the DLL, and then per-game overrides kept next to the EXE
+	{
+		if (DllPath.parent_path() != ExePath.parent_path())
+		{
+			IniPath = DllPath.parent_path() / IniFileName;
+			if (std::filesystem::exists(IniPath))
+			{
+				if (settings.read(IniPath))
+					spdlog::info("Config read from {}", IniPath.string());
+				else
+					spdlog::error("Failed to read config from {}", IniPath.string());
+			}
+		}
+
+		IniPath = ExePath.parent_path() / IniFileName;
+		if (std::filesystem::exists(IniPath))
+		{
+			if (settings.read(IniPath))
+				spdlog::info("Config read from {}", IniPath.string());
+			else
+				spdlog::error("Failed to read config from {}", IniPath.string());
+		}
+
+		// IniPath will point to the INI next to game EXE after this, for WatchIniUpdates to update from that INI
+		// TODO: might be nice to watch both INIs in future, but unsure how much work that'd need
+	}
 
 	// print msg about wrapping to log here, as nvngx wrap stuff was setup before spdlog was inited
 	if (proxy::is_wrapping_nvngx)
@@ -411,7 +401,10 @@ unsigned int __stdcall InitThread(void* param)
 						while (attempts--)
 						{
 							if (settings.read(IniPath))
+							{
+								spdlog::info("Config updated from {}", IniPath.string());
 								break;
+							}
 							Sleep(1000);
 						}
 					}

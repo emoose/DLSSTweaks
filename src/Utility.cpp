@@ -1,9 +1,43 @@
 #define WIN32_LEAN_AND_MEAN
+#include <ntstatus.h>
+#define WIN32_NO_STATUS
 #include <Windows.h>
+#include <winternl.h>
+
 #include <cstdint>
+#include "DLSSTweaks.hpp"
 
 namespace utility
 {
+
+std::string DLSS_PresetEnumToName(unsigned int val)
+{
+	if (val <= NVSDK_NGX_DLSS_Hint_Render_Preset_Default || val > NVSDK_NGX_DLSS_Hint_Render_Preset_F)
+		return "Default";
+	int charVal = int(val) - 1 + 'A';
+	std::string ret(1, charVal);
+	return ret;
+}
+
+unsigned int DLSS_PresetNameToEnum(const std::string& val)
+{
+	if (!stricmp(val.c_str(), "Default"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
+	if (!stricmp(val.c_str(), "A"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_A;
+	if (!stricmp(val.c_str(), "B"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_B;
+	if (!stricmp(val.c_str(), "C"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_C;
+	if (!stricmp(val.c_str(), "D"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_D;
+	if (!stricmp(val.c_str(), "E"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_E;
+	if (!stricmp(val.c_str(), "F"))
+		return NVSDK_NGX_DLSS_Hint_Render_Preset_F;
+
+	return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
+}
 
 BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction)
 {

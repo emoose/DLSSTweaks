@@ -3,6 +3,9 @@
 
 namespace utility
 {
+std::string DLSS_PresetEnumToName(unsigned int val);
+unsigned int DLSS_PresetNameToEnum(const std::string& val);
+
 BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction);
 inline void* ModuleEntryPoint(HMODULE hmod)
 {
