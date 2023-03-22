@@ -203,6 +203,10 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxQuality] = ini.Get<float>("DLSSQualityLevels", "Quality", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxQuality]));
 		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraPerformance] = ini.Get<float>("DLSSQualityLevels", "UltraPerformance", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraPerformance]));
 		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality] = ini.Get<float>("DLSSQualityLevels", "UltraQuality", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality]));
+
+		// Clamp values between 0.0 to 1.0
+		for(int i = NVSDK_NGX_PerfQuality_Value_MaxPerf; i <= NVSDK_NGX_PerfQuality_Value_UltraQuality; i++)
+			qualityLevelRatios[NVSDK_NGX_PerfQuality_Value(i)] = std::clamp(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value(i)], 0.0f, 1.0f);
 	}
 
 	// [DLSSPresets]
