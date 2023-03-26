@@ -51,9 +51,12 @@ bool hook(HMODULE ngx_module)
 	// TODO: scan for RegQueryValue call and grab the offset from that, use offset instead of wildcards below
 
 	auto indicatorValueCheck = hook::pattern((void*)ngx_module, "8B 81 ? ? ? ? 89 02 33 C0 C3");
-	if (settings.watchIniUpdates && indicatorValueCheck.size())
+	if ((settings.watchIniUpdates || settings.overrideDlssHud == 2) && indicatorValueCheck.size())
 	{
-		spdlog::debug("nvngx_dlss: WatchIniUpdates enabled, applying hud hook via vftable hook...");
+		if (settings.watchIniUpdates)
+			spdlog::debug("nvngx_dlss: WatchIniUpdates enabled, applying hud hook via vftable hook...");
+		else if (settings.overrideDlssHud == 2)
+			spdlog::debug("nvngx_dlss: OverrideDlssHud == 2, applying hud hook via vftable hook...");
 
 		auto indicatorValueCheck_addr = indicatorValueCheck.get(0).get<void>();
 		{
