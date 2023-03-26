@@ -27,7 +27,7 @@ std::filesystem::path IniPath;
 
 UserSettings settings;
 
-std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios =
+std::unordered_map<int, float> qualityLevelRatios =
 {
 	{NVSDK_NGX_PerfQuality_Value_UltraPerformance, 0.33333334f},
 	{NVSDK_NGX_PerfQuality_Value_MaxPerf, 0.5f},
@@ -206,7 +206,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 
 		// Clamp values between 0.0 to 1.0
 		for (int i = NVSDK_NGX_PerfQuality_Value_MaxPerf; i <= NVSDK_NGX_PerfQuality_Value_UltraQuality; i++)
-			qualityLevelRatios[NVSDK_NGX_PerfQuality_Value(i)] = std::clamp(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value(i)], 0.0f, 1.0f);
+			qualityLevelRatios[i] = std::clamp(qualityLevelRatios[i], 0.0f, 1.0f);
 	}
 
 	// [DLSSPresets]

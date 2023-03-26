@@ -15,51 +15,6 @@ inline void* ModuleEntryPoint(HMODULE hmod)
 }
 };
 
-#define NVSDK_NGX_Parameter_Width "Width"
-#define NVSDK_NGX_Parameter_Height "Height"
-#define NVSDK_NGX_Parameter_OutWidth "OutWidth"
-#define NVSDK_NGX_Parameter_OutHeight "OutHeight"
-#define NVSDK_NGX_Parameter_PerfQualityValue "PerfQualityValue"
-#define NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags "DLSS.Feature.Create.Flags"
-#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA "DLSS.Hint.Render.Preset.DLAA"
-#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality "DLSS.Hint.Render.Preset.Quality"
-#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced "DLSS.Hint.Render.Preset.Balanced"
-#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance "DLSS.Hint.Render.Preset.Performance"
-#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance "DLSS.Hint.Render.Preset.UltraPerformance"
-#define NVSDK_NGX_Parameter_Disable_Watermark "Disable.Watermark"
-
-enum NVSDK_NGX_DLSS_Hint_Render_Preset
-{
-	NVSDK_NGX_DLSS_Hint_Render_Preset_Default,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_A,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_B,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_C,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_D,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_E,
-	NVSDK_NGX_DLSS_Hint_Render_Preset_F,
-};
-
-enum NVSDK_NGX_PerfQuality_Value
-{
-	NVSDK_NGX_PerfQuality_Value_MaxPerf,
-	NVSDK_NGX_PerfQuality_Value_Balanced,
-	NVSDK_NGX_PerfQuality_Value_MaxQuality,
-	NVSDK_NGX_PerfQuality_Value_UltraPerformance,
-	NVSDK_NGX_PerfQuality_Value_UltraQuality,
-};
-
-enum NVSDK_NGX_DLSS_Feature_Flags
-{
-	NVSDK_NGX_DLSS_Feature_Flags_None = 0,
-	NVSDK_NGX_DLSS_Feature_Flags_IsHDR = 1 << 0,
-	NVSDK_NGX_DLSS_Feature_Flags_MVLowRes = 1 << 1,
-	NVSDK_NGX_DLSS_Feature_Flags_MVJittered = 1 << 2,
-	NVSDK_NGX_DLSS_Feature_Flags_DepthInverted = 1 << 3,
-	NVSDK_NGX_DLSS_Feature_Flags_Reserved_0 = 1 << 4,
-	NVSDK_NGX_DLSS_Feature_Flags_DoSharpening = 1 << 5,
-	NVSDK_NGX_DLSS_Feature_Flags_AutoExposure = 1 << 6,
-};
-
 // Matches the order of NVSDK_NGX_Parameter vftable inside _nvngx.dll (which should never change unless they want to break compatibility)
 struct NVSDK_NGX_Parameter_vftable
 {
@@ -80,10 +35,6 @@ struct NVSDK_NGX_Parameter_vftable
 	void* GetF;
 	void* GetULL;
 	void* Reset;
-};
-struct NVSDK_NGX_Parameter
-{
-	NVSDK_NGX_Parameter_vftable* _vftable;
 };
 
 // from safetyhook: https://github.com/cursey/safetyhook/blob/35d28aab6d10f9ed17499df8461c92721f0db025/src/InlineHook.cpp#LL15

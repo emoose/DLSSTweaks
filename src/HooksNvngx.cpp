@@ -12,9 +12,9 @@
 const char* projectIdOverride = "24480451-f00d-face-1304-0308dabad187";
 const unsigned long long appIdOverride = 0x24480451;
 
-// the hooks defined below work in two different methods
-// method 0: if we were loaded in via nvngx wrapper (requires reg edit), the hooks below are exported as the nvngx functions themselves, so we can do our work and then call back to original DLL
-// method 1: if we were loaded in via other DLL wrapper (dxgi etc), then _nvngx.dll was hooked to call these functions instead, and call back via safetyhook unsafe_call
+// the hooks defined below can work using two different methods
+// method 0: if we were loaded in via nvngx wrapper (requires reg edit), the hooks below are exported as the nvngx functions themselves, which do our work and then call back to original DLL
+// method 1: if we were loaded in via other DLL wrapper (dxgi etc), then _nvngx.dll is hooked to call these functions instead, and call back to _nvngx via safetyhook unsafe_call
 // these are handled via either nvngx::hook or nvngx::init setting up the HookOrigFn structs for each function
 
 // Note: some titles are only stable with DLSSTweaks when the VS compiler decides to let these functions exit via JMP instead of via CALL
@@ -24,122 +24,121 @@ const unsigned long long appIdOverride = 0x24480451;
 // (https://github.com/emoose/DLSSTweaks/issues/44#issuecomment-1468518380 for more info... if anyone has any idea for a better fix I'd be happy to hear it)
 namespace nvngx
 {
-NVSDK_NGX_PerfQuality_Value prevQualityValue; // prev value set by game
 
 // TODO: InFeatureInfo might also hold project ID related fields, maybe should change those too...
 HookOrigFn NVSDK_NGX_D3D11_Init_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_Init(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* InDevice, const void* InFeatureInfo, void* InSDKVersion)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_Init(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* InDevice, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, NVSDK_NGX_Version InSDKVersion)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InApplicationId = appIdOverride;
 
-	return NVSDK_NGX_D3D11_Init_Hook.unsafe_call<uint64_t>(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
+	return NVSDK_NGX_D3D11_Init_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 HookOrigFn NVSDK_NGX_D3D11_Init_Ext_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_Init_Ext(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* a3, void* a4, void* a5)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_Init_Ext(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* a3, void* a4, void* a5)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InApplicationId = appIdOverride;
 
-	return NVSDK_NGX_D3D11_Init_Ext_Hook.unsafe_call<uint64_t>(InApplicationId, InApplicationDataPath, a3, a4, a5);
+	return NVSDK_NGX_D3D11_Init_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, a3, a4, a5);
 }
 HookOrigFn NVSDK_NGX_D3D11_Init_ProjectID_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_Init_ProjectID(const char* InProjectId, enum NVSDK_NGX_EngineType InEngineType, const char* InEngineVersion, const wchar_t* InApplicationDataPath, class ID3D11Device* InDevice, const struct NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, enum NVSDK_NGX_Version InSDKVersion)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_Init_ProjectID(const char* InProjectId, NVSDK_NGX_EngineType InEngineType, const char* InEngineVersion, const wchar_t* InApplicationDataPath, class ID3D11Device* InDevice, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, NVSDK_NGX_Version InSDKVersion)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InProjectId = projectIdOverride;
 
-	return NVSDK_NGX_D3D11_Init_ProjectID_Hook.unsafe_call<uint64_t>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
+	return NVSDK_NGX_D3D11_Init_ProjectID_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 
 HookOrigFn NVSDK_NGX_D3D12_Init_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_Init(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* InDevice, const void* InFeatureInfo, void* InSDKVersion)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_Init(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* InDevice, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, NVSDK_NGX_Version InSDKVersion)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InApplicationId = appIdOverride;
 
-	return NVSDK_NGX_D3D12_Init_Hook.unsafe_call<uint64_t>(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
+	return NVSDK_NGX_D3D12_Init_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 HookOrigFn NVSDK_NGX_D3D12_Init_Ext_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_Init_Ext(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* a3, void* a4, void* a5)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_Init_Ext(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* a3, void* a4, void* a5)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InApplicationId = appIdOverride;
 
-	return NVSDK_NGX_D3D12_Init_Ext_Hook.unsafe_call<uint64_t>(InApplicationId, InApplicationDataPath, a3, a4, a5);
+	return NVSDK_NGX_D3D12_Init_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, a3, a4, a5);
 }
 HookOrigFn NVSDK_NGX_D3D12_Init_ProjectID_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_Init_ProjectID(const char* InProjectId, enum NVSDK_NGX_EngineType InEngineType, const char* InEngineVersion, const wchar_t* InApplicationDataPath, class ID3D11Device* InDevice, const struct NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, enum NVSDK_NGX_Version InSDKVersion)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_Init_ProjectID(const char* InProjectId, NVSDK_NGX_EngineType InEngineType, const char* InEngineVersion, const wchar_t* InApplicationDataPath, class ID3D11Device* InDevice, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, NVSDK_NGX_Version InSDKVersion)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InProjectId = projectIdOverride;
 
-	return NVSDK_NGX_D3D12_Init_ProjectID_Hook.unsafe_call<uint64_t>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
+	return NVSDK_NGX_D3D12_Init_ProjectID_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 
 HookOrigFn NVSDK_NGX_VULKAN_Init_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InApplicationId = appIdOverride;
 
-	return NVSDK_NGX_VULKAN_Init_Hook.unsafe_call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6);
+	return NVSDK_NGX_VULKAN_Init_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, a2, a3, a4, a5, a6);
 }
 HookOrigFn NVSDK_NGX_VULKAN_Init_Ext_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_Ext(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_Ext(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InApplicationId = appIdOverride;
 
-	return NVSDK_NGX_VULKAN_Init_Ext_Hook.unsafe_call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6, a7);
+	return NVSDK_NGX_VULKAN_Init_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, a2, a3, a4, a5, a6, a7);
 }
 HookOrigFn NVSDK_NGX_VULKAN_Init_ProjectID_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_Init_ProjectID(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_ProjectID(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InProjectId = projectIdOverride;
 
-	return NVSDK_NGX_VULKAN_Init_ProjectID_Hook.unsafe_call<uint64_t>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9);
+	return NVSDK_NGX_VULKAN_Init_ProjectID_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9);
 }
 
 // VULKAN_Init_Ext2 / VULKAN_Init_ProjectID_Ext are _nvngx.dll only, not included in nvngx.dll
 HookOrigFn NVSDK_NGX_VULKAN_Init_Ext2_Hook;
-uint64_t __cdecl NVSDK_NGX_VULKAN_Init_Ext2(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
+NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_Ext2(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
 {
 	if (settings.overrideAppId)
 		InApplicationId = appIdOverride;
-	return NVSDK_NGX_VULKAN_Init_Ext2_Hook.unsafe_call<uint64_t>(InApplicationId, a2, a3, a4, a5, a6, a7, a8, a9);
+	return NVSDK_NGX_VULKAN_Init_Ext2_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, a2, a3, a4, a5, a6, a7, a8, a9);
 }
 HookOrigFn NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook;
-uint64_t __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Ext(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11)
+NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Ext(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InProjectId = projectIdOverride;
-	return NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook.unsafe_call<uint64_t>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+	return NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
 }
 
 SafetyHookInline NVSDK_NGX_Parameter_SetI_Hook;
-void __cdecl NVSDK_NGX_Parameter_SetI(void* InParameter, const char* InName, int InValue)
+void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const char* InName, int InValue)
 {
 	if (settings.overrideAutoExposure != 0 && !_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags))
 	{
@@ -149,25 +148,11 @@ void __cdecl NVSDK_NGX_Parameter_SetI(void* InParameter, const char* InName, int
 			InValue = InValue & ~NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
 	}
 
-	// Cache the chosen quality value so we can make decisions on it later on
-	// TODO: maybe should setup NVSDK_NGX_Parameter class so we could call GetI to fetch this instead, might be more reliable...
-	if (!_stricmp(InName, NVSDK_NGX_Parameter_PerfQualityValue))
-	{
-		auto value = NVSDK_NGX_PerfQuality_Value(InValue);
-		prevQualityValue = value;
-
-		// Some games may expose an UltraQuality option if we returned a valid resolution for it
-		// DLSS usually doesn't like UltraQuality being applied though, and will break rendering/crash altogether if set
-		// So we'll just tell DLSS to use MaxQuality instead, while keeping UltraQuality stored in prevQualityValue
-		if (value == NVSDK_NGX_PerfQuality_Value_UltraQuality && qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality] > 0.f)
-			InValue = int(NVSDK_NGX_PerfQuality_Value_MaxQuality);
-	}
-
 	NVSDK_NGX_Parameter_SetI_Hook.call(InParameter, InName, InValue);
 }
 
 SafetyHookInline NVSDK_NGX_Parameter_SetUI_Hook;
-void __cdecl NVSDK_NGX_Parameter_SetUI(void* InParameter, const char* InName, unsigned int InValue)
+void __cdecl NVSDK_NGX_Parameter_SetUI(NVSDK_NGX_Parameter* InParameter, const char* InName, unsigned int InValue)
 {
 	NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, InName, InValue);
 
@@ -186,10 +171,10 @@ void __cdecl NVSDK_NGX_Parameter_SetUI(void* InParameter, const char* InName, un
 }
 
 SafetyHookInline NVSDK_NGX_Parameter_GetUI_Hook;
-uint64_t __cdecl NVSDK_NGX_Parameter_GetUI(void* InParameter, const char* InName, unsigned int* OutValue)
+NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParameter, const char* InName, unsigned int* OutValue)
 {
-	uint64_t ret = NVSDK_NGX_Parameter_GetUI_Hook.call<uint64_t>(InParameter, InName, OutValue);
-	if (ret != 1)
+	NVSDK_NGX_Result ret = NVSDK_NGX_Parameter_GetUI_Hook.call<NVSDK_NGX_Result>(InParameter, InName, OutValue);
+	if (ret != NVSDK_NGX_Result_Success)
 		return ret;
 
 	bool isOutWidth = !_stricmp(InName, NVSDK_NGX_Parameter_OutWidth);
@@ -213,23 +198,28 @@ uint64_t __cdecl NVSDK_NGX_Parameter_GetUI(void* InParameter, const char* InName
 	}
 
 	// Override with DLSSQualityLevels value if user set it
-	if (settings.overrideQualityLevels && qualityLevelRatios.count(prevQualityValue))
+	if (settings.overrideQualityLevels)
 	{
-		if (isOutWidth)
+		// Query DLSS for current quality level value, then check if we have a ratio defined for that level
+		int prevQualityValue = -1;
+		if (InParameter->Get(NVSDK_NGX_Parameter_PerfQualityValue, &prevQualityValue) == NVSDK_NGX_Result_Success && qualityLevelRatios.count(prevQualityValue))
 		{
-			unsigned int targetWidth = 0;
-			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
-			*OutValue = unsigned int(roundf(float(targetWidth) * qualityLevelRatios[prevQualityValue])); // calculate new width from custom ratio
-			if (*OutValue == targetWidth) // apply resolutionOffset compatibility hack if it matches the target screen res
-				*OutValue += settings.resolutionOffset;
-		}
-		if (isOutHeight)
-		{
-			unsigned int targetHeight = 0;
-			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
-			*OutValue = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[prevQualityValue])); // calculate new height from custom ratio
-			if (*OutValue == targetHeight) // apply resolutionOffset compatibility hack if it matches the target screen res
-				*OutValue += settings.resolutionOffset;
+			if (isOutWidth)
+			{
+				unsigned int targetWidth = 0;
+					NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
+					*OutValue = unsigned int(roundf(float(targetWidth) * qualityLevelRatios[prevQualityValue])); // calculate new width from custom ratio
+					if (*OutValue == targetWidth) // apply resolutionOffset compatibility hack if it matches the target screen res
+						*OutValue += settings.resolutionOffset;
+			}
+			if (isOutHeight)
+			{
+				unsigned int targetHeight = 0;
+				NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
+				*OutValue = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[prevQualityValue])); // calculate new height from custom ratio
+				if (*OutValue == targetHeight) // apply resolutionOffset compatibility hack if it matches the target screen res
+					*OutValue += settings.resolutionOffset;
+			}
 		}
 	}
 
@@ -237,33 +227,33 @@ uint64_t __cdecl NVSDK_NGX_Parameter_GetUI(void* InParameter, const char* InName
 }
 
 HookOrigFn NVSDK_NGX_D3D12_AllocateParameters_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_AllocateParameters(NVSDK_NGX_Parameter** OutParameters)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_AllocateParameters(NVSDK_NGX_Parameter** OutParameters)
 {
 	WaitForInitThread();
 
-	uint64_t ret = NVSDK_NGX_D3D12_AllocateParameters_Hook.call<uint64_t>(OutParameters);
+	NVSDK_NGX_Result ret = NVSDK_NGX_D3D12_AllocateParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
 	return ret;
 }
 HookOrigFn NVSDK_NGX_D3D12_GetCapabilityParameters_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_GetCapabilityParameters(NVSDK_NGX_Parameter** OutParameters)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_GetCapabilityParameters(NVSDK_NGX_Parameter** OutParameters)
 {
 	WaitForInitThread();
 
-	uint64_t ret = NVSDK_NGX_D3D12_GetCapabilityParameters_Hook.call<uint64_t>(OutParameters);
+	NVSDK_NGX_Result ret = NVSDK_NGX_D3D12_GetCapabilityParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
 	return ret;
 }
 HookOrigFn NVSDK_NGX_D3D12_GetParameters_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_GetParameters(NVSDK_NGX_Parameter** OutParameters)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_GetParameters(NVSDK_NGX_Parameter** OutParameters)
 {
 	WaitForInitThread();
 
-	uint64_t ret = NVSDK_NGX_D3D12_GetParameters_Hook.call<uint64_t>(OutParameters);
+	NVSDK_NGX_Result ret = NVSDK_NGX_D3D12_GetParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -271,33 +261,33 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D12_GetParameters(NVSDK_NGX_Parameter** 
 }
 
 HookOrigFn NVSDK_NGX_D3D11_AllocateParameters_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_AllocateParameters(NVSDK_NGX_Parameter** OutParameters)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_AllocateParameters(NVSDK_NGX_Parameter** OutParameters)
 {
 	WaitForInitThread();
 
-	uint64_t ret = NVSDK_NGX_D3D11_AllocateParameters_Hook.call<uint64_t>(OutParameters);
+	NVSDK_NGX_Result ret = NVSDK_NGX_D3D11_AllocateParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
 	return ret;
 }
 HookOrigFn NVSDK_NGX_D3D11_GetCapabilityParameters_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_GetCapabilityParameters(NVSDK_NGX_Parameter** OutParameters)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_GetCapabilityParameters(NVSDK_NGX_Parameter** OutParameters)
 {
 	WaitForInitThread();
 
-	uint64_t ret = NVSDK_NGX_D3D11_GetCapabilityParameters_Hook.call<uint64_t>(OutParameters);
+	NVSDK_NGX_Result ret = NVSDK_NGX_D3D11_GetCapabilityParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
 	return ret;
 }
 HookOrigFn NVSDK_NGX_D3D11_GetParameters_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_GetParameters(NVSDK_NGX_Parameter** OutParameters)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_GetParameters(NVSDK_NGX_Parameter** OutParameters)
 {
 	WaitForInitThread();
 
-	uint64_t ret = NVSDK_NGX_D3D11_GetParameters_Hook.call<uint64_t>(OutParameters);
+	NVSDK_NGX_Result ret = NVSDK_NGX_D3D11_GetParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -305,33 +295,33 @@ PLUGIN_API uint64_t __cdecl NVSDK_NGX_D3D11_GetParameters(NVSDK_NGX_Parameter** 
 }
 
 HookOrigFn NVSDK_NGX_VULKAN_AllocateParameters_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_AllocateParameters(NVSDK_NGX_Parameter** OutParameters)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_AllocateParameters(NVSDK_NGX_Parameter** OutParameters)
 {
 	WaitForInitThread();
 
-	uint64_t ret = NVSDK_NGX_VULKAN_AllocateParameters_Hook.call<uint64_t>(OutParameters);
+	NVSDK_NGX_Result ret = NVSDK_NGX_VULKAN_AllocateParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
 	return ret;
 }
 HookOrigFn NVSDK_NGX_VULKAN_GetCapabilityParameters_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_GetCapabilityParameters(NVSDK_NGX_Parameter** OutParameters)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_GetCapabilityParameters(NVSDK_NGX_Parameter** OutParameters)
 {
 	WaitForInitThread();
 
-	uint64_t ret = NVSDK_NGX_VULKAN_GetCapabilityParameters_Hook.call<uint64_t>(OutParameters);
+	NVSDK_NGX_Result ret = NVSDK_NGX_VULKAN_GetCapabilityParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
 	return ret;
 }
 HookOrigFn NVSDK_NGX_VULKAN_GetParameters_Hook;
-PLUGIN_API uint64_t __cdecl NVSDK_NGX_VULKAN_GetParameters(NVSDK_NGX_Parameter** OutParameters)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_GetParameters(NVSDK_NGX_Parameter** OutParameters)
 {
 	WaitForInitThread();
 
-	uint64_t ret = NVSDK_NGX_VULKAN_GetParameters_Hook.call<uint64_t>(OutParameters);
+	NVSDK_NGX_Result ret = NVSDK_NGX_VULKAN_GetParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -346,9 +336,14 @@ void hook_params(NVSDK_NGX_Parameter* params)
 	if (NVSDK_NGX_Parameter_SetI_Hook && NVSDK_NGX_Parameter_SetUI_Hook && NVSDK_NGX_Parameter_GetUI_Hook)
 		return;
 
-	auto* NVSDK_NGX_Parameter_SetI_orig = params ? (params->_vftable ? params->_vftable->SetI : nullptr) : nullptr;
-	auto* NVSDK_NGX_Parameter_SetUI_orig = params ? (params->_vftable ? params->_vftable->SetUI : nullptr) : nullptr;
-	auto* NVSDK_NGX_Parameter_GetUI_orig = params ? (params->_vftable ? params->_vftable->GetUI : nullptr) : nullptr;
+	NVSDK_NGX_Parameter_vftable** vftable = (NVSDK_NGX_Parameter_vftable**)params;
+
+	if (!vftable || !*vftable)
+		return;
+
+	auto* NVSDK_NGX_Parameter_SetI_orig = (*vftable)->SetI;
+	auto* NVSDK_NGX_Parameter_SetUI_orig = (*vftable)->SetUI;
+	auto* NVSDK_NGX_Parameter_GetUI_orig = (*vftable)->GetUI;
 
 	if (NVSDK_NGX_Parameter_SetI_orig && NVSDK_NGX_Parameter_SetUI_orig && NVSDK_NGX_Parameter_GetUI_orig)
 	{

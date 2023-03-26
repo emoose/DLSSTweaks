@@ -134,6 +134,7 @@ target_include_directories(dlsstweaks PUBLIC
 	"include/"
 	"external/ModUtils/"
 	"external/ini-cpp/ini/"
+	"external/DLSS/include/"
 )
 
 target_link_libraries(dlsstweaks PUBLIC

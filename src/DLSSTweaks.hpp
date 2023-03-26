@@ -3,6 +3,12 @@
 #include "Utility.hpp"
 #include <filesystem>
 #include <unordered_map>
+#include <nvsdk_ngx_defs.h>
+#include <nvsdk_ngx_params.h>
+
+// Not included in DLSS SDK, but is mentioned inside & seems to be checked by the DLSS 3.1 DLLs
+// (unfortunately not every version checks it though...)
+#define NVSDK_NGX_Parameter_Disable_Watermark "Disable.Watermark"
 
 struct UserSettings
 {
@@ -27,7 +33,7 @@ struct UserSettings
 
 // DllMain.cpp
 extern UserSettings settings;
-extern std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios;
+extern std::unordered_map<int, float> qualityLevelRatios;
 void WaitForInitThread();
 
 // HooksNvngx.cpp
