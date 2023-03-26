@@ -361,7 +361,7 @@ unsigned int __stdcall InitThread(void* param)
 	if (!file)
 	{
 		DWORD err = GetLastError();
-		spdlog::error("WatchIniUpdates: CreateFileW \"{}\" failed with error code {}", iniFolder, err);
+		spdlog::error("WatchIniUpdates: CreateFileW \"{}\" failed with error code {}", IniPath.parent_path().string(), err);
 		return 0;
 	}
 

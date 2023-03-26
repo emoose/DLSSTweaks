@@ -89,52 +89,52 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_Init_ProjectID(const char* I
 }
 
 HookOrigFn NVSDK_NGX_VULKAN_Init_Hook;
-PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, struct VkInstance* InInstance, struct VkPhysicalDevice* InPD, struct VkDevice* InDevice, NVSDK_NGX_Version InSDKVersion)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InApplicationId = appIdOverride;
 
-	return NVSDK_NGX_VULKAN_Init_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, a2, a3, a4, a5, a6);
+	return NVSDK_NGX_VULKAN_Init_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice, InSDKVersion);
 }
 HookOrigFn NVSDK_NGX_VULKAN_Init_Ext_Hook;
-PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_Ext(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_Ext(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, struct VkInstance* InInstance, struct VkPhysicalDevice* InPD, struct VkDevice* InDevice, NVSDK_NGX_Version InSDKVersion, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InApplicationId = appIdOverride;
 
-	return NVSDK_NGX_VULKAN_Init_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, a2, a3, a4, a5, a6, a7);
+	return NVSDK_NGX_VULKAN_Init_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice, InSDKVersion, InFeatureInfo);
 }
 HookOrigFn NVSDK_NGX_VULKAN_Init_ProjectID_Hook;
-PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_ProjectID(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_ProjectID(const char* InProjectId, NVSDK_NGX_EngineType InEngineType, const char* InEngineVersion, const wchar_t* InApplicationDataPath, struct VkInstance* InInstance, struct VkPhysicalDevice* InPD, struct VkDevice* InDevice, NVSDK_NGX_Version InSDKVersion, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InProjectId = projectIdOverride;
 
-	return NVSDK_NGX_VULKAN_Init_ProjectID_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9);
+	return NVSDK_NGX_VULKAN_Init_ProjectID_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InInstance, InPD, InDevice, InSDKVersion, InFeatureInfo);
 }
 
 // VULKAN_Init_Ext2 / VULKAN_Init_ProjectID_Ext are _nvngx.dll only, not included in nvngx.dll
 HookOrigFn NVSDK_NGX_VULKAN_Init_Ext2_Hook;
-NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_Ext2(unsigned long long InApplicationId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9)
+NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_Ext2(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, struct VkInstance* InInstance, struct VkPhysicalDevice* InPD, struct VkDevice* InDevice, void* InGIPA, void* InGDPA, NVSDK_NGX_Version InSDKVersion, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
 {
 	if (settings.overrideAppId)
 		InApplicationId = appIdOverride;
-	return NVSDK_NGX_VULKAN_Init_Ext2_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, a2, a3, a4, a5, a6, a7, a8, a9);
+	return NVSDK_NGX_VULKAN_Init_Ext2_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice, InGIPA, InGDPA, InSDKVersion, InFeatureInfo);
 }
 HookOrigFn NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook;
-NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Ext(const char* InProjectId, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8, void* a9, void* a10, void* a11)
+NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Ext(const char* InProjectId, NVSDK_NGX_EngineType InEngineType, const char* InEngineVersion, const wchar_t* InApplicationDataPath, struct VkInstance* InInstance, struct VkPhysicalDevice* InPD, struct VkDevice* InDevice, void* InGIPA, void* InGDPA, NVSDK_NGX_Version InSDKVersion, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
 {
 	WaitForInitThread();
 
 	if (settings.overrideAppId)
 		InProjectId = projectIdOverride;
-	return NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+	return NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InInstance, InPD, InDevice, InGIPA, InGDPA, InSDKVersion, InFeatureInfo);
 }
 
 SafetyHookInline NVSDK_NGX_Parameter_SetI_Hook;
