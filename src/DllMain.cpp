@@ -191,7 +191,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(overrideAutoExposure));
 	overrideDlssHud = ini.Get<int>("DLSS", "OverrideDlssHud", std::move(overrideDlssHud));
 	disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(disableDevWatermark));
-	overrideDlssDll = ini.Get<std::filesystem::path>("DLSS", "OverrideDlssDll", "");
+	overrideDlssDll = ini.Get<std::string>("DLSS", "OverrideDlssDll", "");
 	watchIniUpdates = ini.Get<bool>("DLSS", "WatchIniUpdates", std::move(watchIniUpdates));
 
 	// [DLSSQualityLevels]
