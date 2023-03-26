@@ -349,8 +349,6 @@ unsigned int __stdcall InitThread(void* param)
 	if (!settings.watchIniUpdates)
 		return 0;
 
-	spdlog::info("Watching for INI updates...");
-
 	std::wstring iniFolder = IniPath.parent_path().wstring();
 	HANDLE file = CreateFileW(iniFolder.c_str(),
 		FILE_LIST_DIRECTORY,
@@ -361,12 +359,18 @@ unsigned int __stdcall InitThread(void* param)
 		NULL);
 
 	if (!file)
+	{
+		DWORD err = GetLastError();
+		spdlog::error("WatchIniUpdates: CreateFileW \"{}\" failed with error code {}", iniFolder, err);
 		return 0;
+	}
 
 	OVERLAPPED overlapped;
 	overlapped.hEvent = CreateEvent(NULL, FALSE, 0, NULL);
 	if (!overlapped.hEvent)
 	{
+		DWORD err = GetLastError();
+		spdlog::error("WatchIniUpdates: CreateEvent failed with error code {}", err);
 		CloseHandle(file);
 		return 0;
 	}
@@ -378,6 +382,15 @@ unsigned int __stdcall InitThread(void* param)
 		FILE_NOTIFY_CHANGE_DIR_NAME |
 		FILE_NOTIFY_CHANGE_LAST_WRITE,
 		NULL, &overlapped, NULL);
+
+	if (!success)
+	{
+		DWORD err = GetLastError();
+		spdlog::error("WatchIniUpdates: ReadDirectoryChangesW failed with error code {}", err);
+		return 0;
+	}
+
+	spdlog::info("Watching for INI updates...");
 
 	while (success)
 	{
