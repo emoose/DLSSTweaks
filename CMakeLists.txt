@@ -47,21 +47,21 @@ endif()
 
 include(FetchContent)
 
-message(STATUS "Fetching bddisasm (v1.34.10)...")
-FetchContent_Declare(bddisasm
+message(STATUS "Fetching zydis (v4.0.0)...")
+FetchContent_Declare(zydis
 	GIT_REPOSITORY
-		"https://github.com/bitdefender/bddisasm"
+		"https://github.com/zyantific/zydis"
 	GIT_TAG
-		v1.34.10
+		v4.0.0
 )
-FetchContent_MakeAvailable(bddisasm)
+FetchContent_MakeAvailable(zydis)
 
-message(STATUS "Fetching safetyhook (35d28aab6d10f9ed17499df8461c92721f0db025)...")
+message(STATUS "Fetching safetyhook (39ea58f519427678736c930b2e8e74bf38ab8a77)...")
 FetchContent_Declare(safetyhook
 	GIT_REPOSITORY
 		"https://github.com/cursey/safetyhook"
 	GIT_TAG
-		35d28aab6d10f9ed17499df8461c92721f0db025
+		39ea58f519427678736c930b2e8e74bf38ab8a77
 )
 FetchContent_MakeAvailable(safetyhook)
 

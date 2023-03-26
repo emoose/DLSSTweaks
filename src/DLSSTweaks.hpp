@@ -83,12 +83,12 @@ struct HookOrigFn
 	template <typename RetT = void, typename... Args> auto call(Args... args) {
 		std::scoped_lock lock{m_mutex};
 
-		uintptr_t dest = dest_proc ? uintptr_t(dest_proc) : hook.trampoline();
+		uintptr_t dest = dest_proc ? uintptr_t(dest_proc) : hook.trampoline().address();
 		return ((RetT(*)(Args...))dest)(args...);
 	}
 
 	template <typename RetT = void, typename... Args> auto unsafe_call(Args... args) {
-		uintptr_t dest = dest_proc ? uintptr_t(dest_proc) : hook.trampoline();
+		uintptr_t dest = dest_proc ? uintptr_t(dest_proc) : hook.trampoline().address();
 		return ((RetT(*)(Args...))dest)(args...);
 	}
 };

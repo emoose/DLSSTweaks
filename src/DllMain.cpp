@@ -332,11 +332,10 @@ unsigned int __stdcall InitThread(void* param)
 		}
 		else
 		{
-			auto builder = SafetyHookFactory::acquire();
-			LoadLibraryExW_Orig = builder.create_inline(LoadLibraryExW_addr, LoadLibraryExW_Hook);
-			LoadLibraryExA_Orig = builder.create_inline(LoadLibraryExA_addr, LoadLibraryExA_Hook);
-			LoadLibraryW_Orig = builder.create_inline(LoadLibraryW_addr, LoadLibraryW_Hook);
-			LoadLibraryA_Orig = builder.create_inline(LoadLibraryA_addr, LoadLibraryA_Hook);
+			LoadLibraryExW_Orig = safetyhook::create_inline(LoadLibraryExW_addr, LoadLibraryExW_Hook);
+			LoadLibraryExA_Orig = safetyhook::create_inline(LoadLibraryExA_addr, LoadLibraryExA_Hook);
+			LoadLibraryW_Orig = safetyhook::create_inline(LoadLibraryW_addr, LoadLibraryW_Hook);
+			LoadLibraryA_Orig = safetyhook::create_inline(LoadLibraryA_addr, LoadLibraryA_Hook);
 		}
 	}
 

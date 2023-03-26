@@ -57,8 +57,7 @@ bool hook(HMODULE ngx_module)
 
 		auto indicatorValueCheck_addr = indicatorValueCheck.get(0).get<void>();
 		{
-			auto builder = SafetyHookFactory::acquire();
-			DLSS_GetIndicatorValue_Hook = builder.create_inline(indicatorValueCheck_addr, DLSS_GetIndicatorValue);
+			DLSS_GetIndicatorValue_Hook = safetyhook::create_inline(indicatorValueCheck_addr, DLSS_GetIndicatorValue);
 		}
 
 		// Unfortunately it's not enough to just hook the function, HUD render code seems to have an optimization where it checks funcptr and inlines code if it matches
@@ -126,7 +125,6 @@ BOOL APIENTRY hooked_dllmain(HMODULE hModule, int ul_reason_for_call, LPVOID lpR
 // Installs DllMain hook onto nvngx_dlss
 void init(HMODULE ngx_module)
 {
-	auto builder = SafetyHookFactory::acquire();
-	dllmain = builder.create_inline(utility::ModuleEntryPoint(ngx_module), hooked_dllmain);
+	dllmain = safetyhook::create_inline(utility::ModuleEntryPoint(ngx_module), hooked_dllmain);
 }
 };
