@@ -24,6 +24,7 @@ const unsigned long long appIdOverride = 0x24480451;
 // (https://github.com/emoose/DLSSTweaks/issues/44#issuecomment-1468518380 for more info... if anyone has any idea for a better fix I'd be happy to hear it)
 namespace nvngx
 {
+NVSDK_NGX_PerfQuality_Value prevQualityValue; // the last quality level setting that game requested
 
 // TODO: InFeatureInfo might also hold project ID related fields, maybe should change those too...
 HookOrigFn NVSDK_NGX_D3D11_Init_Hook;
@@ -148,6 +149,18 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 			InValue = InValue & ~NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
 	}
 
+	// Cache the chosen quality value so we can make decisions on it later on
+	if (!_stricmp(InName, NVSDK_NGX_Parameter_PerfQualityValue))
+	{
+		prevQualityValue = NVSDK_NGX_PerfQuality_Value(InValue);
+
+		// Some games may expose an UltraQuality option if we returned a valid resolution for it
+		// DLSS usually doesn't like being asked to use UltraQuality though, and will break rendering/crash altogether if set
+		// So we'll just tell DLSS to use MaxQuality instead, while keeping UltraQuality stored in prevQualityValue
+		if (prevQualityValue == NVSDK_NGX_PerfQuality_Value_UltraQuality && qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality] > 0.f)
+			InValue = int(NVSDK_NGX_PerfQuality_Value_MaxQuality);
+	}
+
 	NVSDK_NGX_Parameter_SetI_Hook.call(InParameter, InName, InValue);
 }
 
@@ -198,28 +211,23 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 	}
 
 	// Override with DLSSQualityLevels value if user set it
-	if (settings.overrideQualityLevels)
+	if (settings.overrideQualityLevels && qualityLevelRatios.count(prevQualityValue))
 	{
-		// Query DLSS for current quality level value, then check if we have a ratio defined for that level
-		int prevQualityValue = -1;
-		if (InParameter->Get(NVSDK_NGX_Parameter_PerfQualityValue, &prevQualityValue) == NVSDK_NGX_Result_Success && qualityLevelRatios.count(prevQualityValue))
+		if (isOutWidth)
 		{
-			if (isOutWidth)
-			{
-				unsigned int targetWidth = 0;
-					NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
-					*OutValue = unsigned int(roundf(float(targetWidth) * qualityLevelRatios[prevQualityValue])); // calculate new width from custom ratio
-					if (*OutValue == targetWidth) // apply resolutionOffset compatibility hack if it matches the target screen res
-						*OutValue += settings.resolutionOffset;
-			}
-			if (isOutHeight)
-			{
-				unsigned int targetHeight = 0;
-				NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
-				*OutValue = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[prevQualityValue])); // calculate new height from custom ratio
-				if (*OutValue == targetHeight) // apply resolutionOffset compatibility hack if it matches the target screen res
-					*OutValue += settings.resolutionOffset;
-			}
+			unsigned int targetWidth = 0;
+			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
+			*OutValue = unsigned int(roundf(float(targetWidth) * qualityLevelRatios[prevQualityValue])); // calculate new width from custom ratio
+			if (*OutValue == targetWidth) // apply resolutionOffset compatibility hack if it matches the target screen res
+				*OutValue += settings.resolutionOffset;
+		}
+		if (isOutHeight)
+		{
+			unsigned int targetHeight = 0;
+			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
+			*OutValue = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[prevQualityValue])); // calculate new height from custom ratio
+			if (*OutValue == targetHeight) // apply resolutionOffset compatibility hack if it matches the target screen res
+				*OutValue += settings.resolutionOffset;
 		}
 	}
 
