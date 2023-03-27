@@ -26,7 +26,7 @@ The easiest way to install is via nvngx.dll wrapping, this should work fine for 
 
 However this method requires a small registry tweak to be applied first to stop DLSS from checking the nvngx.dll signature.
 
-The included `EnableSignatureOverride.reg` can install this tweak for you (the tweak can also be removed via the `DisableSignatureOverride.reg`)
+The included `EnableNvidiaSigOverride.reg` can install this tweak for you (the tweak can also be removed via the `DisableNvidiaSigOverride.reg`)
 
 After setting up the registry tweak you should be able to just copy the `nvngx.dll` & `dlsstweaks.ini` files next to your game EXE, and it should hopefully load into the game fine.
 
