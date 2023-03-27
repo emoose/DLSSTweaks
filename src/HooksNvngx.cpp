@@ -341,6 +341,9 @@ void hook_params(NVSDK_NGX_Parameter* params)
 {
 	std::scoped_lock lock{paramHookMutex};
 
+	if (settings.disableAllTweaks)
+		return;
+
 	if (NVSDK_NGX_Parameter_SetI_Hook && NVSDK_NGX_Parameter_SetUI_Hook && NVSDK_NGX_Parameter_GetUI_Hook)
 		return;
 
@@ -524,7 +527,7 @@ void init_from_proxy()
 // Installs DllMain hook onto NVNGX
 void init(HMODULE ngx_module)
 {
-	if (proxy::is_wrapping_nvngx)
+	if (proxy::is_wrapping_nvngx || settings.disableAllTweaks)
 		return;
 
 	// aren't wrapping nvngx, apply dllmain hook to the module

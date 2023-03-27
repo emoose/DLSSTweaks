@@ -12,6 +12,8 @@
 
 struct UserSettings
 {
+	bool disableAllTweaks = false; // not exposed in INI, is set if a serious error is detected (eg. two versions loaded at once)
+
 	bool forceDLAA = false;
 	int overrideAutoExposure = 0;
 	bool overrideAppId = false;

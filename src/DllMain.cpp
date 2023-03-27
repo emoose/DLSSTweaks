@@ -3,6 +3,7 @@
 #define WIN32_NO_STATUS
 #include <Windows.h>
 #include <winternl.h>
+#include <tchar.h>
 
 #include <mutex>
 
@@ -19,6 +20,7 @@ const wchar_t* DlssFileName = L"nvngx_dlss.dll";
 
 const wchar_t* LogFileName = L"dlsstweaks.log";
 const wchar_t* IniFileName = L"dlsstweaks.ini";
+const wchar_t* ErrorFileName = L"dlsstweaks_error.log";
 
 std::filesystem::path ExePath;
 std::filesystem::path DllPath;
@@ -263,7 +265,7 @@ unsigned int __stdcall InitThread(void* param)
 		spdlog::flush_on(spdlog::level::info);
 	}
 
-	spdlog::info("DLSSTweaks v0.200.4, by emoose: {} wrapper loaded", DllPath.filename().string());
+	spdlog::info("DLSSTweaks v0.200.5, by emoose: {} wrapper loaded", DllPath.filename().string());
 	spdlog::info("Game path: {}", ExePath.string());
 	spdlog::info("DLL path: {}", DllPath.string());
 
@@ -447,6 +449,33 @@ unsigned int __stdcall InitThread(void* param)
 	return 0;
 }
 
+HANDLE processUniqueMutex;
+
+// Tries to create a process-unique Win32 mutex
+// If mutex already exists then another instance of this module must have already been loaded in
+BOOL CheckDllAlreadyLoaded()
+{
+	// Generate unique name for the mutex based on the current process ID
+	TCHAR szMutexName[MAX_PATH];
+	_sntprintf_s(szMutexName, MAX_PATH, _T("Local\\DLSSTweaksMutex_%lu"), GetCurrentProcessId());
+
+	processUniqueMutex = CreateMutex(NULL, TRUE, szMutexName);
+	if (processUniqueMutex == NULL)
+		return FALSE;
+
+	DWORD dwError = GetLastError();
+	if (dwError == ERROR_ALREADY_EXISTS)
+	{
+		// Another instance of the DLL must already be loaded in this process
+		CloseHandle(processUniqueMutex); // Not using ReleaseMutex since we want to keep the mutex alive, just closing the handle
+		processUniqueMutex = NULL;
+		return TRUE;
+	}
+
+	// Mutex was created successfully, no other instance of the DLL is loaded in this process
+	return FALSE;
+}
+
 BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)
 {
 	DisableThreadLibraryCalls(hModule);
@@ -457,11 +486,46 @@ BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved
 		if (proxy::is_wrapping_nvngx)
 			nvngx::init_from_proxy();
 
+		// Check if another instance/version of this module has already loaded in
+		if (CheckDllAlreadyLoaded())
+		{
+			// Disable tweaks to hopefully let game continue...
+			settings.disableAllTweaks = true;
+
+			// Fire our InitThreadFinished var so that any wrapped funcs can continue
+			{
+				std::lock_guard lock(initThreadFinishedMutex);
+				initThreadFinished = true;
+				initThreadFinishedVar.notify_all();
+			}
+
+			// Try warning user via error log file & Win32 messagebox
+			std::string warningText =
+				"Warning: multiple versions of DLSSTweaks have attempted to load into the game process.\n\nIf you recently tried to update the DLL, an older version may still be present & loaded in.\n\nCheck your game folder for files such as dxgi.dll / xinput1_3.dll / nvngx.dll and remove any extra versions.";
+			
+			try
+			{
+				std::ofstream warningFile(ErrorFileName);
+				warningFile << warningText << "\r\n";
+				warningFile.close();
+			}
+			catch (const std::exception&)
+			{
+			}
+
+			MessageBox(NULL, warningText.c_str(), "DLSSTweaks", MB_ICONEXCLAMATION);
+
+			// Skip InitThread
+			return TRUE;
+		}
+
 		_beginthreadex(NULL, 0, InitThread, NULL, 0, NULL);
 	}
 	else if (ul_reason_for_call == DLL_PROCESS_DETACH)
 	{
 		proxy::on_detach();
+		if (processUniqueMutex)
+			ReleaseMutex(processUniqueMutex);
 	}
 
 	return TRUE;

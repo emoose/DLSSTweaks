@@ -128,6 +128,9 @@ BOOL APIENTRY hooked_dllmain(HMODULE hModule, int ul_reason_for_call, LPVOID lpR
 // Installs DllMain hook onto nvngx_dlss
 void init(HMODULE ngx_module)
 {
+	if (settings.disableAllTweaks)
+		return;
+
 	dllmain = safetyhook::create_inline(utility::ModuleEntryPoint(ngx_module), hooked_dllmain);
 }
 };
