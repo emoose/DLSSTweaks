@@ -225,8 +225,18 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(disableDevWatermark));
 	watchIniUpdates = ini.Get<bool>("DLSS", "WatchIniUpdates", std::move(watchIniUpdates));
 
+	std::set<std::string> keys;
 	// [DLLPathOverrides]
-	auto keys = ini.Keys("DLLPathOverrides");
+	try
+	{
+		keys = ini.Keys("DLLPathOverrides");
+	}
+	catch (const std::runtime_error&)
+	{
+		// No [DLLPathOverrides] section, or section is empty, ignore for now
+		keys.clear();
+	}
+
 	for (auto& key : keys)
 	{
 		auto dllFileName = key;
