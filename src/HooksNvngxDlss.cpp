@@ -134,3 +134,52 @@ void init(HMODULE ngx_module)
 	dllmain = safetyhook::create_inline(utility::ModuleEntryPoint(ngx_module), hooked_dllmain);
 }
 };
+
+namespace nvngx_dlssg
+{
+// Currently only patches out watermark text on select builds
+void init(HMODULE ngx_module)
+{
+	if (settings.disableAllTweaks)
+		return;
+	if (!settings.disableDevWatermark)
+		return;
+
+	// Check if we support this dlssg build, currently only 3.1.10 / 1.10.0 dev supported
+	// (unfortunately haven't found a safe way to genericise this patch atm...)
+	uint8_t* base = (uint8_t*)ngx_module;
+	IMAGE_DOS_HEADER* dos_header = (IMAGE_DOS_HEADER*)base;
+	IMAGE_NT_HEADERS* nt_headers = (IMAGE_NT_HEADERS*)(base + dos_header->e_lfanew);
+	if (nt_headers->FileHeader.TimeDateStamp != 1678805300)
+	{
+		spdlog::warn("DisableDevWatermark: dlssg patch not applied as version is unknown");
+		return;
+	}
+
+	uint8_t expectedBytes[] = {
+		0x40, 0x55, 
+		0x56, 
+		0x57, 
+		0x41, 0x54,
+		0x41, 0x55, 
+		0x41, 0x56, 
+		0x41, 0x57, 
+		0x48, 0x8D, 0xAC, 0x24, 0x30, 0xFF, 0xFF, 0xFF,
+		0x48, 0x81, 0xEC, 0xD0, 0x01, 0x00, 0x00,
+		0x48, 0xC7, 0x45, 0x60, 0xFE, 0xFF, 0xFF, 0xFF
+	};
+	uint8_t* patchAddress = base + 0xB5E30;
+	if (memcmp(patchAddress, expectedBytes, sizeof(expectedBytes)) != 0)
+	{
+		spdlog::warn("DisableDevWatermark: dlssg patch not applied as expected bytes weren't found");
+		return;
+	}
+
+	{
+		UnprotectMemory unprotect{ (uintptr_t)patchAddress, 1 };
+		*patchAddress = 0xC3; // ret
+	}
+
+	spdlog::info("DisableDevWatermark: dlssg patch applied");
+}
+};

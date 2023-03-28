@@ -18,6 +18,8 @@
 const wchar_t* NgxFileName = L"_nvngx.dll";
 const wchar_t* DlssFileName = L"nvngx_dlss.dll";
 const char* DlssFileNameA = "nvngx_dlss.dll";
+const wchar_t* DlssgFileName = L"nvngx_dlssg.dll";
+const char* DlssgFileNameA = "nvngx_dlssg.dll";
 
 const wchar_t* LogFileName = L"dlsstweaks.log";
 const wchar_t* IniFileName = L"dlsstweaks.ini";
@@ -121,11 +123,14 @@ void __stdcall LoaderNotificationCallback(unsigned long notification_reason, con
 {
 	if (notification_reason == LDR_DLL_NOTIFICATION_REASON_LOADED)
 	{
-		std::wstring dlssName = DlssFileName;
-
 		// If user has overridden the nvngx_dlss path, use the filename they specified in our comparisons below
+		std::wstring dlssName = DlssFileName;
+		std::wstring dlssgName = DlssgFileName;
+
 		if (settings.dllPathOverrides.count(DlssFileNameA))
 			dlssName = settings.dllPathOverrides[DlssFileNameA].filename().wstring();
+		if (settings.dllPathOverrides.count(DlssgFileNameA))
+			dlssgName = settings.dllPathOverrides[DlssgFileNameA].filename().wstring();
 
 		// A module was loaded in, check if NGX/DLSS and apply hooks if so
 		std::wstring dllName(notification_data->Loaded.BaseDllName->Buffer, notification_data->Loaded.BaseDllName->Length / sizeof(WCHAR));
@@ -136,6 +141,10 @@ void __stdcall LoaderNotificationCallback(unsigned long notification_reason, con
 		else if (!_wcsicmp(dllName.c_str(), dlssName.c_str()))
 		{
 			nvngx_dlss::init((HMODULE)notification_data->Loaded.DllBase);
+		}
+		else if (!_wcsicmp(dllName.c_str(), dlssgName.c_str()))
+		{
+			nvngx_dlssg::init((HMODULE)notification_data->Loaded.DllBase);
 		}
 	}
 }
