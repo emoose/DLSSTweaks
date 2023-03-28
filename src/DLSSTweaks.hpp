@@ -19,7 +19,7 @@ struct UserSettings
 	bool overrideAppId = false;
 	int overrideDlssHud = 0;
 	bool disableDevWatermark = false;
-	std::filesystem::path overrideDlssDll = "";
+	std::unordered_map<std::string, std::filesystem::path> dllPathOverrides;
 	bool watchIniUpdates = false;
 	bool overrideQualityLevels = false;
 	unsigned int presetDLAA = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;

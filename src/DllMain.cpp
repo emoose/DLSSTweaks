@@ -17,6 +17,7 @@
 
 const wchar_t* NgxFileName = L"_nvngx.dll";
 const wchar_t* DlssFileName = L"nvngx_dlss.dll";
+const char* DlssFileNameA = "nvngx_dlss.dll";
 
 const wchar_t* LogFileName = L"dlsstweaks.log";
 const wchar_t* IniFileName = L"dlsstweaks.ini";
@@ -69,15 +70,23 @@ std::once_flag dlssOverrideMessage;
 HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
 	std::filesystem::path libPath = lpLibFileName;
-	auto filenameStr = libPath.filename().wstring();
+	auto filenameStr = libPath.filename().string();
 
-	if (!_wcsicmp(filenameStr.c_str(), DlssFileName) && !settings.overrideDlssDll.empty())
+	// Check if filename matches any DLL user has requested to override, change to the user-specified path if so
+	for (auto& pair : settings.dllPathOverrides)
 	{
-		std::call_once(dlssOverrideMessage, []() { 
-			spdlog::info("Game is loading DLSS, overriding with DLL path: {}", settings.overrideDlssDll.string());
-		});
+		if (_stricmp(filenameStr.c_str(), pair.first.c_str()) != 0)
+			continue;
 
-		libPath = settings.overrideDlssDll;
+		if (!pair.second.empty())
+		{
+			spdlog::info("DLLPathOverrides: game requested to load {} (from {}), overriding with DLL path: {}", filenameStr, libPath.string(), pair.second.string());
+			if (std::filesystem::exists(pair.second))
+				libPath = pair.second;
+			else
+				spdlog::error("DLLPathOverrides: override DLL no longer exists, skipping... (path: {})", pair.second.string());
+		}
+		break;
 	}
 
 	std::wstring libPathStr = libPath.wstring();
@@ -113,8 +122,10 @@ void __stdcall LoaderNotificationCallback(unsigned long notification_reason, con
 	if (notification_reason == LDR_DLL_NOTIFICATION_REASON_LOADED)
 	{
 		std::wstring dlssName = DlssFileName;
-		if (!settings.overrideDlssDll.empty())
-			dlssName = settings.overrideDlssDll.filename().wstring();
+
+		// If user has overridden the nvngx_dlss path, use the filename they specified in our comparisons below
+		if (settings.dllPathOverrides.count(DlssFileNameA))
+			dlssName = settings.dllPathOverrides[DlssFileNameA].filename().wstring();
 
 		// A module was loaded in, check if NGX/DLSS and apply hooks if so
 		std::wstring dllName(notification_data->Loaded.BaseDllName->Buffer, notification_data->Loaded.BaseDllName->Length / sizeof(WCHAR));
@@ -139,7 +150,6 @@ void UserSettings::print_to_log()
 	spdlog::info(" - OverrideAppId: {}", overrideAppId ? "true" : "false");
 	spdlog::info(" - OverrideDlssHud: {}", overrideDlssHud == 0 ? "default" : (overrideDlssHud > 0 ? "enable" : "disable"));
 	spdlog::info(" - DisableDevWatermark: {}", disableDevWatermark ? "true" : "false");
-	spdlog::info(" - OverrideDlssDll: {}", overrideDlssDll.empty() ? "N/A" : overrideDlssDll.string());
 	spdlog::info(" - WatchIniUpdates: {}", watchIniUpdates ? "true" : "false");
 	spdlog::info(" - ResolutionOffset: {}", resolutionOffset);
 	spdlog::info(" - DLSSQualityLevels enabled: {}", overrideQualityLevels ? "true" : "false");
@@ -172,6 +182,17 @@ void UserSettings::print_to_log()
 	{
 		spdlog::info(" - DLSSPresets: default");
 	}
+
+	if (settings.dllPathOverrides.size())
+	{
+		spdlog::info(" - DLLPathOverrides:");
+		for (auto& pair : settings.dllPathOverrides)
+			spdlog::info("  - {} -> {}", pair.first, pair.second.string());
+	}
+	else
+	{
+		spdlog::info(" - DLLPathOverrides: N/A");
+	}
 }
 
 bool UserSettings::read(const std::filesystem::path& iniPath)
@@ -193,8 +214,25 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(overrideAutoExposure));
 	overrideDlssHud = ini.Get<int>("DLSS", "OverrideDlssHud", std::move(overrideDlssHud));
 	disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(disableDevWatermark));
-	overrideDlssDll = ini.Get<std::string>("DLSS", "OverrideDlssDll", "");
 	watchIniUpdates = ini.Get<bool>("DLSS", "WatchIniUpdates", std::move(watchIniUpdates));
+
+	// [DLLPathOverrides]
+	auto keys = ini.Keys("DLLPathOverrides");
+	for (auto& key : keys)
+	{
+		auto dllFileName = key;
+		if (!std::filesystem::path(dllFileName).has_extension())
+			dllFileName += ".dll";
+
+		auto path = ini.Get<std::string>("DLLPathOverrides", key, "");
+		if (!path.empty() && !std::filesystem::exists(path)) // empty path is allowed so that user can clear the override in local INIs
+		{
+			spdlog::warn("DLLPathOverrides: override for {} skipped as path {} doesn't exist", key, path);
+			continue;
+		}
+
+		settings.dllPathOverrides[dllFileName] = path;
+	}
 
 	// [DLSSQualityLevels]
 	overrideQualityLevels = ini.Get<bool>("DLSSQualityLevels", "Enable", std::move(overrideQualityLevels));
@@ -221,12 +259,6 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 
 	// [Compatibility]
 	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));
-
-	if (!overrideDlssDll.empty() && !std::filesystem::exists(overrideDlssDll))
-	{
-		spdlog::warn("Disabling OverrideDlssDll as override DLL wasn't found (path: {})", overrideDlssDll.string());
-		overrideDlssDll.clear();
-	}
 
 	return true;
 }
@@ -319,7 +351,7 @@ unsigned int __stdcall InitThread(void* param)
 	}
 
 	// Hook LoadLibrary so we can override DLSS path if desired
-	if (!settings.overrideDlssDll.empty())
+	if (settings.dllPathOverrides.size())
 	{
 		spdlog::debug("LoadLibrary hook set");
 
