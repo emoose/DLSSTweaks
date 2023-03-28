@@ -82,7 +82,7 @@ HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD
 
 		if (!pair.second.empty())
 		{
-			spdlog::info("DLLPathOverrides: game requested to load {} (from {}), overriding with DLL path: {}", filenameStr, libPath.string(), pair.second.string());
+			spdlog::debug("DLLPathOverrides: game requested to load {} (from {}), overriding with DLL path: {}", filenameStr, libPath.string(), pair.second.string());
 			if (std::filesystem::exists(pair.second))
 				libPath = pair.second;
 			else
