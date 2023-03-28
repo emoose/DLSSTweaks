@@ -283,6 +283,37 @@ unsigned int __stdcall InitThread(void* param)
 	GetModuleFileNameW(ourModule, modulePath, 4096);
 	DllPath = std::filesystem::path(modulePath);
 
+	if (settings.disableAllTweaks)
+	{
+		// Try warning user via error log file
+		// (this used to use a Win32 MessageBox too, but some fullscreen games had issues when MessageBox showed, even in seperate thread, so that was cut)
+		std::string warningText =
+			"Warning: multiple versions of DLSSTweaks have attempted to load into the game process.\n\nIf you recently tried to update the DLL, an older version may still be present & loaded in.\n\nCheck your game folder for files such as dxgi.dll / xinput1_3.dll / nvngx.dll and remove any extra versions.";
+
+		try
+		{
+			std::ofstream warningFile(ExePath.parent_path() / ErrorFileName);
+			warningFile << warningText << "\r\n";
+			warningFile.close();
+
+			std::ofstream warningFileDll(DllPath.parent_path() / ErrorFileName);
+			warningFileDll << warningText << "\r\n";
+			warningFileDll.close();
+		}
+		catch (const std::exception&)
+		{
+		}
+
+		// Skip InitThread if disableAllTweaks was set...
+		{
+			std::lock_guard lock(initThreadFinishedMutex);
+			initThreadFinished = true;
+			initThreadFinishedVar.notify_all();
+		}
+
+		return 0;
+	}
+
 	// spdlog setup
 	{
 		// Log is always written next to our DLL
@@ -491,11 +522,17 @@ unsigned int __stdcall InitThread(void* param)
 }
 
 HANDLE processUniqueMutex;
+std::mutex processUniqueMutexGuard;
 
 // Tries to create a process-unique Win32 mutex
 // If mutex already exists then another instance of this module must have already been loaded in
 BOOL CheckDllAlreadyLoaded()
 {
+	std::scoped_lock lock{ processUniqueMutexGuard };
+
+	if (processUniqueMutex) // If already set we must be the owner, so exit out
+		return FALSE;
+
 	// Generate unique name for the mutex based on the current process ID
 	TCHAR szMutexName[MAX_PATH];
 	_sntprintf_s(szMutexName, MAX_PATH, _T("Local\\DLSSTweaksMutex_%lu"), GetCurrentProcessId());
@@ -505,16 +542,16 @@ BOOL CheckDllAlreadyLoaded()
 		return FALSE;
 
 	DWORD dwError = GetLastError();
-	if (dwError == ERROR_ALREADY_EXISTS)
+	if (dwError != ERROR_ALREADY_EXISTS)
 	{
-		// Another instance of the DLL must already be loaded in this process
-		CloseHandle(processUniqueMutex); // Not using ReleaseMutex since we want to keep the mutex alive, just closing the handle
-		processUniqueMutex = NULL;
-		return TRUE;
+		// Mutex was created successfully, no other instance of the DLL is loaded in this process
+		return FALSE;
 	}
 
-	// Mutex was created successfully, no other instance of the DLL is loaded in this process
-	return FALSE;
+	// Another instance of the DLL must already be loaded in this process
+	CloseHandle(processUniqueMutex); // Not using ReleaseMutex since we want to keep the mutex alive, just closing the handle
+	processUniqueMutex = NULL;
+	return TRUE;
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)
@@ -533,31 +570,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved
 			// Disable tweaks to hopefully let game continue...
 			settings.disableAllTweaks = true;
 
-			// Fire our InitThreadFinished var so that any wrapped funcs can continue
-			{
-				std::lock_guard lock(initThreadFinishedMutex);
-				initThreadFinished = true;
-				initThreadFinishedVar.notify_all();
-			}
-
-			// Try warning user via error log file & Win32 messagebox
-			std::string warningText =
-				"Warning: multiple versions of DLSSTweaks have attempted to load into the game process.\n\nIf you recently tried to update the DLL, an older version may still be present & loaded in.\n\nCheck your game folder for files such as dxgi.dll / xinput1_3.dll / nvngx.dll and remove any extra versions.";
-			
-			try
-			{
-				std::ofstream warningFile(ErrorFileName);
-				warningFile << warningText << "\r\n";
-				warningFile.close();
-			}
-			catch (const std::exception&)
-			{
-			}
-
-			MessageBox(NULL, warningText.c_str(), "DLSSTweaks", MB_ICONEXCLAMATION);
-
-			// Skip InitThread
-			return TRUE;
+			// We'll alert user to the issue during InitThread, to prevent us from blocking game init
 		}
 
 		_beginthreadex(NULL, 0, InitThread, NULL, 0, NULL);
