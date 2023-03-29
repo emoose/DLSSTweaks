@@ -84,7 +84,7 @@ bool hook(HMODULE ngx_module)
 			*vfAddr = (uintptr_t)&DLSS_GetIndicatorValue;
 		}
 
-		spdlog::debug("nvngx_dlss: applied hud hook via vftable hook");
+		spdlog::info("nvngx_dlss: applied debug hud overlay hook via vftable hook");
 	}
 	else
 	{
@@ -95,7 +95,7 @@ bool hook(HMODULE ngx_module)
 		if (!RegQueryValueExW_Orig || !utility::HookIAT(ngx_module, "advapi32.dll", RegQueryValueExW_Orig, RegQueryValueExW_Hook))
 			spdlog::warn("nvngx_dlss: failed to hook DLSS HUD functions, OverrideDlssHud might not be available.");
 		else
-			spdlog::debug("nvngx_dlss: applied hud hook via registry");
+			spdlog::info("nvngx_dlss: applied debug hud overlay hook via registry");
 	}
 
 	return true;
@@ -155,27 +155,27 @@ void settings_changed()
 		"56 49 44 49 41 20 43 4F 4E 46 49 44 45 4E 54 49 41 4C 20 2D 20 50 52 4F 56 49 44 45 44 20 55 4E 44 45 52 20 4E 44 41");
 
 	int count = pattern.size();
-	if (count)
+	if (!count)
 	{
-		int changed = 0;
-		for (int i = 0; i < count; i++)
-		{
-			char* result = pattern.get(i).get<char>(-1);
+		spdlog::warn("nvngx_dlssg: DisableDevWatermark failed, couldn't locate watermark string inside module");
+		return;
+	}
 
-			if (result[0] != patch)
-			{
-				UnprotectMemory unprotect{ (uintptr_t)result, 1 };
-				*result = patch;
-				changed++;
-			}
-		}
-		if (changed)
-			spdlog::debug("DisableDevWatermark: dlssg patch {}, {} strings patched", settings.disableDevWatermark ? "applied" : "removed", changed);
-	}
-	else
+	int changed = 0;
+	for (int i = 0; i < count; i++)
 	{
-		spdlog::warn("DisableDevWatermark: failed to locate watermark string inside dlssg module");
+		char* result = pattern.get(i).get<char>(-1);
+
+		if (result[0] != patch)
+		{
+			UnprotectMemory unprotect{ (uintptr_t)result, 1 };
+			*result = patch;
+			changed++;
+		}
 	}
+
+	if (changed)
+		spdlog::info("nvngx_dlssg: DisableDevWatermark patch {} ({}/{} strings patched)", settings.disableDevWatermark ? "applied" : "removed", changed, count);
 }
 	
 SafetyHookInline dllmain;

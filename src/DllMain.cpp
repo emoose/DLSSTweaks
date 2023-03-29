@@ -82,7 +82,8 @@ HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD
 
 		if (!pair.second.empty())
 		{
-			spdlog::debug("DLLPathOverrides: game requested to load {} (from {}), overriding with DLL path: {}", filenameStr, libPath.string(), pair.second.string());
+			spdlog::info("DLLPathOverrides: redirecting {} to new path {}", libPath.string(), pair.second.string());
+
 			if (std::filesystem::exists(pair.second))
 				libPath = pair.second;
 			else
@@ -154,6 +155,7 @@ void UserSettings::print_to_log()
 	using namespace utility;
 
 	spdlog::info("Settings:");
+	spdlog::info(" - VerboseLogs: {}", verboseLogging ? "true" : "false");
 	spdlog::info(" - ForceDLAA: {}{}", forceDLAA ? "true" : "false", overrideQualityLevels ? " (overridden by DLSSQualityLevels section)" : "");
 	spdlog::info(" - OverrideAutoExposure: {}", overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"));
 	spdlog::info(" - OverrideAppId: {}", overrideAppId ? "true" : "false");
@@ -223,6 +225,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(overrideAutoExposure));
 	overrideDlssHud = ini.Get<int>("DLSS", "OverrideDlssHud", std::move(overrideDlssHud));
 	disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(disableDevWatermark));
+	verboseLogging = ini.Get<bool>("DLSS", "VerboseLogs", std::move(verboseLogging));
 
 	std::set<std::string> keys;
 	// [DLLPathOverrides]
@@ -278,6 +281,11 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	// [Compatibility]
 	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));
 	disableIniMonitoring = ini.Get<bool>("Compatibility", "DisableIniMonitoring", std::move(disableIniMonitoring));
+
+	auto log_level = verboseLogging ? spdlog::level::debug : spdlog::level::info;
+	if (spdlog::default_logger())
+		spdlog::default_logger()->set_level(log_level);
+	spdlog::set_level(log_level);
 
 	// Let our module hooks/patches know about new settings if needed
 	nvngx_dlssg::settings_changed();
@@ -345,7 +353,7 @@ unsigned int __stdcall InitThread(void* param)
 		}
 
 		auto combined_logger = std::make_shared<spdlog::logger>("", begin(sinks), end(sinks));
-		combined_logger->set_level(spdlog::level::trace);
+		combined_logger->set_level(spdlog::level::info);
 		spdlog::set_default_logger(combined_logger);
 		spdlog::flush_on(spdlog::level::info);
 	}
