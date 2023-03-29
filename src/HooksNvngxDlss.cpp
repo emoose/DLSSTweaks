@@ -137,33 +137,76 @@ void init(HMODULE ngx_module)
 
 namespace nvngx_dlssg
 {
+std::mutex module_handle_mtx;
+HMODULE module_handle = NULL;
+
 // Currently only patches out watermark text on select builds
-void init(HMODULE ngx_module)
+void settings_changed()
 {
-	if (settings.disableAllTweaks)
-		return;
-	if (!settings.disableDevWatermark)
+	std::scoped_lock lock{ module_handle_mtx };
+
+	if (!module_handle)
 		return;
 
+	char patch = settings.disableDevWatermark ? 0 : 0x4E;
+
 	// Search for DLSSG watermark text and null it if found
-	auto pattern = hook::pattern((void*)ngx_module, 
-		"4E 56 49 44 49 41 20 43 4F 4E 46 49 44 45 4E 54 49 41 4C 20 2D 20 50 52 4F 56 49 44 45 44 20 55 4E 44 45 52 20 4E 44 41");
+	auto pattern = hook::pattern((void*)module_handle,
+		"56 49 44 49 41 20 43 4F 4E 46 49 44 45 4E 54 49 41 4C 20 2D 20 50 52 4F 56 49 44 45 44 20 55 4E 44 45 52 20 4E 44 41");
 
 	int count = pattern.size();
 	if (count)
 	{
+		int changed = 0;
 		for (int i = 0; i < count; i++)
 		{
-			char* result = pattern.get(i).get<char>();
+			char* result = pattern.get(i).get<char>(-1);
 
-			UnprotectMemory unprotect{ (uintptr_t)result, 1 };
-			*result = 0;
+			if (result[0] != patch)
+			{
+				UnprotectMemory unprotect{ (uintptr_t)result, 1 };
+				*result = patch;
+				changed++;
+			}
 		}
-		spdlog::debug("DisableDevWatermark: dlssg patch applied, {} strings zeroed", count);
+		if (changed)
+			spdlog::debug("DisableDevWatermark: dlssg patch {}, {} strings patched", settings.disableDevWatermark ? "applied" : "removed", changed);
 	}
 	else
 	{
 		spdlog::warn("DisableDevWatermark: failed to locate watermark string inside dlssg module");
 	}
+}
+	
+SafetyHookInline dllmain;
+BOOL APIENTRY hooked_dllmain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)
+{
+	if (ul_reason_for_call == DLL_PROCESS_ATTACH)
+	{
+		{
+			std::scoped_lock lock{module_handle_mtx};
+			module_handle = hModule;
+		}
+		settings_changed();
+	}
+
+	BOOL res = dllmain.stdcall<BOOL>(hModule, ul_reason_for_call, lpReserved);
+
+	if (ul_reason_for_call == DLL_PROCESS_DETACH)
+	{
+		std::scoped_lock lock{module_handle_mtx};
+		module_handle = NULL;
+		dllmain.reset();
+	}
+
+	return res;
+}
+
+void init(HMODULE ngx_module)
+{
+	if (settings.disableAllTweaks)
+		return;
+
+	dllmain = safetyhook::create_inline(utility::ModuleEntryPoint(ngx_module), hooked_dllmain);
 }
 };

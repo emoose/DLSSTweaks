@@ -53,6 +53,7 @@ void init(HMODULE ngx_module);
 };
 namespace nvngx_dlssg
 {
+void settings_changed();
 void init(HMODULE ngx_module);
 };
 

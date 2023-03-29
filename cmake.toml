@@ -31,13 +31,9 @@ sources = ["external/spdlog/src/*.cpp"]
 include-directories = ["external/spdlog/include"]
 compile-definitions = ["SPDLOG_COMPILED_LIB"]
 
-[fetch-content.zydis]
-git = "https://github.com/zyantific/zydis"
-tag = "v4.0.0"
-
-[fetch-content.safetyhook]
-git = "https://github.com/cursey/safetyhook"
-tag = "39ea58f519427678736c930b2e8e74bf38ab8a77"
+[fetch-content]
+zydis = { git = "https://github.com/zyantific/zydis", tag = "v4.0.0" }
+safetyhook = { git = "https://github.com/cursey/safetyhook", tag = "39ea58f519427678736c930b2e8e74bf38ab8a77" }
 
 [target.dlsstweaks]
 type = "shared"

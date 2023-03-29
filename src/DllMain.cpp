@@ -279,6 +279,9 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	// [Compatibility]
 	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));
 
+	// Let our module hooks/patches know about new settings if needed
+	nvngx_dlssg::settings_changed();
+
 	return true;
 }
 
