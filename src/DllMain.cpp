@@ -159,8 +159,8 @@ void UserSettings::print_to_log()
 	spdlog::info(" - OverrideAppId: {}", overrideAppId ? "true" : "false");
 	spdlog::info(" - OverrideDlssHud: {}", overrideDlssHud == 0 ? "default" : (overrideDlssHud > 0 ? "enable" : "disable"));
 	spdlog::info(" - DisableDevWatermark: {}", disableDevWatermark ? "true" : "false");
-	spdlog::info(" - WatchIniUpdates: {}", watchIniUpdates ? "true" : "false");
 	spdlog::info(" - ResolutionOffset: {}", resolutionOffset);
+	spdlog::info(" - DisableIniMonitoring: {}", disableIniMonitoring ? "true" : "false");
 	spdlog::info(" - DLSSQualityLevels enabled: {}", overrideQualityLevels ? "true" : "false");
 
 	if (overrideQualityLevels)
@@ -223,7 +223,6 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(overrideAutoExposure));
 	overrideDlssHud = ini.Get<int>("DLSS", "OverrideDlssHud", std::move(overrideDlssHud));
 	disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(disableDevWatermark));
-	watchIniUpdates = ini.Get<bool>("DLSS", "WatchIniUpdates", std::move(watchIniUpdates));
 
 	std::set<std::string> keys;
 	// [DLLPathOverrides]
@@ -278,6 +277,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 
 	// [Compatibility]
 	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));
+	disableIniMonitoring = ini.Get<bool>("Compatibility", "DisableIniMonitoring", std::move(disableIniMonitoring));
 
 	// Let our module hooks/patches know about new settings if needed
 	nvngx_dlssg::settings_changed();
@@ -380,8 +380,7 @@ unsigned int __stdcall InitThread(void* param)
 				spdlog::error("Failed to read config from {}", IniPath.string());
 		}
 
-		// IniPath will point to the INI next to game EXE after this, for WatchIniUpdates to update from that INI
-		// TODO: might be nice to watch both INIs in future, but unsure how much work that'd need
+		// IniPath will point to the INI next to game EXE after this, so that we can monitor any updates to that INI
 	}
 
 	// print msg about wrapping to log here, as nvngx wrap stuff was setup before spdlog was inited
@@ -433,7 +432,7 @@ unsigned int __stdcall InitThread(void* param)
 		initThreadFinishedVar.notify_all();
 	}
 
-	if (!settings.watchIniUpdates)
+	if (settings.disableIniMonitoring)
 		return 0;
 
 	std::wstring iniFolder = IniPath.parent_path().wstring();
@@ -448,7 +447,7 @@ unsigned int __stdcall InitThread(void* param)
 	if (!file)
 	{
 		DWORD err = GetLastError();
-		spdlog::error("WatchIniUpdates: CreateFileW \"{}\" failed with error code {}", IniPath.parent_path().string(), err);
+		spdlog::error("INI monitoring: CreateFileW \"{}\" failed with error code {}", IniPath.parent_path().string(), err);
 		return 0;
 	}
 
@@ -457,7 +456,7 @@ unsigned int __stdcall InitThread(void* param)
 	if (!overlapped.hEvent)
 	{
 		DWORD err = GetLastError();
-		spdlog::error("WatchIniUpdates: CreateEvent failed with error code {}", err);
+		spdlog::error("INI monitoring: CreateEvent failed with error code {}", err);
 		CloseHandle(file);
 		return 0;
 	}
@@ -473,11 +472,11 @@ unsigned int __stdcall InitThread(void* param)
 	if (!success)
 	{
 		DWORD err = GetLastError();
-		spdlog::error("WatchIniUpdates: ReadDirectoryChangesW failed with error code {}", err);
+		spdlog::error("INI monitoring: ReadDirectoryChangesW failed with error code {}", err);
 		return 0;
 	}
 
-	spdlog::info("Watching for INI updates...");
+	spdlog::info("INI monitoring: watching for INI updates...");
 
 	while (success)
 	{
