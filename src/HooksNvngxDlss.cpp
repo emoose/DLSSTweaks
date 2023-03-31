@@ -228,9 +228,6 @@ void unhook(HMODULE ngx_module)
 SafetyHookInline dllmain;
 BOOL APIENTRY hooked_dllmain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)
 {
-	if (ul_reason_for_call == DLL_PROCESS_ATTACH)
-		hook(hModule);
-
 	BOOL res = dllmain.stdcall<BOOL>(hModule, ul_reason_for_call, lpReserved);
 
 	if (ul_reason_for_call == DLL_PROCESS_DETACH)
@@ -248,6 +245,7 @@ void init(HMODULE ngx_module)
 	if (settings.disableAllTweaks)
 		return;
 
+	hook(ngx_module);
 	dllmain = safetyhook::create_inline(utility::ModuleEntryPoint(ngx_module), hooked_dllmain);
 }
 };
@@ -300,11 +298,8 @@ BOOL APIENTRY hooked_dllmain(HMODULE hModule, int ul_reason_for_call, LPVOID lpR
 {
 	if (ul_reason_for_call == DLL_PROCESS_ATTACH)
 	{
-		{
-			std::scoped_lock lock{module_handle_mtx};
-			module_handle = hModule;
-		}
-		settings_changed();
+		std::scoped_lock lock{module_handle_mtx};
+		module_handle = hModule;
 	}
 
 	BOOL res = dllmain.stdcall<BOOL>(hModule, ul_reason_for_call, lpReserved);
@@ -323,6 +318,12 @@ void init(HMODULE ngx_module)
 {
 	if (settings.disableAllTweaks)
 		return;
+
+	{
+		std::scoped_lock lock{ module_handle_mtx };
+		module_handle = ngx_module;
+	}
+	settings_changed();
 
 	dllmain = safetyhook::create_inline(utility::ModuleEntryPoint(ngx_module), hooked_dllmain);
 }

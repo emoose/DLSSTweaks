@@ -580,9 +580,6 @@ void unhook(HMODULE ngx_module)
 SafetyHookInline dllmain;
 BOOL APIENTRY hooked_dllmain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)
 {
-	if (ul_reason_for_call == DLL_PROCESS_ATTACH)
-		hook(hModule);
-
 	BOOL res = dllmain.stdcall<BOOL>(hModule, ul_reason_for_call, lpReserved);
 
 	if (ul_reason_for_call == DLL_PROCESS_DETACH)
@@ -626,7 +623,8 @@ void init(HMODULE ngx_module)
 	if (proxy::is_wrapping_nvngx || settings.disableAllTweaks)
 		return;
 
-	// aren't wrapping nvngx, apply dllmain hook to the module
+	// aren't wrapping nvngx, apply hooks to module
+	hook(ngx_module);
 	dllmain = safetyhook::create_inline(utility::ModuleEntryPoint(ngx_module), hooked_dllmain);
 }
 };
