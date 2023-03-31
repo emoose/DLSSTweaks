@@ -1,5 +1,6 @@
 #pragma once
 #include <SafetyHook.hpp>
+#include <filesystem>
 
 namespace utility
 {
@@ -7,6 +8,8 @@ std::string DLSS_PresetEnumToName(unsigned int val);
 unsigned int DLSS_PresetNameToEnum(const std::string& val);
 
 BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction);
+
+std::string ModuleVersion(const std::filesystem::path& module_path);
 inline void* ModuleEntryPoint(HMODULE hmod)
 {
 	PIMAGE_DOS_HEADER dos_header = (PIMAGE_DOS_HEADER)hmod;

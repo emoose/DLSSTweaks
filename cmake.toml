@@ -46,7 +46,8 @@ compile-features = ["cxx_std_20"]
 compile-definitions = [""]
 link-libraries = [
     "spdlog",
-    "safetyhook"
+    "safetyhook",
+    "version.lib"
 ]
 
 [target.dlsstweaks.properties]

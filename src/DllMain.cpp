@@ -358,7 +358,17 @@ unsigned int __stdcall InitThread(void* param)
 		spdlog::flush_on(spdlog::level::info);
 	}
 
-	spdlog::info("DLSSTweaks v0.200.5, by emoose: {} wrapper loaded", DllPath.filename().string());
+	std::string version = "0.200.5";
+	try
+	{
+		std::string fileVersion = utility::ModuleVersion(DllPath);
+		version = fileVersion;
+	}
+	catch (const std::exception&)
+	{
+	}
+
+	spdlog::info("DLSSTweaks v{}, by emoose: {} wrapper loaded", version, DllPath.filename().string());
 	spdlog::info("Game path: {}", ExePath.string());
 	spdlog::info("DLL path: {}", DllPath.string());
 

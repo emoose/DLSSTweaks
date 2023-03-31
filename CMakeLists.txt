@@ -140,6 +140,7 @@ target_include_directories(dlsstweaks PUBLIC
 target_link_libraries(dlsstweaks PUBLIC
 	spdlog
 	safetyhook
+	version.lib
 )
 
 target_link_options(dlsstweaks PUBLIC
