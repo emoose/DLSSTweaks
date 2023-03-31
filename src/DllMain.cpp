@@ -271,7 +271,6 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	}
 
 	// [DLSSPresets]
-	overrideAppId = ini.Get<bool>("DLSSPresets", "OverrideAppId", std::move(overrideAppId));
 	presetDLAA = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "DLAA", DLSS_PresetEnumToName(presetDLAA)));
 	presetQuality = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "Quality", DLSS_PresetEnumToName(presetQuality)));
 	presetBalanced = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "Balanced", DLSS_PresetEnumToName(presetBalanced)));
@@ -281,6 +280,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	// [Compatibility]
 	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));
 	disableIniMonitoring = ini.Get<bool>("Compatibility", "DisableIniMonitoring", std::move(disableIniMonitoring));
+	overrideAppId = ini.Get<bool>("Compatibility", "OverrideAppId", std::move(overrideAppId));
 
 	auto log_level = verboseLogging ? spdlog::level::debug : spdlog::level::info;
 	if (spdlog::default_logger())

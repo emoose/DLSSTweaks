@@ -16,12 +16,21 @@ void DlssNvidiaPresetOverrides::zero_customized_values()
 	if (!settings.dlss.nvidiaOverrides.has_value())
 	{
 		settings.dlss.nvidiaOverrides = *this;
-		spdlog::debug("NVIDIA default presets for current app:");
-		spdlog::debug(" - DLAA: {}", utility::DLSS_PresetEnumToName(settings.dlss.nvidiaOverrides->overrideDLAA));
-		spdlog::debug(" - Quality: {}", utility::DLSS_PresetEnumToName(settings.dlss.nvidiaOverrides->overrideQuality));
-		spdlog::debug(" - Balanced: {}", utility::DLSS_PresetEnumToName(settings.dlss.nvidiaOverrides->overrideBalanced));
-		spdlog::debug(" - Performance: {}", utility::DLSS_PresetEnumToName(settings.dlss.nvidiaOverrides->overridePerformance));
-		spdlog::debug(" - UltraPerformance: {}", utility::DLSS_PresetEnumToName(settings.dlss.nvidiaOverrides->overrideUltraPerformance));
+
+		if (overrideDLAA || overrideQuality || overrideBalanced || overridePerformance || overrideUltraPerformance)
+		{
+			spdlog::debug("NVIDIA default presets for current app:");
+			if (overrideDLAA)
+				spdlog::debug(" - DLAA: {}", utility::DLSS_PresetEnumToName(overrideDLAA));
+			if (overrideQuality)
+				spdlog::debug(" - Quality: {}", utility::DLSS_PresetEnumToName(overrideQuality));
+			if (overrideBalanced)
+				spdlog::debug(" - Balanced: {}", utility::DLSS_PresetEnumToName(overrideBalanced));
+			if (overridePerformance)
+				spdlog::debug(" - Performance: {}", utility::DLSS_PresetEnumToName(overridePerformance));
+			if (overrideUltraPerformance)
+				spdlog::debug(" - UltraPerformance: {}", utility::DLSS_PresetEnumToName(overrideUltraPerformance));
+		}
 	}
 
 	// Then zero out NV-provided override if user has set their own override for that level
@@ -87,11 +96,20 @@ void DlssPresetOverrideFunc_LaterVersion(SafetyHookContext& ctx)
 // Seems earlier DLSS 3.1 builds (3.1.2 and older?) don't use the func above, but some kind of inlined version
 // So instead we'll hook the code that would call into it instead
 SafetyHookMid DlssPresetOverrideFunc_EarlyVersion_Hook;
-void DlssPresetOverrideFunc_EarlyVersion(SafetyHookContext& ctx)
+void DlssPresetOverrideFunc_Version3_1_2(SafetyHookContext& ctx)
 {
 	// Code that we overwrote
 	*(uint32_t*)(ctx.rbx + 0x1C) = uint32_t(ctx.rcx);
 	ctx.rax = *(uint64_t*)ctx.rdi;
+
+	auto* nv_settings = (DlssNvidiaPresetOverrides*)ctx.rax;
+	nv_settings->zero_customized_values();
+}
+void DlssPresetOverrideFunc_Version3_1_1(SafetyHookContext& ctx)
+{
+	// Code that we overwrote
+	*(uint32_t*)(ctx.rdi + 0x1C) = uint32_t(ctx.rcx);
+	//ctx.rax = *(uint64_t*)ctx.rsi;
 
 	auto* nv_settings = (DlssNvidiaPresetOverrides*)ctx.rax;
 	nv_settings->zero_customized_values();
@@ -114,21 +132,35 @@ bool hook(HMODULE ngx_module)
 
 			DlssPresetOverrideFunc_LaterVersion_Hook = safetyhook::create_mid(match + 4, DlssPresetOverrideFunc_LaterVersion);
 
-			spdlog::info("nvngx_dlss: applied DLSS preset override hook (v2)");
+			spdlog::info("nvngx_dlss: applied DLSS preset override hook (> v3.1.2)");
 		}
 		else
 		{
 			// Couldn't find the preset override func, seems it might be inlined inside earlier DLLs...
 			// Search for & hook the inlined code instead
-			pattern = hook::pattern((void*)ngx_module, "89 4B 1C 48 8B 07 39 30 75");
+			// (unfortunately registers changed between 3.1.1 & 3.1.2, and probably the ones between 3.1.2 and 3.1.11 too, ugh)
+			pattern = hook::pattern((void*)ngx_module, "89 4D ? 8B 08 89 ? 1C 48 8B ?");
 			if (!pattern.size())
 				spdlog::warn("nvngx_dlss: failed to apply DLSS preset override hooks, recommend enabling OverrideAppId instead");
 			else
 			{
-				uint8_t* midhookAddress = pattern.count(1).get_first<uint8_t>();
-				DlssPresetOverrideFunc_EarlyVersion_Hook = safetyhook::create_mid(midhookAddress, DlssPresetOverrideFunc_EarlyVersion);
-
-				spdlog::info("nvngx_dlss: applied DLSS preset override hook (v1)");
+				uint8_t* match = pattern.count(1).get_first<uint8_t>();
+				uint8_t* midhookAddress = match + 5;
+				uint8_t destReg = match[6];
+				if (destReg == 0x4B) // rbx, 3.1.2
+				{
+					DlssPresetOverrideFunc_EarlyVersion_Hook = safetyhook::create_mid(midhookAddress, DlssPresetOverrideFunc_Version3_1_2);
+					spdlog::info("nvngx_dlss: applied DLSS preset override hook (v3.1.2)");
+				}
+				else if (destReg == 0x4F) // rdi, 3.1.1
+				{
+					DlssPresetOverrideFunc_EarlyVersion_Hook = safetyhook::create_mid(midhookAddress, DlssPresetOverrideFunc_Version3_1_1);
+					spdlog::info("nvngx_dlss: applied DLSS preset override hook (v3.1.1)");
+				}
+				else
+				{
+					spdlog::warn("nvngx_dlss: failed to find DLSS preset override code, recommend enabling OverrideAppId instead");
+				}
 			}
 		}
 	}
