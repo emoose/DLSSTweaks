@@ -43,13 +43,119 @@ uint32_t __fastcall DLSS_GetIndicatorValue(void* thisptr, uint32_t* OutValue)
 	return ret;
 }
 
+// Hooks that allow us to override the NV-provided DLSS3.1 presets, without needing us to override the whole AppID for the game
+// I'd imagine leaving games AppID might help DLSS keep using certain game-specific things, and also probably let any DLSS telemetry be more accurate too
+// @NVIDIA, please consider adding a parameter to tell DLSS to ignore the NV / DRS provided ones instead
+// (or a parameter which lets it always use the game provided NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_XXX param)
+// Don't really enjoy needing to inline hook your code for this, but it's necessary atm...
+
+// override func present in later builds (3.1.11+?):
+SafetyHookInline DlssPresetOverrideFunc_LaterVersion_Hook;
+void DlssPresetOverrideFunc_LaterVersion(void* a1, int* OutPreset, int InPresetParamValue, int InDLSSAppOverrideValue, int a5, void* a6)
+{
+	// If user has set a custom preset then zero the app override value that DLSS would force
+	// This way the value set by user should get used, without needing to override the whole app ID
+	// 
+	// TODO: it'd be nice if we could only zero presets that user has actually set, instead of zeroing them all if user set any
+	// Doesn't seem like any kind of index/ID/etc for the preset is even passed to this func tho...
+
+	if(settings.presetDLAA || settings.presetQuality || settings.presetBalanced || settings.presetPerformance || settings.presetUltraPerformance)
+		InDLSSAppOverrideValue = 0;
+
+	DlssPresetOverrideFunc_LaterVersion_Hook.unsafe_call(a1, OutPreset, InPresetParamValue, InDLSSAppOverrideValue, a5, a6);
+}
+
+struct DlssNvidiaPresetOverrides
+{
+	uint32_t overrideDLAA;
+	uint32_t overrideQuality;
+	uint32_t overrideBalanced;
+	uint32_t overridePerformance;
+	uint32_t overrideUltraPerformance;
+};
+
+// Seems earlier DLSS 3.1 builds (3.1.2 and older?) don't use the func above, but some kind of inlined version
+// So instead we'll hook the code that would call into it instead
+// This has the benefit of letting us access the struct that holds each presets value, named as DlssNvidiaPresetOverrides above
+// so we can selectively disable them based on which ones user has overridden
+// (hopefully can find a way to do that for newer versions soon...)
+SafetyHookMid DlssPresetOverrideFunc_EarlyVersion_Hook;
+void DlssPresetOverrideFunc_EarlyVersion(SafetyHookContext& ctx)
+{
+	// Code that we overwrote
+	*(uint32_t*)(ctx.rbx + 0x1C) = uint32_t(ctx.rcx);
+	ctx.rax = *(uint64_t*)ctx.rdi;
+
+	// Zero out NV-provided override if user has set their own override for that level
+	// (@NVIDIA, please consider adding a parameter that can override these 
+	auto* nv_settings = (DlssNvidiaPresetOverrides*)ctx.rax;
+	if (settings.presetDLAA)
+		nv_settings->overrideDLAA = 0;
+	if (settings.presetQuality)
+		nv_settings->overrideQuality = 0;
+	if (settings.presetBalanced)
+		nv_settings->overrideBalanced = 0;
+	if (settings.presetPerformance)
+		nv_settings->overridePerformance = 0;
+	if (settings.presetUltraPerformance)
+		nv_settings->overrideUltraPerformance = 0;
+}
+
 SafetyHookMid dlssIndicatorHudHook{};
 bool hook(HMODULE ngx_module)
 {
+	// Search for & hook the function that overrides the DLSS presets with ones set by NV
+	// So that users can set custom DLSS presets without needing to override the whole app ID
+	// (if OverrideAppId is set there shouldn't be any need for this)
+	if (!settings.overrideAppId)
+	{
+		auto pattern = hook::pattern((void*)ngx_module, "41 0F BA F0 1F 48 8B DA");
+		uint8_t* match = nullptr;
+
+		if (pattern.size())
+		{
+			// search for start of the function...
+			uint8_t* patternAddr = pattern.count(1).get_first<uint8_t>(0);
+			for (int i = 0; i < 0x20; i++)
+			{
+				uint8_t* p = patternAddr - i;
+				if (p[0] == 0x48 && p[1] == 0x89 && p[2] == 0x5C && p[3] == 0x24)
+				{
+					match = p;
+					break;
+				}
+			}
+		}
+
+		if (match)
+		{
+			{
+				DlssPresetOverrideFunc_LaterVersion_Hook = safetyhook::create_inline(match, DlssPresetOverrideFunc_LaterVersion);
+			}
+			spdlog::info("nvngx_dlss: applied DLSS preset override hook v2");
+		}
+		else
+		{
+			// Couldn't find the preset override func, seems it might be inlined inside non-dev DLL...
+			// Search for & hook the inlined code instead
+			pattern = hook::pattern((void*)ngx_module, "89 4B 1C 48 8B 07 39 30 75");
+			if (!pattern.size())
+				spdlog::warn("nvngx_dlss: failed to apply DLSS preset override hooks, recommend enabling OverrideAppId instead");
+			else
+			{
+				uint8_t* midhookAddress = pattern.count(1).get_first<uint8_t>(0);
+				{
+					DlssPresetOverrideFunc_EarlyVersion_Hook = safetyhook::create_mid(midhookAddress, DlssPresetOverrideFunc_EarlyVersion);
+				}
+				spdlog::info("nvngx_dlss: applied DLSS preset override hook v1");
+			}
+		}
+	}
+
+	// OverrideDlssHud hooks
 	// This pattern finds 2 matches in latest DLSS, but only 1 in older ones
 	// The one we're trying to find seems to always be first match
 	// TODO: scan for RegQueryValue call and grab the offset from that, use offset instead of wildcards below
-
 	auto indicatorValueCheck = hook::pattern((void*)ngx_module, "8B 81 ? ? ? ? 89 02 33 C0 C3");
 	if ((!settings.disableIniMonitoring || settings.overrideDlssHud == 2) && indicatorValueCheck.size())
 	{
