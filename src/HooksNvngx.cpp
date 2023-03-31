@@ -243,8 +243,12 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 		// Some games may expose an UltraQuality option if we returned a valid resolution for it
 		// DLSS usually doesn't like being asked to use UltraQuality though, and will break rendering/crash altogether if set
 		// So we'll just tell DLSS to use MaxQuality instead, while keeping UltraQuality stored in prevQualityValue
-		if (prevQualityValue == NVSDK_NGX_PerfQuality_Value_UltraQuality && qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality] > 0.f)
-			InValue = int(NVSDK_NGX_PerfQuality_Value_MaxQuality);
+		if (prevQualityValue == NVSDK_NGX_PerfQuality_Value_UltraQuality)
+		{
+			auto& res = qualityLevelResolutions[NVSDK_NGX_PerfQuality_Value_UltraQuality];
+			if (utility::ValidResolution(res) || qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality] > 0.f)
+				InValue = int(NVSDK_NGX_PerfQuality_Value_MaxQuality);
+		}
 	}
 
 	NVSDK_NGX_Parameter_SetI_Hook.call(InParameter, InName, InValue);
@@ -297,23 +301,54 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 	}
 
 	// Override with DLSSQualityLevels value if user set it
-	if (settings.overrideQualityLevels && qualityLevelRatios.count(prevQualityValue))
+	if (settings.overrideQualityLevels)
 	{
-		if (isOutWidth)
+		if (isOutWidth || isOutHeight)
 		{
 			unsigned int targetWidth = 0;
-			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
-			*OutValue = unsigned int(roundf(float(targetWidth) * qualityLevelRatios[prevQualityValue])); // calculate new width from custom ratio
-			if (*OutValue == targetWidth) // apply resolutionOffset compatibility hack if it matches the target screen res
-				*OutValue += settings.resolutionOffset;
-		}
-		if (isOutHeight)
-		{
 			unsigned int targetHeight = 0;
-			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
-			*OutValue = unsigned int(roundf(float(targetHeight) * qualityLevelRatios[prevQualityValue])); // calculate new height from custom ratio
-			if (*OutValue == targetHeight) // apply resolutionOffset compatibility hack if it matches the target screen res
-				*OutValue += settings.resolutionOffset;
+			if (isOutWidth)
+				NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
+			if (isOutHeight)
+				NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
+			unsigned int renderWidth = 0;
+			unsigned int renderHeight = 0;
+			if (qualityLevelRatios.count(prevQualityValue))
+			{
+				auto ratio = qualityLevelRatios[prevQualityValue];
+
+				// calculate width/height from custom ratio
+				renderWidth = unsigned int(roundf(float(targetWidth) * ratio));
+				renderHeight = unsigned int(roundf(float(targetHeight) * ratio));
+			}
+			if (qualityLevelResolutions.count(prevQualityValue))
+			{
+				// if custom res is set for this level, override it with that
+				auto& res = qualityLevelResolutions[prevQualityValue];
+				if (utility::ValidResolution(res))
+				{
+					renderWidth = res.first;
+					renderHeight = res.second;
+				}
+			}
+			if (isOutWidth)
+			{
+				*OutValue = renderWidth;
+				if (*OutValue >= targetWidth)
+				{
+					*OutValue = targetWidth; // DLSS can't render above the target res
+					*OutValue += settings.resolutionOffset; // apply resolutionOffset compatibility hack
+				}
+			}
+			if (isOutHeight)
+			{
+				*OutValue = renderHeight;
+				if (*OutValue >= targetHeight)
+				{
+					*OutValue = targetHeight; // DLSS can't render above the target res
+					*OutValue += settings.resolutionOffset; // apply resolutionOffset compatibility hack
+				}
+			}
 		}
 	}
 

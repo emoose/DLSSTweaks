@@ -6,6 +6,11 @@ namespace utility
 {
 std::string DLSS_PresetEnumToName(unsigned int val);
 unsigned int DLSS_PresetNameToEnum(const std::string& val);
+std::pair<int, int> ParseResolution(std::string_view val);
+inline bool ValidResolution(const std::pair<int, int> val)
+{
+	return val.first > 0 && val.second > 0;
+}
 
 BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction);
 

@@ -22,7 +22,7 @@ struct DlssNvidiaPresetOverrides
 };
 struct DlssSettings
 {
-	int featureCreateFlags;
+	int featureCreateFlags = 0;
 	std::optional<DlssNvidiaPresetOverrides> nvidiaOverrides;
 };
 struct UserSettings
@@ -38,6 +38,13 @@ struct UserSettings
 	bool verboseLogging = false;
 	std::unordered_map<std::string, std::filesystem::path> dllPathOverrides;
 	bool overrideQualityLevels = false;
+	std::string qualityLevelStrings[5] = { 
+		"0.5", 
+		"0.58", 
+		"0.66666667",
+		"0.33333334",
+		"0"
+	};
 	unsigned int presetDLAA = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 	unsigned int presetQuality = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 	unsigned int presetBalanced = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
@@ -52,7 +59,8 @@ struct UserSettings
 
 // DllMain.cpp
 extern UserSettings settings;
-extern std::unordered_map<int, float> qualityLevelRatios;
+extern std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios;
+extern std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLevelResolutions;
 void WaitForInitThread();
 
 // HooksNvngx.cpp

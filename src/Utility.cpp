@@ -40,6 +40,24 @@ unsigned int DLSS_PresetNameToEnum(const std::string& val)
 	return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 }
 
+std::pair<int, int> ParseResolution(std::string_view val)
+{
+	std::pair<int, int> result = { 0,0 };
+	if (val.size() < 3) // minimum is "0x0"
+		return result;
+
+	size_t seperator = val.find('x');
+	if (seperator == std::string::npos || val.size() <= seperator + 1)
+		return result;
+
+	std::string width_str = std::string(val.substr(0, seperator));
+	std::string height_str = std::string(val.substr(seperator + 1));
+	result.first = std::stoi(width_str);
+	result.second = std::stoi(height_str);
+
+	return result;
+}
+
 BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction)
 {
 	uint8_t* base = (uint8_t*)callerModule;

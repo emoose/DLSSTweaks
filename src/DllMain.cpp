@@ -32,7 +32,25 @@ std::filesystem::path IniPath;
 
 UserSettings settings;
 
-std::unordered_map<int, float> qualityLevelRatios =
+const int qualityLevelCount = 5;
+
+const char* qualityLevelNames[qualityLevelCount] = {
+	"Performance",
+	"Balanced",
+	"Quality",
+	"UltraPerformance",
+	"UltraQuality"
+};
+
+NVSDK_NGX_PerfQuality_Value qualityLevels[qualityLevelCount] = {
+	NVSDK_NGX_PerfQuality_Value_UltraPerformance,
+	NVSDK_NGX_PerfQuality_Value_MaxPerf,
+	NVSDK_NGX_PerfQuality_Value_Balanced,
+	NVSDK_NGX_PerfQuality_Value_MaxQuality,
+	NVSDK_NGX_PerfQuality_Value_UltraQuality
+};
+
+std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios =
 {
 	{NVSDK_NGX_PerfQuality_Value_UltraPerformance, 0.33333334f},
 	{NVSDK_NGX_PerfQuality_Value_MaxPerf, 0.5f},
@@ -44,6 +62,20 @@ std::unordered_map<int, float> qualityLevelRatios =
 	// our SetI hook in HooksNvngx can override the quality passed to DLSS if this gets used by the game, letting it think this is MaxQuality instead
 	// but we'll only do that if user overrides this in the INI to a non-zero value
 	{NVSDK_NGX_PerfQuality_Value_UltraQuality, 0.f},
+};
+
+std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLevelResolutions =
+{
+	{NVSDK_NGX_PerfQuality_Value_UltraPerformance, {0,0}},
+	{NVSDK_NGX_PerfQuality_Value_MaxPerf, {0,0}},
+	{NVSDK_NGX_PerfQuality_Value_Balanced, {0,0}},
+	{NVSDK_NGX_PerfQuality_Value_MaxQuality, {0,0}},
+
+	// note: if NVSDK_NGX_PerfQuality_Value_UltraQuality is non-zero, some games may detect that we're passing a valid resolution and show an Ultra Quality option as a result
+	// very few games support this though, and right now DLSS seems to refuse to render if UltraQuality gets passed to it
+	// our SetI hook in HooksNvngx can override the quality passed to DLSS if this gets used by the game, letting it think this is MaxQuality instead
+	// but we'll only do that if user overrides this in the INI to a non-zero value
+	{NVSDK_NGX_PerfQuality_Value_UltraQuality, {0,0}},
 };
 
 std::mutex initThreadFinishedMutex;
@@ -167,11 +199,15 @@ void UserSettings::print_to_log()
 
 	if (overrideQualityLevels)
 	{
-		spdlog::info("  - UltraPerformance ratio: {}", qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraPerformance]);
-		spdlog::info("  - Performance ratio: {}", qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxPerf]);
-		spdlog::info("  - Balanced ratio: {}", qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_Balanced]);
-		spdlog::info("  - Quality ratio: {}", qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxQuality]);
-		spdlog::info("  - UltraQuality ratio: {}", qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality]);
+		for (int i = 0; i < qualityLevelCount; i++)
+		{
+			auto level = qualityLevels[i];
+			auto& res = qualityLevelResolutions[level];
+			if (utility::ValidResolution(res))
+				spdlog::info("  - {} resolution: {}x{}", qualityLevelNames[level], res.first, res.second);
+			else
+				spdlog::info("  - {} ratio: {}", qualityLevelNames[level], qualityLevelRatios[level]);
+		}
 	}
 
 	// only print presets if any of them have been changed
@@ -258,16 +294,46 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	// [DLSSQualityLevels]
 	overrideQualityLevels = ini.Get<bool>("DLSSQualityLevels", "Enable", std::move(overrideQualityLevels));
 	if (overrideQualityLevels)
-	{
-		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxPerf] = ini.Get<float>("DLSSQualityLevels", "Performance", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxPerf]));
-		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_Balanced] = ini.Get<float>("DLSSQualityLevels", "Balanced", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_Balanced]));
-		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxQuality] = ini.Get<float>("DLSSQualityLevels", "Quality", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_MaxQuality]));
-		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraPerformance] = ini.Get<float>("DLSSQualityLevels", "UltraPerformance", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraPerformance]));
-		qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality] = ini.Get<float>("DLSSQualityLevels", "UltraQuality", std::move(qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality]));
+	{		
+		for (int i = 0; i < qualityLevelCount; i++)
+		{
+			auto level = qualityLevels[i];
+			auto& curLevel = qualityLevelNames[level];
 
-		// Clamp values between 0.0 to 1.0
-		for (int i = NVSDK_NGX_PerfQuality_Value_MaxPerf; i <= NVSDK_NGX_PerfQuality_Value_UltraQuality; i++)
-			qualityLevelRatios[i] = std::clamp(qualityLevelRatios[i], 0.0f, 1.0f);
+			auto value = ini.Get<std::string>("DLSSQualityLevels", curLevel, std::move(qualityLevelStrings[level]));
+
+			// Remove any quotes from around the value
+			if (value.size() > 0)
+			{
+				if (value[0] == '"')
+					value = value.substr(1);
+				if (value[value.length() - 1] == '"')
+					value = value.substr(0, value.length() - 1);
+			}
+
+			qualityLevelStrings[level] = value;
+
+			// Try parsing users string as a resolution
+			auto res = utility::ParseResolution(value);
+			if (utility::ValidResolution(res))
+			{
+				qualityLevelResolutions[level] = res;
+				continue;
+			}
+
+			// Not a resolution, try parsing as float
+			try
+			{
+				qualityLevelRatios[level] = std::stof(value);
+			}
+			catch (const std::exception&)
+			{
+				qualityLevelRatios[level] = 0.0f;
+			}
+
+			// Clamp value between 0.0 - 1.0
+			qualityLevelRatios[level] = std::clamp(qualityLevelRatios[level], 0.0f, 1.0f);
+		}
 	}
 
 	// [DLSSPresets]
@@ -283,6 +349,9 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	overrideAppId = ini.Get<bool>("Compatibility", "OverrideAppId", std::move(overrideAppId));
 
 	auto log_level = verboseLogging ? spdlog::level::debug : spdlog::level::info;
+#ifdef _DEBUG
+	log_level = spdlog::level::debug;
+#endif
 	if (spdlog::default_logger())
 		spdlog::default_logger()->set_level(log_level);
 	spdlog::set_level(log_level);
@@ -362,7 +431,7 @@ unsigned int __stdcall InitThread(void* param)
 	try
 	{
 		std::string fileVersion = utility::ModuleVersion(DllPath);
-		version = fileVersion;
+		version = std::move(fileVersion);
 	}
 	catch (const std::exception&)
 	{
@@ -505,7 +574,7 @@ unsigned int __stdcall InitThread(void* param)
 			DWORD bytes_transferred;
 			GetOverlappedResult(file, &overlapped, &bytes_transferred, FALSE);
 
-			FILE_NOTIFY_INFORMATION* evt = (FILE_NOTIFY_INFORMATION*)change_buf;
+			FILE_NOTIFY_INFORMATION* evt = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(change_buf);
 
 			for (;;)
 			{
