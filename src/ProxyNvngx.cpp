@@ -140,11 +140,6 @@ PLUGIN_API void NVSDK_NGX_D3D11_DestroyParameters()
     NVSDK_NGX_D3D11_DestroyParameters_Orig();
 }
 
-PLUGIN_API void NVSDK_NGX_D3D11_EvaluateFeature()
-{
-    NVSDK_NGX_D3D11_EvaluateFeature_Orig();
-}
-
 PLUGIN_API void NVSDK_NGX_D3D11_GetScratchBufferSize()
 {
     NVSDK_NGX_D3D11_GetScratchBufferSize_Orig();
@@ -173,11 +168,6 @@ PLUGIN_API void NVSDK_NGX_D3D12_CreateFeature()
 PLUGIN_API void NVSDK_NGX_D3D12_DestroyParameters()
 {
     NVSDK_NGX_D3D12_DestroyParameters_Orig();
-}
-
-PLUGIN_API void NVSDK_NGX_D3D12_EvaluateFeature()
-{
-    NVSDK_NGX_D3D12_EvaluateFeature_Orig();
 }
 
 PLUGIN_API void NVSDK_NGX_D3D12_GetScratchBufferSize()
@@ -243,11 +233,6 @@ PLUGIN_API void NVSDK_NGX_VULKAN_CreateFeature1()
 PLUGIN_API void NVSDK_NGX_VULKAN_DestroyParameters()
 {
     NVSDK_NGX_VULKAN_DestroyParameters_Orig();
-}
-
-PLUGIN_API void NVSDK_NGX_VULKAN_EvaluateFeature()
-{
-    NVSDK_NGX_VULKAN_EvaluateFeature_Orig();
 }
 
 PLUGIN_API void NVSDK_NGX_VULKAN_GetScratchBufferSize()

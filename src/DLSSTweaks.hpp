@@ -10,8 +10,24 @@
 // (unfortunately not every version checks it though...)
 #define NVSDK_NGX_Parameter_Disable_Watermark "Disable.Watermark"
 
+struct DlssNvidiaPresetOverrides
+{
+	uint32_t overrideDLAA;
+	uint32_t overrideQuality;
+	uint32_t overrideBalanced;
+	uint32_t overridePerformance;
+	uint32_t overrideUltraPerformance;
+	
+	void zero_customized_values();
+};
+struct DlssSettings
+{
+	int featureCreateFlags;
+	std::optional<DlssNvidiaPresetOverrides> nvidiaOverrides;
+};
 struct UserSettings
 {
+	DlssSettings dlss; // DLSS related settings, setup by game or DLSS itself
 	bool disableAllTweaks = false; // not exposed in INI, is set if a serious error is detected (eg. two versions loaded at once)
 
 	bool forceDLAA = false;

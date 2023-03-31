@@ -25,7 +25,56 @@ const unsigned long long appIdOverride = 0x24480451;
 namespace nvngx
 {
 NVSDK_NGX_PerfQuality_Value prevQualityValue; // the last quality level setting that game requested
+std::optional<ID3D12Resource*> prevExposureTexture;
 
+void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
+{
+	ID3D12Resource* pInExposureTexture;
+	InParameters->Get(NVSDK_NGX_Parameter_ExposureTexture, &pInExposureTexture);
+	if (!prevExposureTexture.has_value() || *prevExposureTexture != pInExposureTexture)
+	{
+		// if we recommended user to change settings previously, make sure that we _always_ log later exposure changes into game log...
+		// in case game changed exposure settings after the first recommendation
+		static bool userBeenWarned = false; 
+
+		if (pInExposureTexture)
+		{
+			spdlog::log(userBeenWarned ? spdlog::level::warn : spdlog::level::debug, 
+				"NVSDK_NGX_EvaluateFeature: pInExposureTexture changed to texture at {}, game using custom exposure value", (void*)pInExposureTexture);
+
+			if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_AutoExposure)
+			{
+				spdlog::warn("NVSDK_NGX_EvaluateFeature: game is using custom exposure value, but is also setting AutoExposure flag itself - changing OverrideAutoExposure to -1 may be beneficial");
+				userBeenWarned = true;
+			}
+
+			if (settings.overrideAutoExposure > 0)
+			{
+				spdlog::warn("NVSDK_NGX_EvaluateFeature: game is using custom exposure value but OverrideAutoExposure is enabled, recommend setting to 0 or -1!");
+				userBeenWarned = true;
+			}
+		}
+		else
+		{
+			spdlog::log(userBeenWarned ? spdlog::level::warn : spdlog::level::debug,
+				"NVSDK_NGX_EvaluateFeature: pInExposureTexture set to 0, game might not be using custom exposure value");
+
+			if (settings.overrideAutoExposure <= 0 && !(settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_AutoExposure))
+			{
+				spdlog::warn("NVSDK_NGX_EvaluateFeature: game not using custom exposure value or AutoExposure, recommend setting OverrideAutoExposure to 1!");
+				userBeenWarned = true;
+			}
+		}
+		prevExposureTexture = pInExposureTexture;
+	}
+}
+
+HookOrigFn NVSDK_NGX_D3D11_EvaluateFeature_Hook;
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_EvaluateFeature(class ID3D11DeviceContext* InDevCtx, const NVSDK_NGX_Handle* InFeatureHandle, const NVSDK_NGX_Parameter* InParameters, void* InCallback)
+{
+	on_evaluate_feature(InParameters);
+	return NVSDK_NGX_D3D11_EvaluateFeature_Hook.unsafe_call<NVSDK_NGX_Result>(InDevCtx, InFeatureHandle, InParameters, InCallback);
+}
 // TODO: InFeatureInfo might also hold project ID related fields, maybe should change those too...
 HookOrigFn NVSDK_NGX_D3D11_Init_Hook;
 PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_Init(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* InDevice, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, NVSDK_NGX_Version InSDKVersion)
@@ -58,6 +107,12 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_Init_ProjectID(const char* I
 	return NVSDK_NGX_D3D11_Init_ProjectID_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 
+HookOrigFn NVSDK_NGX_D3D12_EvaluateFeature_Hook;
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_EvaluateFeature(class ID3D12GraphicsCommandList* InCmdList, const NVSDK_NGX_Handle* InFeatureHandle, const NVSDK_NGX_Parameter* InParameters, void* InCallback)
+{
+	on_evaluate_feature(InParameters);
+	return NVSDK_NGX_D3D12_EvaluateFeature_Hook.unsafe_call<NVSDK_NGX_Result>(InCmdList, InFeatureHandle, InParameters, InCallback);
+}
 HookOrigFn NVSDK_NGX_D3D12_Init_Hook;
 PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_Init(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, void* InDevice, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo, NVSDK_NGX_Version InSDKVersion)
 {
@@ -89,6 +144,12 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_Init_ProjectID(const char* I
 	return NVSDK_NGX_D3D12_Init_ProjectID_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 
+HookOrigFn NVSDK_NGX_VULKAN_EvaluateFeature_Hook;
+PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_EvaluateFeature(void* InCmdList, const NVSDK_NGX_Handle* InFeatureHandle, const NVSDK_NGX_Parameter* InParameters, void* InCallback)
+{
+	on_evaluate_feature(InParameters);
+	return NVSDK_NGX_VULKAN_EvaluateFeature_Hook.unsafe_call<NVSDK_NGX_Result>(InCmdList, InFeatureHandle, InParameters, InCallback);
+}
 HookOrigFn NVSDK_NGX_VULKAN_Init_Hook;
 PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, struct VkInstance* InInstance, struct VkPhysicalDevice* InPD, struct VkDevice* InDevice, NVSDK_NGX_Version InSDKVersion)
 {
@@ -141,12 +202,37 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Ext(const char* InProje
 SafetyHookInline NVSDK_NGX_Parameter_SetI_Hook;
 void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const char* InName, int InValue)
 {
-	if (settings.overrideAutoExposure != 0 && !_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags))
+	if (!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags))
 	{
-		if (settings.overrideAutoExposure >= 1) // force auto-exposure
-			InValue |= NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
-		else if (settings.overrideAutoExposure < 0) // force disable auto-exposure
-			InValue = InValue & ~NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+		settings.dlss.featureCreateFlags = InValue;
+		spdlog::debug("NVSDK_NGX_Parameter_SetI: FeatureCreateFlags = 0x{:X}", settings.dlss.featureCreateFlags);
+		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_IsHDR)
+			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_IsHDR");
+		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes)
+			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_MVLowRes");
+		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_MVJittered)
+			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_MVJittered");
+		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_DepthInverted)
+			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_DepthInverted");
+		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_Reserved_0)
+			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_Reserved_0");
+		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_DoSharpening)
+			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_DoSharpening");
+		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_AutoExposure)
+			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_AutoExposure (use OverrideAutoExposure = -1 to force disable)");
+
+		const int lastKnownFlag = NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+		auto remainder = settings.dlss.featureCreateFlags & ~((lastKnownFlag << 1) - 1);
+		if (remainder)
+			spdlog::debug("NVSDK_NGX_Parameter_SetI: - unknown flags: 0x{:X}", remainder);
+
+		if (settings.overrideAutoExposure != 0)
+		{
+			if (settings.overrideAutoExposure >= 1) // force auto-exposure
+				InValue |= NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+			else if (settings.overrideAutoExposure < 0) // force disable auto-exposure
+				InValue = InValue & ~NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+		}
 	}
 
 	// Cache the chosen quality value so we can make decisions on it later on
@@ -382,6 +468,7 @@ void hook_params(NVSDK_NGX_Parameter* params)
 
 void hook(HMODULE ngx_module)
 {
+	auto* NVSDK_NGX_D3D11_EvaluateFeature_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_EvaluateFeature");
 	auto* NVSDK_NGX_D3D11_Init_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_Init");
 	auto* NVSDK_NGX_D3D11_Init_Ext_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_Init_Ext");
 	auto* NVSDK_NGX_D3D11_Init_ProjectID_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_Init_ProjectID");
@@ -389,6 +476,7 @@ void hook(HMODULE ngx_module)
 	auto* NVSDK_NGX_D3D11_GetCapabilityParameters_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_GetCapabilityParameters");
 	auto* NVSDK_NGX_D3D11_GetParameters_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D11_GetParameters");
 
+	auto* NVSDK_NGX_D3D12_EvaluateFeature_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_EvaluateFeature");
 	auto* NVSDK_NGX_D3D12_Init_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_Init");
 	auto* NVSDK_NGX_D3D12_Init_Ext_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_Init_Ext");
 	auto* NVSDK_NGX_D3D12_Init_ProjectID_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_Init_ProjectID");
@@ -396,6 +484,7 @@ void hook(HMODULE ngx_module)
 	auto* NVSDK_NGX_D3D12_GetCapabilityParameters_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_GetCapabilityParameters");
 	auto* NVSDK_NGX_D3D12_GetParameters_orig = GetProcAddress(ngx_module, "NVSDK_NGX_D3D12_GetParameters");
 
+	auto* NVSDK_NGX_VULKAN_EvaluateFeature_orig = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_EvaluateFeature");
 	auto* NVSDK_NGX_VULKAN_Init_orig = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_Init");
 	auto* NVSDK_NGX_VULKAN_Init_Ext_orig = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_Init_Ext");
 	auto* NVSDK_NGX_VULKAN_Init_Ext2_orig = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_Init_Ext2");
@@ -406,13 +495,14 @@ void hook(HMODULE ngx_module)
 	auto* NVSDK_NGX_VULKAN_GetParameters_orig = GetProcAddress(ngx_module, "NVSDK_NGX_VULKAN_GetParameters");
 
 	// Make sure we only try hooking if we found all the procs above...
-	if (NVSDK_NGX_D3D11_Init_orig && NVSDK_NGX_D3D11_Init_Ext_orig && NVSDK_NGX_D3D11_Init_ProjectID_orig &&
+	if (NVSDK_NGX_D3D11_EvaluateFeature_orig && NVSDK_NGX_D3D11_Init_orig && NVSDK_NGX_D3D11_Init_Ext_orig && NVSDK_NGX_D3D11_Init_ProjectID_orig &&
 		NVSDK_NGX_D3D11_AllocateParameters_orig && NVSDK_NGX_D3D11_GetCapabilityParameters_orig && NVSDK_NGX_D3D11_GetParameters_orig &&
-		NVSDK_NGX_D3D12_Init_orig && NVSDK_NGX_D3D12_Init_Ext_orig && NVSDK_NGX_D3D12_Init_ProjectID_orig &&
+		NVSDK_NGX_D3D12_EvaluateFeature_orig && NVSDK_NGX_D3D12_Init_orig && NVSDK_NGX_D3D12_Init_Ext_orig && NVSDK_NGX_D3D12_Init_ProjectID_orig &&
 		NVSDK_NGX_D3D12_AllocateParameters_orig && NVSDK_NGX_D3D12_GetCapabilityParameters_orig && NVSDK_NGX_D3D12_GetParameters_orig &&
-		NVSDK_NGX_VULKAN_Init_orig && NVSDK_NGX_VULKAN_Init_Ext_orig && NVSDK_NGX_VULKAN_Init_ProjectID_orig &&
+		NVSDK_NGX_VULKAN_EvaluateFeature_orig && NVSDK_NGX_VULKAN_Init_orig && NVSDK_NGX_VULKAN_Init_Ext_orig && NVSDK_NGX_VULKAN_Init_ProjectID_orig &&
 		NVSDK_NGX_VULKAN_AllocateParameters_orig && NVSDK_NGX_VULKAN_GetCapabilityParameters_orig && NVSDK_NGX_VULKAN_GetParameters_orig)
 	{
+		NVSDK_NGX_D3D11_EvaluateFeature_Hook = safetyhook::create_inline(NVSDK_NGX_D3D11_EvaluateFeature_orig, NVSDK_NGX_D3D11_EvaluateFeature);
 		NVSDK_NGX_D3D11_Init_Hook = safetyhook::create_inline(NVSDK_NGX_D3D11_Init_orig, NVSDK_NGX_D3D11_Init);
 		NVSDK_NGX_D3D11_Init_Ext_Hook = safetyhook::create_inline(NVSDK_NGX_D3D11_Init_Ext_orig, NVSDK_NGX_D3D11_Init_Ext);
 		NVSDK_NGX_D3D11_Init_ProjectID_Hook = safetyhook::create_inline(NVSDK_NGX_D3D11_Init_ProjectID_orig, NVSDK_NGX_D3D11_Init_ProjectID);
@@ -421,6 +511,7 @@ void hook(HMODULE ngx_module)
 		NVSDK_NGX_D3D11_GetCapabilityParameters_Hook = safetyhook::create_inline(NVSDK_NGX_D3D11_GetCapabilityParameters_orig, NVSDK_NGX_D3D11_GetCapabilityParameters);
 		NVSDK_NGX_D3D11_GetParameters_Hook = safetyhook::create_inline(NVSDK_NGX_D3D11_GetParameters_orig, NVSDK_NGX_D3D11_GetParameters);
 
+		NVSDK_NGX_D3D12_EvaluateFeature_Hook = safetyhook::create_inline(NVSDK_NGX_D3D12_EvaluateFeature_orig, NVSDK_NGX_D3D12_EvaluateFeature);
 		NVSDK_NGX_D3D12_Init_Hook = safetyhook::create_inline(NVSDK_NGX_D3D12_Init_orig, NVSDK_NGX_D3D12_Init);
 		NVSDK_NGX_D3D12_Init_Ext_Hook = safetyhook::create_inline(NVSDK_NGX_D3D12_Init_Ext_orig, NVSDK_NGX_D3D12_Init_Ext);
 		NVSDK_NGX_D3D12_Init_ProjectID_Hook = safetyhook::create_inline(NVSDK_NGX_D3D12_Init_ProjectID_orig, NVSDK_NGX_D3D12_Init_ProjectID);
@@ -429,6 +520,7 @@ void hook(HMODULE ngx_module)
 		NVSDK_NGX_D3D12_GetCapabilityParameters_Hook = safetyhook::create_inline(NVSDK_NGX_D3D12_GetCapabilityParameters_orig, NVSDK_NGX_D3D12_GetCapabilityParameters);
 		NVSDK_NGX_D3D12_GetParameters_Hook = safetyhook::create_inline(NVSDK_NGX_D3D12_GetParameters_orig, NVSDK_NGX_D3D12_GetParameters);
 
+		NVSDK_NGX_VULKAN_EvaluateFeature_Hook = safetyhook::create_inline(NVSDK_NGX_VULKAN_EvaluateFeature_orig, NVSDK_NGX_VULKAN_EvaluateFeature);
 		NVSDK_NGX_VULKAN_Init_Hook = safetyhook::create_inline(NVSDK_NGX_VULKAN_Init_orig, NVSDK_NGX_VULKAN_Init);
 		NVSDK_NGX_VULKAN_Init_Ext_Hook = safetyhook::create_inline(NVSDK_NGX_VULKAN_Init_Ext_orig, NVSDK_NGX_VULKAN_Init_Ext);
 		NVSDK_NGX_VULKAN_Init_ProjectID_Hook = safetyhook::create_inline(NVSDK_NGX_VULKAN_Init_ProjectID_orig, NVSDK_NGX_VULKAN_Init_ProjectID);
@@ -455,12 +547,15 @@ void unhook(HMODULE ngx_module)
 {
 	spdlog::debug("nvngx: begin unhook");
 
+	NVSDK_NGX_D3D11_EvaluateFeature_Hook.reset();
 	NVSDK_NGX_D3D11_Init_Hook.reset();
 	NVSDK_NGX_D3D11_Init_Ext_Hook.reset();
 	NVSDK_NGX_D3D11_Init_ProjectID_Hook.reset();
+	NVSDK_NGX_D3D12_EvaluateFeature_Hook.reset();
 	NVSDK_NGX_D3D12_Init_Hook.reset();
 	NVSDK_NGX_D3D12_Init_Ext_Hook.reset();
 	NVSDK_NGX_D3D12_Init_ProjectID_Hook.reset();
+	NVSDK_NGX_VULKAN_EvaluateFeature_Hook.reset();
 	NVSDK_NGX_VULKAN_Init_Hook.reset();
 	NVSDK_NGX_VULKAN_Init_Ext_Hook.reset();
 	NVSDK_NGX_VULKAN_Init_Ext2_Hook.reset();
@@ -502,12 +597,15 @@ BOOL APIENTRY hooked_dllmain(HMODULE hModule, int ul_reason_for_call, LPVOID lpR
 void init_from_proxy()
 {
 	// setup our HookFnOrig instances with the original func pointers
+	NVSDK_NGX_D3D11_EvaluateFeature_Hook = NVSDK_NGX_D3D11_EvaluateFeature_Orig;
 	NVSDK_NGX_D3D11_Init_Hook = NVSDK_NGX_D3D11_Init_Orig;
 	NVSDK_NGX_D3D11_Init_Ext_Hook = NVSDK_NGX_D3D11_Init_Ext_Orig;
 	NVSDK_NGX_D3D11_Init_ProjectID_Hook = NVSDK_NGX_D3D11_Init_ProjectID_Orig;
+	NVSDK_NGX_D3D12_EvaluateFeature_Hook = NVSDK_NGX_D3D12_EvaluateFeature_Orig;
 	NVSDK_NGX_D3D12_Init_Hook = NVSDK_NGX_D3D12_Init_Orig;
 	NVSDK_NGX_D3D12_Init_Ext_Hook = NVSDK_NGX_D3D12_Init_Ext_Orig;
 	NVSDK_NGX_D3D12_Init_ProjectID_Hook = NVSDK_NGX_D3D12_Init_ProjectID_Orig;
+	NVSDK_NGX_VULKAN_EvaluateFeature_Hook = NVSDK_NGX_VULKAN_EvaluateFeature_Orig;
 	NVSDK_NGX_VULKAN_Init_Hook = NVSDK_NGX_VULKAN_Init_Orig;
 	NVSDK_NGX_VULKAN_Init_Ext_Hook = NVSDK_NGX_VULKAN_Init_Ext_Orig;
 	NVSDK_NGX_VULKAN_Init_ProjectID_Hook = NVSDK_NGX_VULKAN_Init_ProjectID_Orig;

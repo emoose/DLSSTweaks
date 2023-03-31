@@ -155,7 +155,7 @@ void UserSettings::print_to_log()
 	using namespace utility;
 
 	spdlog::info("Settings:");
-	spdlog::info(" - VerboseLogs: {}", verboseLogging ? "true" : "false");
+	spdlog::info(" - VerboseLogging: {}", verboseLogging ? "true" : "false");
 	spdlog::info(" - ForceDLAA: {}{}", forceDLAA ? "true" : "false", overrideQualityLevels ? " (overridden by DLSSQualityLevels section)" : "");
 	spdlog::info(" - OverrideAutoExposure: {}", overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"));
 	spdlog::info(" - OverrideAppId: {}", overrideAppId ? "true" : "false");
@@ -225,7 +225,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(overrideAutoExposure));
 	overrideDlssHud = ini.Get<int>("DLSS", "OverrideDlssHud", std::move(overrideDlssHud));
 	disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(disableDevWatermark));
-	verboseLogging = ini.Get<bool>("DLSS", "VerboseLogs", std::move(verboseLogging));
+	verboseLogging = ini.Get<bool>("DLSS", "VerboseLogging", std::move(verboseLogging));
 
 	std::set<std::string> keys;
 	// [DLLPathOverrides]
@@ -355,7 +355,7 @@ unsigned int __stdcall InitThread(void* param)
 		auto combined_logger = std::make_shared<spdlog::logger>("", begin(sinks), end(sinks));
 		combined_logger->set_level(spdlog::level::info);
 		spdlog::set_default_logger(combined_logger);
-		spdlog::flush_on(spdlog::level::info);
+		spdlog::flush_on(spdlog::level::debug);
 	}
 
 	std::string version = "0.200.5";

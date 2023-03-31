@@ -9,6 +9,29 @@
 
 #include "DLSSTweaks.hpp"
 
+void DlssNvidiaPresetOverrides::zero_customized_values()
+{
+	// DlssNvidiaPresetOverrides struct we change seems to last the whole lifetime of the game
+	// So we'll back up the orig values in case user later decides to set them back to default
+	if (!settings.dlss.nvidiaOverrides.has_value())
+	{
+		settings.dlss.nvidiaOverrides = *this;
+		spdlog::debug("NVIDIA default presets for current app:");
+		spdlog::debug(" - DLAA: {}", utility::DLSS_PresetEnumToName(settings.dlss.nvidiaOverrides->overrideDLAA));
+		spdlog::debug(" - Quality: {}", utility::DLSS_PresetEnumToName(settings.dlss.nvidiaOverrides->overrideQuality));
+		spdlog::debug(" - Balanced: {}", utility::DLSS_PresetEnumToName(settings.dlss.nvidiaOverrides->overrideBalanced));
+		spdlog::debug(" - Performance: {}", utility::DLSS_PresetEnumToName(settings.dlss.nvidiaOverrides->overridePerformance));
+		spdlog::debug(" - UltraPerformance: {}", utility::DLSS_PresetEnumToName(settings.dlss.nvidiaOverrides->overrideUltraPerformance));
+	}
+
+	// Then zero out NV-provided override if user has set their own override for that level
+	overrideDLAA = settings.presetDLAA ? 0 : settings.dlss.nvidiaOverrides->overrideDLAA;
+	overrideQuality = settings.presetQuality ? 0 : settings.dlss.nvidiaOverrides->overrideQuality;
+	overrideBalanced = settings.presetBalanced ? 0 : settings.dlss.nvidiaOverrides->overrideBalanced;
+	overridePerformance = settings.presetPerformance ? 0 : settings.dlss.nvidiaOverrides->overridePerformance;
+	overrideUltraPerformance = settings.presetUltraPerformance ? 0 : settings.dlss.nvidiaOverrides->overrideUltraPerformance;
+}
+
 namespace nvngx_dlss
 {
 // Allow force enabling/disabling the DLSS debug display via RegQueryValueExW hook
@@ -48,31 +71,6 @@ uint32_t __fastcall DLSS_GetIndicatorValue(void* thisptr, uint32_t* OutValue)
 // @NVIDIA, please consider adding a parameter to tell DLSS to ignore the NV / DRS provided ones instead
 // (or a parameter which lets it always use the game provided NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_XXX param)
 // Don't really enjoy needing to inline hook your code for this, but it's necessary atm...
-struct DlssNvidiaPresetOverrides
-{
-	uint32_t overrideDLAA;
-	uint32_t overrideQuality;
-	uint32_t overrideBalanced;
-	uint32_t overridePerformance;
-	uint32_t overrideUltraPerformance;
-
-	void zero_customized_values()
-	{
-		// DlssNvidiaPresetOverrides struct we change seems to last the whole lifetime of the game
-		// So we'll back up the orig values in case user later decides to set them back to default
-		static std::optional<DlssNvidiaPresetOverrides> NVOverrides;
-		if (!NVOverrides.has_value())
-			NVOverrides = *this;
-
-		// Then zero out NV-provided override if user has set their own override for that level
-		overrideDLAA = settings.presetDLAA ? 0 : NVOverrides->overrideDLAA;
-		overrideQuality = settings.presetQuality ? 0 : NVOverrides->overrideQuality;
-		overrideBalanced = settings.presetBalanced ? 0 : NVOverrides->overrideBalanced;
-		overridePerformance = settings.presetPerformance ? 0 : NVOverrides->overridePerformance;
-		overrideUltraPerformance = settings.presetUltraPerformance ? 0 : NVOverrides->overrideUltraPerformance;
-	}
-};
-
 SafetyHookMid DlssPresetOverrideFunc_LaterVersion_Hook;
 int8_t DlssPresetOverrideFunc_MovOffset1 = -0x38;
 int8_t DlssPresetOverrideFunc_MovOffset2 = -0x3C;
