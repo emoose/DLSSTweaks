@@ -358,11 +358,9 @@ void hook_params(NVSDK_NGX_Parameter* params)
 
 	if (NVSDK_NGX_Parameter_SetI_orig && NVSDK_NGX_Parameter_SetUI_orig && NVSDK_NGX_Parameter_GetUI_orig)
 	{
-		{
-			NVSDK_NGX_Parameter_SetI_Hook = safetyhook::create_inline(NVSDK_NGX_Parameter_SetI_orig, NVSDK_NGX_Parameter_SetI);
-			NVSDK_NGX_Parameter_SetUI_Hook = safetyhook::create_inline(NVSDK_NGX_Parameter_SetUI_orig, NVSDK_NGX_Parameter_SetUI);
-			NVSDK_NGX_Parameter_GetUI_Hook = safetyhook::create_inline(NVSDK_NGX_Parameter_GetUI_orig, NVSDK_NGX_Parameter_GetUI);
-		}
+		NVSDK_NGX_Parameter_SetI_Hook = safetyhook::create_inline(NVSDK_NGX_Parameter_SetI_orig, NVSDK_NGX_Parameter_SetI);
+		NVSDK_NGX_Parameter_SetUI_Hook = safetyhook::create_inline(NVSDK_NGX_Parameter_SetUI_orig, NVSDK_NGX_Parameter_SetUI);
+		NVSDK_NGX_Parameter_GetUI_Hook = safetyhook::create_inline(NVSDK_NGX_Parameter_GetUI_orig, NVSDK_NGX_Parameter_GetUI);
 
 		spdlog::info("DLSS functions found & parameter hooks applied!");
 		settings.print_to_log();

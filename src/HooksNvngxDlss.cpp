@@ -17,18 +17,18 @@ LSTATUS(__stdcall* RegQueryValueExW_Orig)(HKEY hKey, LPCWSTR lpValueName, LPDWOR
 LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
 {
 	LSTATUS ret = RegQueryValueExW_Orig(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
-	if (settings.overrideDlssHud != 0 && !_wcsicmp(lpValueName, L"ShowDlssIndicator"))
-		if (lpcbData && *lpcbData >= 4 && lpData)
-		{
-			DWORD* outData = (DWORD*)lpData;
-			if (settings.overrideDlssHud >= 1)
-			{
-				*outData = 0x400;
-				return ERROR_SUCCESS; // always return success for DLSS to accept the result
-			}
-			else if (settings.overrideDlssHud < 0)
-				*outData = 0;
-		}
+	if (settings.overrideDlssHud == 0 || _wcsicmp(lpValueName, L"ShowDlssIndicator") != 0)
+		return ret;
+
+	if (lpcbData && *lpcbData >= 4 && lpData)
+	{
+		DWORD* outData = (DWORD*)lpData;
+		if (settings.overrideDlssHud >= 1)
+			*outData = 0x400;
+		else if (settings.overrideDlssHud < 0)
+			*outData = 0;
+		return ERROR_SUCCESS; // always return success for DLSS to accept the result
+	}
 
 	return ret;
 }
@@ -58,8 +58,9 @@ struct DlssNvidiaPresetOverrides
 
 	void zero_customized_values()
 	{
+		// DlssNvidiaPresetOverrides struct we change seems to last the whole lifetime of the game
+		// So we'll back up the orig values in case user later decides to set them back to default
 		static std::optional<DlssNvidiaPresetOverrides> NVOverrides;
-		// Changing these seems to affect the whole lifetime of the game, so we'll back up orig values first
 		if (!NVOverrides.has_value())
 			NVOverrides = *this;
 
@@ -87,9 +88,6 @@ void DlssPresetOverrideFunc_LaterVersion(SafetyHookContext& ctx)
 
 // Seems earlier DLSS 3.1 builds (3.1.2 and older?) don't use the func above, but some kind of inlined version
 // So instead we'll hook the code that would call into it instead
-// This has the benefit of letting us access the struct that holds each presets value, named as DlssNvidiaPresetOverrides above
-// so we can selectively disable them based on which ones user has overridden
-// (hopefully can find a way to do that for newer versions soon...)
 SafetyHookMid DlssPresetOverrideFunc_EarlyVersion_Hook;
 void DlssPresetOverrideFunc_EarlyVersion(SafetyHookContext& ctx)
 {
@@ -115,9 +113,9 @@ bool hook(HMODULE ngx_module)
 			uint8_t* match = pattern.count(1).get_first<uint8_t>();
 			DlssPresetOverrideFunc_MovOffset1 = int8_t(match[7]);
 			DlssPresetOverrideFunc_MovOffset2 = int8_t(match[10]);
-			{
-				DlssPresetOverrideFunc_LaterVersion_Hook = safetyhook::create_mid(match + 4, DlssPresetOverrideFunc_LaterVersion);
-			}
+
+			DlssPresetOverrideFunc_LaterVersion_Hook = safetyhook::create_mid(match + 4, DlssPresetOverrideFunc_LaterVersion);
+
 			spdlog::info("nvngx_dlss: applied DLSS preset override hook (v2)");
 		}
 		else
@@ -130,9 +128,8 @@ bool hook(HMODULE ngx_module)
 			else
 			{
 				uint8_t* midhookAddress = pattern.count(1).get_first<uint8_t>();
-				{
-					DlssPresetOverrideFunc_EarlyVersion_Hook = safetyhook::create_mid(midhookAddress, DlssPresetOverrideFunc_EarlyVersion);
-				}
+				DlssPresetOverrideFunc_EarlyVersion_Hook = safetyhook::create_mid(midhookAddress, DlssPresetOverrideFunc_EarlyVersion);
+
 				spdlog::info("nvngx_dlss: applied DLSS preset override hook (v1)");
 			}
 		}
@@ -151,9 +148,7 @@ bool hook(HMODULE ngx_module)
 			spdlog::debug("nvngx_dlss: OverrideDlssHud == 2, applying hud hook via vftable hook...");
 
 		auto indicatorValueCheck_addr = indicatorValueCheck.get(0).get<void>();
-		{
-			DLSS_GetIndicatorValue_Hook = safetyhook::create_inline(indicatorValueCheck_addr, DLSS_GetIndicatorValue);
-		}
+		DLSS_GetIndicatorValue_Hook = safetyhook::create_inline(indicatorValueCheck_addr, DLSS_GetIndicatorValue);
 
 		// Unfortunately it's not enough to just hook the function, HUD render code seems to have an optimization where it checks funcptr and inlines code if it matches
 		// So we also need to search for the address of the function, find vftable that holds it, and overwrite entry to point at our hook
