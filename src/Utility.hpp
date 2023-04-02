@@ -12,6 +12,21 @@ inline bool ValidResolution(const std::pair<int, int> val)
 	return val.first > 0 && val.second > 0;
 }
 
+// exists can cause exception under certain apps (UWP?), grr...
+inline bool exists_safe(const std::filesystem::path& path)
+{
+	bool exists = false;
+	try
+	{
+		exists = std::filesystem::exists(path);
+	}
+	catch (const std::exception&)
+	{
+		exists = false;
+	}
+	return exists;
+}
+
 BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction);
 
 std::string ModuleVersion(const std::filesystem::path& module_path);

@@ -71,10 +71,7 @@ std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLeve
 	{NVSDK_NGX_PerfQuality_Value_Balanced, {0,0}},
 	{NVSDK_NGX_PerfQuality_Value_MaxQuality, {0,0}},
 
-	// note: if NVSDK_NGX_PerfQuality_Value_UltraQuality is non-zero, some games may detect that we're passing a valid resolution and show an Ultra Quality option as a result
-	// very few games support this though, and right now DLSS seems to refuse to render if UltraQuality gets passed to it
-	// our SetI hook in HooksNvngx can override the quality passed to DLSS if this gets used by the game, letting it think this is MaxQuality instead
-	// but we'll only do that if user overrides this in the INI to a non-zero value
+	// see note about UltraQuality in qualityLevelRatios section above
 	{NVSDK_NGX_PerfQuality_Value_UltraQuality, {0,0}},
 };
 
@@ -116,7 +113,7 @@ HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD
 		{
 			spdlog::info("DLLPathOverrides: redirecting {} to new path {}", libPath.string(), pair.second.string());
 
-			if (std::filesystem::exists(pair.second))
+			if (utility::exists_safe(pair.second))
 				libPath = pair.second;
 			else
 				spdlog::error("DLLPathOverrides: override DLL no longer exists, skipping... (path: {})", pair.second.string());
@@ -282,7 +279,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 			dllFileName += ".dll";
 
 		auto path = ini.Get<std::string>("DLLPathOverrides", key, "");
-		if (!path.empty() && !std::filesystem::exists(path)) // empty path is allowed so that user can clear the override in local INIs
+		if (!path.empty() && !utility::exists_safe(path)) // empty path is allowed so that user can clear the override in local INIs
 		{
 			spdlog::warn("DLLPathOverrides: override for {} skipped as path {} doesn't exist", key, path);
 			continue;
@@ -449,7 +446,7 @@ unsigned int __stdcall InitThread(void* param)
 		if (DllPath.parent_path() != ExePath.parent_path())
 		{
 			IniPath = DllPath.parent_path() / IniFileName;
-			if (std::filesystem::exists(IniPath))
+			if (utility::exists_safe(IniPath))
 			{
 				if (settings.read(IniPath))
 					spdlog::info("Config read from {}", IniPath.string());
@@ -459,7 +456,7 @@ unsigned int __stdcall InitThread(void* param)
 		}
 
 		IniPath = ExePath.parent_path() / IniFileName;
-		if (std::filesystem::exists(IniPath))
+		if (utility::exists_safe(IniPath))
 		{
 			if (settings.read(IniPath))
 				spdlog::info("Config read from {}", IniPath.string());
