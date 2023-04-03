@@ -308,24 +308,26 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 					value = value.substr(0, value.length() - 1);
 			}
 
-			qualityLevelStrings[level] = value;
-
 			// Try parsing users string as a resolution
 			auto res = utility::ParseResolution(value);
 			if (utility::ValidResolution(res))
 			{
 				qualityLevelResolutions[level] = res;
+				qualityLevelStrings[level] = value;
 				continue;
 			}
 
 			// Not a resolution, try parsing as float
 			try
 			{
-				qualityLevelRatios[level] = std::stof(value);
+				float float_value = utility::stof_nolocale(value, true);
+				qualityLevelRatios[level] = float_value;
+				qualityLevelStrings[level] = value;
 			}
 			catch (const std::exception&)
 			{
-				qualityLevelRatios[level] = 0.0f;
+				spdlog::error("DLSSQualityLevels: level \"{}\" has invalid value \"{}\" specified, leaving value as {}", curLevel, value, qualityLevelRatios[level]);
+				continue;
 			}
 
 			// Clamp value between 0.0 - 1.0

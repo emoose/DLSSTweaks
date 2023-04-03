@@ -58,6 +58,35 @@ std::pair<int, int> ParseResolution(std::string_view val)
 	return result;
 }
 
+// Converts string to float using std::from_chars (which uses "C" locale), and also converts comma formatted numbers to use period
+// (this way we don't need to bother with std::setlocale shenanigans, which may have conflicts with the hooked app)
+float stof_nolocale(std::string_view s, bool strict)
+{
+	std::string conv = std::string(s);
+
+	// In case user uses commas for decimals, switch out first comma found to a period instead
+	auto comma_pos = conv.find(',');
+	if (comma_pos != std::string::npos)
+		conv[comma_pos] = '.';
+
+	if (strict)
+	{
+		// Disallow any characters other than numeric / period / whitespace
+		auto charIsNonNumeric = [](char c) { return !std::isdigit(c) && c != '.' && c != ' ' && c != '\t'; };
+		if (std::any_of(conv.begin(), conv.end(), charIsNonNumeric))
+			throw std::invalid_argument{ "invalid_argument" };
+	}
+
+	float result{};
+	auto [ptr, ec] { std::from_chars(conv.data(), conv.data() + conv.size(), result) };
+	if (ec == std::errc::invalid_argument)
+		throw std::invalid_argument{ "invalid_argument" };
+	else if (ec == std::errc::result_out_of_range)
+		throw std::out_of_range{ "out_of_range" };
+
+	return result;
+}
+
 BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction)
 {
 	uint8_t* base = (uint8_t*)callerModule;

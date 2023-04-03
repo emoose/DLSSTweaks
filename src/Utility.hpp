@@ -12,6 +12,8 @@ inline bool ValidResolution(const std::pair<int, int> val)
 	return val.first > 0 && val.second > 0;
 }
 
+float stof_nolocale(std::string_view s, bool strict = false);
+
 // exists can cause exception under certain apps (UWP?), grr...
 inline bool exists_safe(const std::filesystem::path& path)
 {
