@@ -32,6 +32,9 @@ struct UserSettings
 
 	bool forceDLAA = false;
 	int overrideAutoExposure = 0;
+	std::optional<float> overrideSharpening{};
+	std::string overrideSharpeningString = "ignore";
+	bool overrideSharpeningForceDisable = false;
 	bool overrideAppId = false;
 	int overrideDlssHud = 0;
 	bool disableDevWatermark = false;

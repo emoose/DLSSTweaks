@@ -4,8 +4,8 @@
 #include <Windows.h>
 #include <winternl.h>
 #include <tchar.h>
-
 #include <cstdint>
+
 #include "DLSSTweaks.hpp"
 
 namespace utility
@@ -58,6 +58,33 @@ std::pair<int, int> ParseResolution(std::string_view val)
 	return result;
 }
 
+std::string trim_quotes(const std::string& str)
+{
+	// Find the first non-whitespace (and non-quote) character
+	auto start = std::find_if_not(str.begin(), str.end(), [](int c) {
+		return std::isspace(c) || c == '"' || c == '\'';
+		});
+
+	// Find the last non-whitespace (and non-quote) character
+	auto end = std::find_if_not(str.rbegin(), str.rend(), [](int c) {
+		return std::isspace(c) || c == '"' || c == '\'';
+		});
+
+	// Convert iterators to indices
+	auto first = std::distance(str.begin(), start);
+	auto last = std::distance(str.begin(), end.base());
+
+	// Return the trimmed substring
+	return str.substr(first, last - first);
+}
+
+// Strips any improperly quoted string & any useless whitespace
+std::string ini_get_string_safe(inih::INIReader& ini, const std::string& section, const std::string& name, std::string&& default_v)
+{
+	std::string ret = ini.Get<std::string>(section, name, std::move(default_v));
+	return trim_quotes(ret);
+}
+
 // Converts string to float using std::from_chars (which uses "C" locale), and also converts comma formatted numbers to use period
 // (this way we don't need to bother with std::setlocale shenanigans, which may have conflicts with the hooked app)
 float stof_nolocale(std::string_view s, bool strict)
@@ -72,7 +99,7 @@ float stof_nolocale(std::string_view s, bool strict)
 	if (strict)
 	{
 		// Disallow any characters other than numeric / period / whitespace
-		auto charIsNonNumeric = [](char c) { return !std::isdigit(c) && c != '.' && c != ' ' && c != '\t'; };
+		auto charIsNonNumeric = [](char c) { return !std::isdigit(c) && c != '-' && c != '.' && c != ' ' && c != '\t'; };
 		if (std::any_of(conv.begin(), conv.end(), charIsNonNumeric))
 			throw std::invalid_argument{ "invalid_argument" };
 	}

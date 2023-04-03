@@ -199,6 +199,16 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Ext(const char* InProje
 	return NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InInstance, InPD, InDevice, InGIPA, InGDPA, InSDKVersion, InFeatureInfo);
 }
 
+SafetyHookInline NVSDK_NGX_Parameter_SetF_Hook;
+void __cdecl NVSDK_NGX_Parameter_SetF(NVSDK_NGX_Parameter* InParameter, const char* InName, float InValue)
+{
+	// Sharpening override (pre-2.5.1 only)
+	if (settings.overrideSharpening.has_value() && !_stricmp(InName, NVSDK_NGX_Parameter_Sharpness))
+		InValue = *settings.overrideSharpening;
+
+	NVSDK_NGX_Parameter_SetF_Hook.call(InParameter, InName, InValue);
+}
+
 SafetyHookInline NVSDK_NGX_Parameter_SetI_Hook;
 void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const char* InName, int InValue)
 {
@@ -217,9 +227,9 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_Reserved_0)
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_Reserved_0");
 		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_DoSharpening)
-			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_DoSharpening");
+			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_DoSharpening (use \"OverrideSharpening = disable\" to force disable)");
 		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_AutoExposure)
-			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_AutoExposure (use OverrideAutoExposure = -1 to force disable)");
+			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_AutoExposure (use \"OverrideAutoExposure = -1\" to force disable)");
 
 		const int lastKnownFlag = NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
 		auto remainder = settings.dlss.featureCreateFlags & ~((lastKnownFlag << 1) - 1);
@@ -229,9 +239,32 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 		if (settings.overrideAutoExposure != 0)
 		{
 			if (settings.overrideAutoExposure >= 1) // force auto-exposure
+			{
+				spdlog::debug("OverrideAutoExposure: force enabling flag NVSDK_NGX_DLSS_Feature_Flags_AutoExposure");
 				InValue |= NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+			}
 			else if (settings.overrideAutoExposure < 0) // force disable auto-exposure
+			{
+				spdlog::debug("OverrideAutoExposure: force disabling flag NVSDK_NGX_DLSS_Feature_Flags_AutoExposure");
 				InValue = InValue & ~NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+			}
+		}
+
+		if (settings.overrideSharpeningForceDisable)
+		{
+			if (InValue & NVSDK_NGX_DLSS_Feature_Flags_DoSharpening)
+			{
+				spdlog::info("OverrideSharpening: force disabling flag NVSDK_NGX_DLSS_Feature_Flags_DoSharpening");
+				InValue = InValue & ~NVSDK_NGX_DLSS_Feature_Flags_DoSharpening;
+			}
+		}
+		else if (settings.overrideSharpening.has_value())
+		{
+			if ((InValue & NVSDK_NGX_DLSS_Feature_Flags_DoSharpening) != NVSDK_NGX_DLSS_Feature_Flags_DoSharpening)
+			{
+				spdlog::debug("OverrideSharpening: force enabling flag NVSDK_NGX_DLSS_Feature_Flags_DoSharpening");
+				InValue |= NVSDK_NGX_DLSS_Feature_Flags_DoSharpening;
+			}
 		}
 	}
 
@@ -269,6 +302,8 @@ void __cdecl NVSDK_NGX_Parameter_SetUI(NVSDK_NGX_Parameter* InParameter, const c
 		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance, settings.presetPerformance);
 	if (settings.presetUltraPerformance != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
 		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance, settings.presetUltraPerformance);
+	if (settings.overrideSharpening.has_value())
+		NVSDK_NGX_Parameter_SetF_Hook.call(InParameter, NVSDK_NGX_Parameter_Sharpness, *settings.overrideSharpening);
 
 	NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Disable_Watermark, settings.disableDevWatermark ? 1 : 0);
 }
@@ -465,7 +500,7 @@ void hook_params(NVSDK_NGX_Parameter* params)
 	if (settings.disableAllTweaks)
 		return;
 
-	if (NVSDK_NGX_Parameter_SetI_Hook && NVSDK_NGX_Parameter_SetUI_Hook && NVSDK_NGX_Parameter_GetUI_Hook)
+	if (NVSDK_NGX_Parameter_SetF_Hook && NVSDK_NGX_Parameter_SetI_Hook && NVSDK_NGX_Parameter_SetUI_Hook && NVSDK_NGX_Parameter_GetUI_Hook)
 		return;
 
 	NVSDK_NGX_Parameter_vftable** vftable = (NVSDK_NGX_Parameter_vftable**)params;
@@ -473,12 +508,14 @@ void hook_params(NVSDK_NGX_Parameter* params)
 	if (!vftable || !*vftable)
 		return;
 
+	auto* NVSDK_NGX_Parameter_SetF_orig = (*vftable)->SetF;
 	auto* NVSDK_NGX_Parameter_SetI_orig = (*vftable)->SetI;
 	auto* NVSDK_NGX_Parameter_SetUI_orig = (*vftable)->SetUI;
 	auto* NVSDK_NGX_Parameter_GetUI_orig = (*vftable)->GetUI;
 
-	if (NVSDK_NGX_Parameter_SetI_orig && NVSDK_NGX_Parameter_SetUI_orig && NVSDK_NGX_Parameter_GetUI_orig)
+	if (NVSDK_NGX_Parameter_SetF_orig && NVSDK_NGX_Parameter_SetI_orig && NVSDK_NGX_Parameter_SetUI_orig && NVSDK_NGX_Parameter_GetUI_orig)
 	{
+		NVSDK_NGX_Parameter_SetF_Hook = safetyhook::create_inline(NVSDK_NGX_Parameter_SetF_orig, NVSDK_NGX_Parameter_SetF);
 		NVSDK_NGX_Parameter_SetI_Hook = safetyhook::create_inline(NVSDK_NGX_Parameter_SetI_orig, NVSDK_NGX_Parameter_SetI);
 		NVSDK_NGX_Parameter_SetUI_Hook = safetyhook::create_inline(NVSDK_NGX_Parameter_SetUI_orig, NVSDK_NGX_Parameter_SetUI);
 		NVSDK_NGX_Parameter_GetUI_Hook = safetyhook::create_inline(NVSDK_NGX_Parameter_GetUI_orig, NVSDK_NGX_Parameter_GetUI);
@@ -596,6 +633,7 @@ void unhook(HMODULE ngx_module)
 	NVSDK_NGX_VULKAN_Init_Ext2_Hook.reset();
 	NVSDK_NGX_VULKAN_Init_ProjectID_Hook.reset();
 	NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook.reset();
+	NVSDK_NGX_Parameter_SetF_Hook.reset();
 	NVSDK_NGX_Parameter_SetI_Hook.reset();
 	NVSDK_NGX_Parameter_SetUI_Hook.reset();
 	NVSDK_NGX_Parameter_GetUI_Hook.reset();

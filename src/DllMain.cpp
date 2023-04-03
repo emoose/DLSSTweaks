@@ -187,6 +187,10 @@ void UserSettings::print_to_log()
 	spdlog::info(" - VerboseLogging: {}", verboseLogging ? "true" : "false");
 	spdlog::info(" - ForceDLAA: {}{}", forceDLAA ? "true" : "false", overrideQualityLevels ? " (overridden by DLSSQualityLevels section)" : "");
 	spdlog::info(" - OverrideAutoExposure: {}", overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"));
+	if (overrideSharpeningForceDisable)
+		spdlog::info(" - OverrideSharpening: disable (force disabling sharpness flag)");
+	else if (overrideSharpening.has_value())
+		spdlog::info(" - OverrideSharpening: {}", *overrideSharpening);
 	spdlog::info(" - OverrideAppId: {}", overrideAppId ? "true" : "false");
 	spdlog::info(" - OverrideDlssHud: {}", overrideDlssHud == 0 ? "default" : (overrideDlssHud > 0 ? "enable" : "disable"));
 	spdlog::info(" - DisableDevWatermark: {}", disableDevWatermark ? "true" : "false");
@@ -256,6 +260,35 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	// [DLSS]
 	forceDLAA = ini.Get<bool>("DLSS", "ForceDLAA", std::move(forceDLAA));
 	overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(overrideAutoExposure));
+
+	std::string sharpeningString = utility::ini_get_string_safe(ini, "DLSS", "OverrideSharpening", std::move(overrideSharpeningString));
+	if (!sharpeningString.length() || !_stricmp(sharpeningString.c_str(), "ignore") || !_stricmp(sharpeningString.c_str(), "ignored"))
+	{
+		overrideSharpening.reset();
+		overrideSharpeningString = sharpeningString;
+		overrideSharpeningForceDisable = false;
+	}
+	else if (!_stricmp(sharpeningString.c_str(), "disable") || !_stricmp(sharpeningString.c_str(), "disabled"))
+	{
+		*overrideSharpening = 0;
+		overrideSharpeningString = sharpeningString;
+		overrideSharpeningForceDisable = true;
+	}
+	else
+	{
+		try
+		{
+			float sharpeningValue = utility::stof_nolocale(sharpeningString, true);
+			overrideSharpening = std::clamp(sharpeningValue, -1.0f, 1.0f);
+			overrideSharpeningString = sharpeningString;
+			overrideSharpeningForceDisable = false;
+		}
+		catch (const std::exception&)
+		{
+			spdlog::error("OverrideSharpening: invalid value \"{}\" specified, leaving value as {}", sharpeningString, overrideSharpeningString);
+		}
+	}
+
 	overrideDlssHud = ini.Get<int>("DLSS", "OverrideDlssHud", std::move(overrideDlssHud));
 	disableDevWatermark = ini.Get<bool>("DLSS", "DisableDevWatermark", std::move(disableDevWatermark));
 	verboseLogging = ini.Get<bool>("DLSS", "VerboseLogging", std::move(verboseLogging));
@@ -278,7 +311,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 		if (!std::filesystem::path(dllFileName).has_extension())
 			dllFileName += ".dll";
 
-		auto path = ini.Get<std::string>("DLLPathOverrides", key, "");
+		auto path = utility::ini_get_string_safe(ini, "DLLPathOverrides", key, "");
 		if (!path.empty() && !utility::exists_safe(path)) // empty path is allowed so that user can clear the override in local INIs
 		{
 			spdlog::warn("DLLPathOverrides: override for {} skipped as path {} doesn't exist", key, path);
@@ -297,7 +330,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 			auto level = qualityLevels[i];
 			auto& curLevel = qualityLevelNames[level];
 
-			auto value = ini.Get<std::string>("DLSSQualityLevels", curLevel, std::move(qualityLevelStrings[level]));
+			auto value = utility::ini_get_string_safe(ini, "DLSSQualityLevels", curLevel, std::move(qualityLevelStrings[level]));
 
 			// Remove any quotes from around the value
 			if (value.size() > 0)
@@ -336,11 +369,11 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	}
 
 	// [DLSSPresets]
-	presetDLAA = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "DLAA", DLSS_PresetEnumToName(presetDLAA)));
-	presetQuality = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "Quality", DLSS_PresetEnumToName(presetQuality)));
-	presetBalanced = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "Balanced", DLSS_PresetEnumToName(presetBalanced)));
-	presetPerformance = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "Performance", DLSS_PresetEnumToName(presetPerformance)));
-	presetUltraPerformance = DLSS_PresetNameToEnum(ini.Get<std::string>("DLSSPresets", "UltraPerformance", DLSS_PresetEnumToName(presetUltraPerformance)));
+	presetDLAA = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "DLAA", DLSS_PresetEnumToName(presetDLAA)));
+	presetQuality = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "Quality", DLSS_PresetEnumToName(presetQuality)));
+	presetBalanced = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "Balanced", DLSS_PresetEnumToName(presetBalanced)));
+	presetPerformance = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "Performance", DLSS_PresetEnumToName(presetPerformance)));
+	presetUltraPerformance = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "UltraPerformance", DLSS_PresetEnumToName(presetUltraPerformance)));
 
 	// [Compatibility]
 	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));

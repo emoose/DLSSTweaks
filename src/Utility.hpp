@@ -1,6 +1,7 @@
 #pragma once
 #include <SafetyHook.hpp>
 #include <filesystem>
+#include <ini.h>
 
 namespace utility
 {
@@ -12,6 +13,7 @@ inline bool ValidResolution(const std::pair<int, int> val)
 	return val.first > 0 && val.second > 0;
 }
 
+std::string ini_get_string_safe(inih::INIReader& ini, const std::string& section, const std::string& name, std::string&& default_v);
 float stof_nolocale(std::string_view s, bool strict = false);
 
 // exists can cause exception under certain apps (UWP?), grr...
