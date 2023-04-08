@@ -36,7 +36,7 @@ compile-definitions = ["SPDLOG_COMPILED_LIB"]
 
 [fetch-content]
 zydis = { git = "https://github.com/zyantific/zydis", tag = "v4.0.0" }
-safetyhook = { git = "https://github.com/cursey/safetyhook", tag = "39ea58f519427678736c930b2e8e74bf38ab8a77" }
+safetyhook = { git = "https://github.com/cursey/safetyhook", tag = "2c134ea8f642d184f422ad5069145147ac085113" }
 
 [target.dlsstweaks]
 type = "shared"

@@ -59,12 +59,12 @@ FetchContent_Declare(zydis
 )
 FetchContent_MakeAvailable(zydis)
 
-message(STATUS "Fetching safetyhook (39ea58f519427678736c930b2e8e74bf38ab8a77)...")
+message(STATUS "Fetching safetyhook (2c134ea8f642d184f422ad5069145147ac085113)...")
 FetchContent_Declare(safetyhook
 	GIT_REPOSITORY
 		"https://github.com/cursey/safetyhook"
 	GIT_TAG
-		39ea58f519427678736c930b2e8e74bf38ab8a77
+		2c134ea8f642d184f422ad5069145147ac085113
 )
 FetchContent_MakeAvailable(safetyhook)
 

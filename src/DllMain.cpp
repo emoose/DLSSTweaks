@@ -8,7 +8,7 @@
 #include <mutex>
 
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_sinks.h>
+#include <spdlog/sinks/msvc_sink.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <ini.h>
 
@@ -442,7 +442,7 @@ unsigned int __stdcall InitThread(void* param)
 		LogPath = DllPath.parent_path() / LogFileName;
 
 		std::vector<spdlog::sink_ptr> sinks;
-		sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_st>());
+		sinks.push_back(std::make_shared<spdlog::sinks::msvc_sink_mt>(true));
 		try
 		{
 			sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(LogPath.string(), true));
