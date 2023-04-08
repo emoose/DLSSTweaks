@@ -29,9 +29,19 @@ std::optional<ID3D12Resource*> prevExposureTexture;
 
 void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
 {
+	// Check the current ExposureTexture value and see if game has set one or not
+	// Depending on value we'll recommend what user should change the OverrideAutoExposure setting to
 	ID3D12Resource* pInExposureTexture;
 	InParameters->Get(NVSDK_NGX_Parameter_ExposureTexture, &pInExposureTexture);
-	if (!prevExposureTexture.has_value() || *prevExposureTexture != pInExposureTexture)
+
+	// We're only interested in whether game is using a pInExposureTexture or not
+	// So only give user warning about exposure texture if:
+	// - We haven't looked at it before
+	// - Game has switched from non-null texture to null
+	// - Game has switched from null texture to non-null
+	if (!prevExposureTexture.has_value() || 
+		(*prevExposureTexture != nullptr && pInExposureTexture == nullptr) ||
+		(*prevExposureTexture == nullptr && pInExposureTexture != nullptr))
 	{
 		// if we recommended user to change settings previously, make sure that we _always_ log later exposure changes into game log...
 		// in case game changed exposure settings after the first recommendation
@@ -65,8 +75,9 @@ void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
 				userBeenWarned = true;
 			}
 		}
-		prevExposureTexture = pInExposureTexture;
 	}
+
+	prevExposureTexture = pInExposureTexture;
 }
 
 HookOrigFn NVSDK_NGX_D3D11_EvaluateFeature_Hook;
