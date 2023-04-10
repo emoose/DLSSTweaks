@@ -45,23 +45,23 @@ inline void* ModuleEntryPoint(HMODULE hmod)
 // Matches the order of NVSDK_NGX_Parameter vftable inside _nvngx.dll (which should never change unless they want to break compatibility)
 struct NVSDK_NGX_Parameter_vftable
 {
-	void* SetVoidPointer;
-	void* SetD3d12Resource;
-	void* SetD3d11Resource;
-	void* SetI;
-	void* SetUI;
-	void* SetD;
-	void* SetF;
-	void* SetULL;
-	void* GetVoidPointer;
-	void* GetD3d12Resource;
-	void* GetD3d11Resource;
-	void* GetI;
-	void* GetUI;
-	void* GetD;
-	void* GetF;
-	void* GetULL;
-	void* Reset;
+	/* 0x00 */ void* SetVoidPointer;
+	/* 0x08 */ void* SetD3d12Resource;
+	/* 0x10 */ void* SetD3d11Resource;
+	/* 0x18 */ void* SetI;
+	/* 0x20 */ void* SetUI;
+	/* 0x28 */ void* SetD;
+	/* 0x30 */ void* SetF;
+	/* 0x38 */ void* SetULL;
+	/* 0x40 */ void* GetVoidPointer;
+	/* 0x48 */ void* GetD3d12Resource;
+	/* 0x50 */ void* GetD3d11Resource;
+	/* 0x58 */ void* GetI;
+	/* 0x60 */ void* GetUI;
+	/* 0x68 */ void* GetD;
+	/* 0x70 */ void* GetF;
+	/* 0x78 */ void* GetULL;
+	/* 0x80 */ void* Reset;
 };
 
 // from safetyhook: https://github.com/cursey/safetyhook/blob/35d28aab6d10f9ed17499df8461c92721f0db025/src/InlineHook.cpp#LL15

@@ -32,10 +32,12 @@ void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
 	// Check the current ExposureTexture value and see if game has set one or not
 	// Depending on value we'll recommend what user should change the OverrideAutoExposure setting to
 	ID3D12Resource* pInExposureTexture;
-	InParameters->Get(NVSDK_NGX_Parameter_ExposureTexture, &pInExposureTexture);
+	if (InParameters->Get(NVSDK_NGX_Parameter_ExposureTexture, &pInExposureTexture) != NVSDK_NGX_Result_Success)
+		pInExposureTexture = nullptr;
 
-	// We're only interested in whether game is using a pInExposureTexture or not
-	// So only give user warning about exposure texture if:
+	// Some games seem to rapidly change between two different textures (https://github.com/emoose/DLSSTweaks/issues/67)
+	// But we're only interested in whether game is using a pInExposureTexture or not
+	// So we'll only print user warning about exposure texture if:
 	// - We haven't looked at it before
 	// - Game has switched from non-null texture to null
 	// - Game has switched from null texture to non-null
