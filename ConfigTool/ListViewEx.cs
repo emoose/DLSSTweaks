@@ -387,7 +387,34 @@ namespace DLSSTweaks.ConfigTool
         {
             base.OnColumnWidthChanging(e);
 
+            // Make sure textbox/combobox is disabled
             OnMouseUp(null);
+        }
+
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            base.OnMouseWheel(e);
+
+            // Make sure textbox/combobox is disabled
+            OnMouseUp(null);
+        }
+
+        public event ScrollEventHandler Scroll;
+        protected virtual void OnScroll(ScrollEventArgs e)
+        {
+            // Make sure textbox/combobox is disabled
+            OnMouseUp(null);
+
+            if(this.Scroll != null)
+                this.Scroll(this, e);
+        }
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            if (m.Msg == 0x115)
+            { // Trap WM_VSCROLL
+                OnScroll(new ScrollEventArgs((ScrollEventType)(m.WParam.ToInt32() & 0xffff), 0));
+            }
         }
 
         /// <summary>
