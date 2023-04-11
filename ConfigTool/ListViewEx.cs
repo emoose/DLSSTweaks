@@ -389,6 +389,7 @@ namespace DLSSTweaks.ConfigTool
 
             // Make sure textbox/combobox is disabled
             OnMouseUp(null);
+            this.Focus();
         }
 
         protected override void OnMouseWheel(MouseEventArgs e)
@@ -397,6 +398,7 @@ namespace DLSSTweaks.ConfigTool
 
             // Make sure textbox/combobox is disabled
             OnMouseUp(null);
+            this.Focus();
         }
 
         public event ScrollEventHandler Scroll;
@@ -404,6 +406,7 @@ namespace DLSSTweaks.ConfigTool
         {
             // Make sure textbox/combobox is disabled
             OnMouseUp(null);
+            this.Focus();
 
             if(this.Scroll != null)
                 this.Scroll(this, e);
@@ -446,6 +449,9 @@ namespace DLSSTweaks.ConfigTool
                 // Reset the mouse down flag
                 mouseDown = false;
 
+                if (e == null)
+                    return;
+
                 // Get the subitem rect at the mouse point.
                 // Remeber that the current row index and column index will also be
                 // Modified within the same method
@@ -457,6 +463,13 @@ namespace DLSSTweaks.ConfigTool
                 {
                     // Check whether combobox or text box is set for the current cell
                     SubItem cell = GetKey(new SubItem(this.row, this.col));
+
+                    // hack to let it show box if next column in the row has one defined
+                    if(cell == null)
+                    {
+                        this.col++;
+                        cell = GetKey(new SubItem(this.row, this.col));
+                    }
 
                     if (cell != null)
                     {

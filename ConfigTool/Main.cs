@@ -119,7 +119,12 @@ namespace DLSSTweaks.ConfigTool
                 if (isBooleanValue)
                     lvSettings.AddComboBoxCell(row, 1, new string[] { "true", "false" });
                 else
-                    lvSettings.AddEditableCell(row, 1);
+                {
+                    if (state_section == "DLSSPresets")
+                        lvSettings.AddComboBoxCell(row, 1, new string[] { "Default", "A", "B", "C", "D", "F" });
+                    else
+                        lvSettings.AddEditableCell(row, 1);
+                }
 
                 state_comment = "";
             }

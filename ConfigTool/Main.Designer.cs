@@ -98,6 +98,7 @@ namespace DLSSTweaks.ConfigTool
             this.lvSettings.Name = "lvSettings";
             this.lvSettings.Size = new System.Drawing.Size(650, 276);
             this.lvSettings.TabIndex = 1;
+            this.lvSettings.MultiSelect = false;
             this.lvSettings.UseCompatibleStateImageBehavior = false;
             this.lvSettings.View = System.Windows.Forms.View.Details;
             this.lvSettings.ItemMouseHover += new System.Windows.Forms.ListViewItemMouseHoverEventHandler(this.lvSettings_ItemMouseHover);
@@ -106,7 +107,7 @@ namespace DLSSTweaks.ConfigTool
             // columnHeader1
             // 
             this.columnHeader1.Text = "Setting";
-            this.columnHeader1.Width = 250;
+            this.columnHeader1.Width = 200;
             // 
             // columnHeader2
             // 
@@ -149,7 +150,7 @@ namespace DLSSTweaks.ConfigTool
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(650, 485);
+            this.ClientSize = new System.Drawing.Size(630, 750);
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.menuStrip1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
