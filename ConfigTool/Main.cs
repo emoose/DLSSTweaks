@@ -1,10 +1,13 @@
 using System.ComponentModel;
+using System.Reflection;
 
 namespace DLSSTweaks.ConfigTool
 {
     public partial class Main : Form
     {
         Dictionary<string, string> dllOverrides = new Dictionary<string, string>();
+
+        string DefaultFormTitle = "DLSSTweaks"; // will be updated to actual text after InitializeComponent
 
         static string IniFilename = "dlsstweaks.ini";
 
@@ -31,6 +34,8 @@ namespace DLSSTweaks.ConfigTool
                 System.Diagnostics.Process.GetCurrentProcess().Kill();
                 return;
             }
+
+            this.Text = $"{DefaultFormTitle} - {IniFilename}";
 
             var state_comment = "";
             var state_section = "";
@@ -144,9 +149,24 @@ namespace DLSSTweaks.ConfigTool
         public Main()
         {
             InitializeComponent();
+            lvSettings.ValueChanged += lvSettings_ValueChanged;
+
+            this.Text += $" v{Assembly.GetExecutingAssembly().GetName().Version}";
+            DefaultFormTitle = this.Text;
+
             txtDesc.Text = DefaultDescText;
 
             IniRead();
+        }
+
+        private void lvSettings_ValueChanged(object? sender, EventArgs e)
+        {
+            this.Text = $"{DefaultFormTitle} - {IniFilename}*";
+        }
+
+        private void TxtDesc_TextChanged(object? sender, EventArgs e)
+        {
+            throw new NotImplementedException();
         }
 
         private void lvSettings_ItemMouseHover(object sender, ListViewItemMouseHoverEventArgs e)

@@ -135,7 +135,7 @@
             txtDesc.Size = new Size(975, 337);
             txtDesc.TabIndex = 5;
             // 
-            // Main2
+            // Main
             // 
             AutoScaleDimensions = new SizeF(12F, 30F);
             AutoScaleMode = AutoScaleMode.Font;
@@ -144,8 +144,8 @@
             Controls.Add(menuStrip1);
             MainMenuStrip = menuStrip1;
             Margin = new Padding(4);
-            Name = "Main2";
-            Text = "DLSSTweaks Config Tool";
+            Name = "Main";
+            Text = "DLSSTweaks ConfigTool";
             menuStrip1.ResumeLayout(false);
             menuStrip1.PerformLayout();
             splitContainer1.Panel1.ResumeLayout(false);

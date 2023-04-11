@@ -22,6 +22,8 @@ namespace DLSSTweaks.ConfigTool
     /// </summary>
     public class ListViewEx : ListView
     {
+        public event EventHandler ValueChanged;
+
         #region The RECT structure
         /// <summary>
         /// This struct type will be used as the oupput 
@@ -585,8 +587,12 @@ namespace DLSSTweaks.ConfigTool
             {
                 if (this.row != -1 && this.col != -1)
                 {
+                    bool changed = this.Items[row].SubItems[col].Text != this.textBox.Text;
                     this.Items[row].SubItems[col].Text = this.textBox.Text;
                     this.textBox.Hide();
+
+                    if (changed && this.ValueChanged != null)
+                        ValueChanged(this, new EventArgs());
                 }
             }
             catch (Exception ex)
@@ -608,8 +614,12 @@ namespace DLSSTweaks.ConfigTool
             {
                 if (this.row != -1 && this.col != -1)
                 {
+                    bool changed = this.Items[row].SubItems[col].Text != this.combo.Text;
                     this.Items[row].SubItems[col].Text = this.combo.Text;
                     this.combo.Visible = !this.hideComboAfterSelChange;
+
+                    if (changed && this.ValueChanged != null)
+                        ValueChanged(this, new EventArgs());
                 }
             }
             catch (Exception ex)
