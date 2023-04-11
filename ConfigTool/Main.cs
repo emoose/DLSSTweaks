@@ -19,7 +19,7 @@ namespace DLSSTweaks.ConfigTool
 
         static string HoverLoadText = "Reload the DLSSTweaks.ini from the same folder as ConfigTool.";
         static string HoverSaveText = "Writes out the changed settings to DLSSTweaks.ini.";
-        static string HoverAddDLLOverrideText = "DLL override: allows overriding the path that a game will load a DLL from.\r\nThis can be useful if you're prevented from editing the game files for some reason.\r\neg. with Rockstar Game Launcher, you can't easily update nvngx_dlss.dll without RGL reverting it, but by using this you can make the game load DLSS from a completely different path which RGL can't override.";
+        static string HoverAddDLLOverrideText = "DLL override: allows overriding the path that a game will load a DLL from, simply pick the new DLL you wish to override with.\r\n\r\nThis can be useful if you're prevented from editing the game files for some reason.\r\n\r\neg. with Rockstar Game Launcher, you can't easily update nvngx_dlss.dll without RGL reverting it, but by using this you can make the game load DLSS from a completely different path which RGL can't override.";
 
         public void IniRead()
         {
@@ -207,14 +207,14 @@ namespace DLSSTweaks.ConfigTool
         private void addDLLOverrideToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var ofd = new OpenFileDialog();
-            ofd.Title = "Select the DLL that you want to override with";
+            ofd.Title = "Select the new DLL that you want to override with";
             ofd.Filter = "DLL Files (*.dll)|*.dll|All Files (*.*)|*.*";
             if (ofd.ShowDialog() != DialogResult.OK)
                 return;
 
             var filepath = ofd.FileName;
             var filename = Path.GetFileNameWithoutExtension(filepath);
-            if (MessageBox.Show($"Setting DLL override\r\n\r\n  {filename} -> {filepath}\r\n\r\nIs this OK?", "Confirm", MessageBoxButtons.YesNo) != DialogResult.Yes)
+            if (MessageBox.Show($"Setting DLL override\r\n\r\n  {filename} -> {filepath}\r\n\r\nOverride will be added & settings saved, is this OK?", "Confirm", MessageBoxButtons.YesNo) != DialogResult.Yes)
                 return;
 
             dllOverrides[filename] = filepath;
