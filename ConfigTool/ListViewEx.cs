@@ -191,7 +191,7 @@ namespace DLSSTweaks.ConfigTool
             this.combo.SelectedIndexChanged += new EventHandler(combo_SelectedIndexChanged);
         }
 
-        private void TextBox_KeyPress(object? sender, KeyPressEventArgs e)
+        private void TextBox_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == 13)
                 textBox.Parent.Focus();

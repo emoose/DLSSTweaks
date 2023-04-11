@@ -1,3 +1,7 @@
+using System;
+using System.Reflection;
+using System.Windows.Forms;
+
 namespace DLSSTweaks.ConfigTool
 {
     internal static class Program
@@ -8,9 +12,14 @@ namespace DLSSTweaks.ConfigTool
         [STAThread]
         static void Main()
         {
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
-            ApplicationConfiguration.Initialize();
+            AppDomain.CurrentDomain.AssemblyResolve += (sender, arg) => { 
+                if (arg.Name.StartsWith("PeanutButter.INI")) 
+                    return Assembly.Load(Properties.Resources.PeanutButter_INI); 
+                return null;
+            };
+
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Main());
         }
     }

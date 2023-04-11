@@ -1,5 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Reflection;
+using System.Windows.Forms;
 
 namespace DLSSTweaks.ConfigTool
 {
@@ -11,7 +15,7 @@ namespace DLSSTweaks.ConfigTool
 
         static string IniFilename = "dlsstweaks.ini";
 
-        static string DefaultDescText = "Select a setting to view a description of it here, click on the value for the setting to edit it.";
+        static string DefaultDescText = "Welcome to DLSSTweaks ConfigTool!\r\n\r\nSelect any setting to view a description of it here, or click on the value for the setting to edit it.\r\n\r\nIf you just want to force DLAA, simply edit the ForceDLAA value above and then save the file.";
 
         static string HoverLoadText = "Reload the DLSSTweaks.ini from the same folder as ConfigTool.";
         static string HoverSaveText = "Writes out the changed settings to DLSSTweaks.ini.";
@@ -159,14 +163,9 @@ namespace DLSSTweaks.ConfigTool
             IniRead();
         }
 
-        private void lvSettings_ValueChanged(object? sender, EventArgs e)
+        private void lvSettings_ValueChanged(object sender, EventArgs e)
         {
             this.Text = $"{DefaultFormTitle} - {IniFilename}*";
-        }
-
-        private void TxtDesc_TextChanged(object? sender, EventArgs e)
-        {
-            throw new NotImplementedException();
         }
 
         private void lvSettings_ItemMouseHover(object sender, ListViewItemMouseHoverEventArgs e)
@@ -193,6 +192,11 @@ namespace DLSSTweaks.ConfigTool
         private void saveToolStripMenuItem_Click(object sender, EventArgs e)
         {
             IniWrite();
+        }
+
+        private void loadToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            IniRead();
         }
 
         private void addDLLOverrideToolStripMenuItem_Click(object sender, EventArgs e)
