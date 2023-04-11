@@ -6,6 +6,9 @@ namespace DLSSTweaks.ConfigTool
 {
     internal static class Program
     {
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetProcessDPIAware();
+
         /// <summary>
         ///  The main entry point for the application.
         /// </summary>
@@ -17,9 +20,11 @@ namespace DLSSTweaks.ConfigTool
                     return Assembly.Load(Properties.Resources.PeanutButter_INI); 
                 return null;
             };
+            if (Environment.OSVersion.Version.Major >= 6)
+                SetProcessDPIAware();
 
             Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
+            Application.SetCompatibleTextRenderingDefault(true);
             Application.Run(new Main());
         }
     }

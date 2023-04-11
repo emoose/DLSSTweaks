@@ -383,6 +383,16 @@ namespace DLSSTweaks.ConfigTool
             }
         }
 
+        public void Unfocus()
+        {
+            OnMouseUp(null);
+        }
+
+        public void ClearEditCells()
+        {
+            this.customCells.Clear();
+        }
+
         protected override void OnColumnWidthChanging(ColumnWidthChangingEventArgs e)
         {
             base.OnColumnWidthChanging(e);
