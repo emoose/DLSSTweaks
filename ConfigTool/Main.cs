@@ -1,6 +1,6 @@
+using DLSSTweaks.ConfigTool.Properties;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -28,7 +28,7 @@ namespace DLSSTweaks.ConfigTool
 
         static string IniFilename = "dlsstweaks.ini";
 
-        static string DefaultDescText = "Welcome to DLSSTweaks ConfigTool!\r\n\r\nSelect any setting to view a description of it here, or click on the value for the setting to edit it.\r\n\r\nIf you just want to force DLAA, simply edit the ForceDLAA value above and then save the file.";
+        static string DefaultDescText = "Welcome to the DLSSTweaks ConfigTool!\r\n\r\nSelect any setting to view a description of it here, or click on the value for the setting to edit it.\r\n\r\nIf you just want to force DLAA, simply edit the ForceDLAA value above and then save the file.";
         static string UltraQualityText = "UltraQuality: allows setting the ratio for the 'UltraQuality' level.\r\n\r\nNot every game allows using this level, some may only expose it as an option once this has been set to non-zero.\r\nA very small number might also already show an UltraQuality level, which this setting should be able to customize.\r\n(the number of games that work with this is very small unfortunately)\r\n\r\nSet to 0 to leave this as DLSS default.";
         static string HoverLoadText = "Reload the DLSSTweaks.ini from the same folder as ConfigTool.";
         static string HoverSaveText = "Writes out the changed settings to DLSSTweaks.ini.";
@@ -45,6 +45,7 @@ namespace DLSSTweaks.ConfigTool
 
         bool CheckDlssTweaksDllAvailable()
         {
+            DlssTweaksDll = string.Empty;
             foreach (var filename in DlssTweaksDllFilenames)
             {
                 try
@@ -88,15 +89,112 @@ namespace DLSSTweaks.ConfigTool
 
             this.Text = $"{DefaultFormTitle} - {IniFilename}";
 
-            var state_comment = "";
-            var state_section = "";
+            var userIni = new HackyIniParser();
+            userIni.Parse(lines);
 
-            var comment_DLSSQualityLevels = "";
+            var defaultIni = new HackyIniParser();
+            defaultIni.Parse(Resources.DefaultINI.Split(new string[] { "\r\n" }, StringSplitOptions.None));
+
+            // Copy across all comments from defaultIni to our userIni
+            foreach(var section in defaultIni.Entries)
+            {
+                if (!userIni.Entries.ContainsKey(section.Key))
+                    continue;
+                foreach(var entry in section.Value)
+                {
+                    if (!userIni.Entries[section.Key].ContainsKey(entry.Key))
+                        continue;
+                    var iniEntry = userIni.Entries[section.Key][entry.Key];
+                    iniEntry.Comment = entry.Value.Comment;
+                    userIni.Entries[section.Key][entry.Key] = iniEntry;
+                }
+            }
+
+            // Fetch default DLSSQualityLevels comment from our built-in INI
+            string comment_DLSSQualityLevels = "";
+            foreach(var section in defaultIni.Entries)
+            {
+                if (section.Key.ToLower() != "dlssqualitylevels")
+                    continue;
+
+                foreach(var entry in section.Value)
+                {
+                    if (entry.Key.ToLower() == "enable")
+                        continue;
+                    if (!string.IsNullOrEmpty(entry.Value.Comment))
+                    {
+                        comment_DLSSQualityLevels = entry.Value.Comment;
+                        break;
+                    }
+                }
+                break;
+            }
+
+            if (userIni.Entries.ContainsKey("DLSSQualityLevels"))
+            {
+                bool hasUltraQuality = false;
+                var keys = userIni.Entries["DLSSQualityLevels"].Keys.ToArray();
+                foreach (var key in keys)
+                {
+                    if (key.ToLower() == "enable")
+                        continue;
+
+                    var entry = userIni.Entries["DLSSQualityLevels"][key];
+                    entry.Comment = comment_DLSSQualityLevels;
+                    userIni.Entries["DLSSQualityLevels"][key] = entry;
+                    if (key.ToLower() == "ultraquality")
+                        hasUltraQuality = true;
+                }
+
+                // Add new UltraQuality entry if it doesn't exist...
+                if (!hasUltraQuality)
+                {
+                    var entry = new HackyIniParser.IniEntry();
+                    entry.Section = "DLSSQualityLevels";
+                    entry.Key = "UltraQuality";
+                    entry.Value = "0";
+                    userIni.Entries["DLSSQualityLevels"]["UltraQuality"] = entry;
+                }
+
+                // Set UltraQuality comment to our stored text
+                if (userIni.Entries["DLSSQualityLevels"].ContainsKey("UltraQuality"))
+                {
+                    var ultraQuality = userIni.Entries["DLSSQualityLevels"]["UltraQuality"];
+                    ultraQuality.Comment = UltraQualityText;
+                    userIni.Entries["DLSSQualityLevels"]["UltraQuality"] = ultraQuality;
+                }
+            }
+
+            // Fetch default DLSSPresets comment from built-in INI
             var comment_DLSSPresets = "";
+            foreach (var section in defaultIni.Entries)
+            {
+                if (section.Key.ToLower() != "dlsspresets")
+                    continue;
+
+                foreach (var entry in section.Value)
+                {
+                    if (!string.IsNullOrEmpty(entry.Value.Comment))
+                    {
+                        comment_DLSSPresets = entry.Value.Comment;
+                        break;
+                    }
+                }
+                break;
+            }
+
+            if (userIni.Entries.ContainsKey("DLSSPresets"))
+            {
+                var keys = userIni.Entries["DLSSPresets"].Keys.ToArray();
+                foreach (var key in keys)
+                {
+                    var entry = userIni.Entries["DLSSPresets"][key];
+                    entry.Comment = comment_DLSSPresets;
+                    userIni.Entries["DLSSPresets"][key] = entry;
+                }
+            }
 
             var groups = new Dictionary<string, ListViewGroup>();
-
-            bool isUltraQualityAdded = false;
 
             void AddSetting(string section, string key, string value, string comment)
             {
@@ -118,7 +216,7 @@ namespace DLSSTweaks.ConfigTool
                     {
                         if (value == "-1")
                             value = OverrideValues[1];
-                        else if(value == "0")
+                        else if (value == "0")
                             value = OverrideValues[0];
                         else
                             value = OverrideValues[2];
@@ -150,68 +248,12 @@ namespace DLSSTweaks.ConfigTool
                 }
             }
 
-            foreach (var line in lines)
+            foreach(var section in userIni.Entries)
             {
-                var trimmed = line.TrimStart(' ').TrimEnd(' ').TrimStart('\t').TrimEnd('\t');
-                if (trimmed.Length <= 0)
-                    continue;
-
-                if (trimmed.StartsWith(";"))
+                foreach(var entry in section.Value)
                 {
-                    bool isCommentStart = state_comment.Length <= 0;
-                    state_comment += trimmed.Substring(1).TrimStart(' ').TrimEnd(' ').TrimStart('\t').TrimEnd('\t') + "\r\n";
-                    if (isCommentStart)
-                        state_comment += "\r\n";
-                    continue;
+                    AddSetting(entry.Value.Section, entry.Value.Key, entry.Value.Value, entry.Value.Comment);
                 }
-                if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
-                {
-                    state_comment = "";
-
-                    // If we're changing from DLSSQualityLevels section to new section, and haven't added UltraQuality...
-                    if (state_section == "DLSSQualityLevels" && !isUltraQualityAdded)
-                    {
-                        AddSetting("DLSSQualityLevels", "UltraQuality", "0", UltraQualityText);
-                    }
-
-                    state_section = trimmed.Substring(1, trimmed.Length - 2);
-                    continue;
-                }
-
-                var seperator = trimmed.IndexOf('=');
-                if (seperator < 0)
-                    continue;
-                var key = trimmed.Substring(0, seperator).TrimStart(' ').TrimEnd(' ').TrimStart('\t').TrimEnd('\t');
-                var value = trimmed.Substring(seperator + 1).TrimStart(' ').TrimEnd(' ').TrimStart('\t').TrimEnd('\t');
-
-                if (state_section == "DLLPathOverrides")
-                    state_comment = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nDelete/clear the path to remove this override.";
-
-                if (state_section == "DLSSQualityLevels" && key != "Enable")
-                {
-                    if (!string.IsNullOrEmpty(state_comment))
-                        comment_DLSSQualityLevels = state_comment;
-                    else
-                        state_comment = comment_DLSSQualityLevels;
-
-                    if (key == "UltraQuality")
-                        state_comment = UltraQualityText;
-                }
-
-                if (state_section == "DLSSPresets")
-                {
-                    if (!string.IsNullOrEmpty(state_comment))
-                        comment_DLSSPresets = state_comment;
-                    else
-                        state_comment = comment_DLSSPresets;
-                }
-
-                AddSetting(state_section, key, value, state_comment);
-
-                if (state_section == "DLSSQualityLevels" && key == "UltraQuality")
-                    isUltraQualityAdded = true;
-
-                state_comment = "";
             }
         }
 
@@ -271,7 +313,7 @@ namespace DLSSTweaks.ConfigTool
             addDLLOverrideToolStripMenuItem.ToolTipText = HoverAddDLLOverrideText;
             installToGameFolderToolStripMenuItem.ToolTipText = HoverInstallDllText;
 
-            if(!CheckDlssTweaksDllAvailable())
+            if (!CheckDlssTweaksDllAvailable())
             {
                 installToGameFolderToolStripMenuItem.Enabled = false;
                 installToGameFolderToolStripMenuItem.ToolTipText = HoverInstallDllTextUnavailable;
@@ -362,7 +404,7 @@ namespace DLSSTweaks.ConfigTool
 
         private void installToGameFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if(!CheckDlssTweaksDllAvailable())
+            if (!CheckDlssTweaksDllAvailable())
                 MessageBox.Show("Failed to locate DLSSTweaks DLL, install aborted.");
 
             var configToolName = Path.GetFileName(Process.GetCurrentProcess().MainModule.FileName);

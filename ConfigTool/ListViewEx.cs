@@ -418,7 +418,7 @@ namespace DLSSTweaks.ConfigTool
             OnMouseUp(null);
             this.Focus();
 
-            if(this.Scroll != null)
+            if (this.Scroll != null)
                 this.Scroll(this, e);
         }
         protected override void WndProc(ref Message m)
@@ -475,7 +475,7 @@ namespace DLSSTweaks.ConfigTool
                     SubItem cell = GetKey(new SubItem(this.row, this.col));
 
                     // hack to let it show box if next column in the row has one defined
-                    if(cell == null)
+                    if (cell == null)
                     {
                         this.col++;
                         cell = GetKey(new SubItem(this.row, this.col));

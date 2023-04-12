@@ -61,6 +61,21 @@ namespace DLSSTweaks.ConfigTool.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to ; DLSSTweaks by emoose - https://github.com/emoose/DLSSTweaks
+        ///; Wrapper DLL that can force DLAA onto DLSS-supported games, along with tweaking the scaling ratios &amp; presets used by them
+        ///;
+        ///; DLSSTweaks now offers two ways of loading itself in, to help with systems that had issues with the older method:
+        ///;
+        ///; - Leaving the DLL filename as &quot;nvngx.dll&quot; will let it wrap the nvngx.dll DLSS module, usually has the best chance of working since it requires less code hooks to be installed.
+        ///;   However this method  [rest of string was truncated]&quot;;.
+        /// </summary>
+        public static string DefaultINI {
+            get {
+                return ResourceManager.GetString("DefaultINI", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
         public static System.Drawing.Bitmap dlloverride {
