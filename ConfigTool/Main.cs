@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace DLSSTweaks.ConfigTool
@@ -31,10 +33,39 @@ namespace DLSSTweaks.ConfigTool
         static string HoverLoadText = "Reload the DLSSTweaks.ini from the same folder as ConfigTool.";
         static string HoverSaveText = "Writes out the changed settings to DLSSTweaks.ini.";
         static string HoverAddDLLOverrideText = "DLL override: allows overriding the path that a game will load a DLL from, simply pick the new DLL you wish to override with.\r\n\r\nThis can be useful if you're prevented from editing the game files for some reason.\r\n\r\neg. with Rockstar Game Launcher, you can't easily update nvngx_dlss.dll without RGL reverting it, but by using this you can make the game load DLSS from a completely different path which RGL can't override.";
+        static string HoverInstallDllText = "Allows copying this DLSSTweaks config & DLL to a chosen folder.\r\n\r\nCan be used to both install freshly extracted DLSSTweaks into a game, and also to copy existing config + DLL across to other titles.";
+        static string HoverInstallDllTextUnavailable = "DLSSTweaks DLL not found in current folder, install not available.";
 
         static string[] BooleanKeys = new[] { "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId" };
         static string[] OverrideKeys = new[] { "OverrideAutoExposure", "OverrideDlssHud" };
-        static string[] OverrideValues = new[] { "Force disable", "Default", "Force enable" }; // -1, 0, 1
+        static string[] OverrideValues = new[] { "Default", "Force disable", "Force enable" }; // 0, -1, 1
+
+        string DlssTweaksDll = "";
+        static string[] DlssTweaksDllFilenames = new[] { "nvngx.dll", "xinput1_3.dll", "xinput1_4.dll", "xinput9_1_0.dll", "dxgi.dll", "XAPOFX1_5.dll", "x3daudio1_7.dll", "winmm.dll" };
+
+        bool CheckDlssTweaksDllAvailable()
+        {
+            foreach (var filename in DlssTweaksDllFilenames)
+            {
+                try
+                {
+                    if (!File.Exists(filename))
+                        continue;
+
+                    FileVersionInfo fileInfo = FileVersionInfo.GetVersionInfo(filename);
+                    if (fileInfo.ProductName != "DLSSTweaks")
+                        continue;
+
+                    DlssTweaksDll = filename;
+                    return true;
+                }
+                catch
+                {
+                    continue;
+                }
+            }
+            return false;
+        }
 
         public void IniRead()
         {
@@ -86,9 +117,9 @@ namespace DLSSTweaks.ConfigTool
                     if (isOverrideKey)
                     {
                         if (value == "-1")
-                            value = OverrideValues[0];
-                        else if(value == "0")
                             value = OverrideValues[1];
+                        else if(value == "0")
+                            value = OverrideValues[0];
                         else
                             value = OverrideValues[2];
                     }
@@ -197,9 +228,9 @@ namespace DLSSTweaks.ConfigTool
 
                 if (OverrideKeys.Contains(key))
                 {
-                    if (value == OverrideValues[0])
+                    if (value == OverrideValues[1])
                         value = "-1";
-                    else if (value == OverrideValues[1])
+                    else if (value == OverrideValues[0])
                         value = "0";
                     else
                         value = "1";
@@ -224,6 +255,9 @@ namespace DLSSTweaks.ConfigTool
         public Main()
         {
             InitializeComponent();
+
+            lblIniPath.Text = Path.GetFullPath(IniFilename);
+
             AutoScaleMode = AutoScaleMode.Dpi;
             lvSettings.ValueChanged += lvSettings_ValueChanged;
 
@@ -231,6 +265,17 @@ namespace DLSSTweaks.ConfigTool
             DefaultFormTitle = this.Text;
 
             txtDesc.Text = DefaultDescText;
+
+            saveToolStripMenuItem.ToolTipText = HoverSaveText;
+            loadToolStripMenuItem.ToolTipText = HoverLoadText;
+            addDLLOverrideToolStripMenuItem.ToolTipText = HoverAddDLLOverrideText;
+            installToGameFolderToolStripMenuItem.ToolTipText = HoverInstallDllText;
+
+            if(!CheckDlssTweaksDllAvailable())
+            {
+                installToGameFolderToolStripMenuItem.Enabled = false;
+                installToGameFolderToolStripMenuItem.ToolTipText = HoverInstallDllTextUnavailable;
+            }
 
             IniRead();
         }
@@ -306,5 +351,86 @@ namespace DLSSTweaks.ConfigTool
         {
             txtDesc.Text = HoverSaveText;
         }
+
+        private void installToGameFolderToolStripMenuItem_MouseHover(object sender, EventArgs e)
+        {
+            if (CheckDlssTweaksDllAvailable())
+                txtDesc.Text = HoverInstallDllText;
+            else
+                txtDesc.Text = HoverInstallDllTextUnavailable;
+        }
+
+        private void installToGameFolderToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if(!CheckDlssTweaksDllAvailable())
+                MessageBox.Show("Failed to locate DLSSTweaks DLL, install aborted.");
+
+            var configToolName = Path.GetFileName(Process.GetCurrentProcess().MainModule.FileName);
+
+            var filesToCopy = new [] { 
+                DlssTweaksDll, 
+                "dlsstweaks.ini",
+                configToolName
+            };
+
+            foreach(var file in filesToCopy)
+            {
+                if (!File.Exists(file))
+                {
+                    MessageBox.Show($"Failed to find file {file} for copy, install aborted.");
+                    return;
+                }
+            }
+
+            var dialog = new FolderSelectDialog();
+            dialog.Title = "Select game folder to copy DLSSTweaks files into";
+
+            if (!dialog.Show(Handle))
+                return;
+
+            var infoText = "";
+            foreach (var file in filesToCopy)
+            {
+                var dest = Path.Combine(dialog.FileName, file);
+                infoText += $"  {file} -> {dest}\r\n\r\n";
+            }
+
+            if (MessageBox.Show($"Copying DLSSTweaks files\r\n\r\n{infoText}Is this OK?", "Confirm", MessageBoxButtons.YesNo) != DialogResult.Yes)
+                return;
+
+            try
+            {
+                FileOperations.CopyFiles(filesToCopy, dialog.FileName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Install failed, exception {ex.Message} during file copy...");
+                return;
+            }
+
+            if (MessageBox.Show("Files copied to game folder, note that the DLL may need to be renamed for game to load it.\r\n\r\nDo you want to configure this install?", "Confirm", MessageBoxButtons.YesNo) != DialogResult.Yes)
+                return;
+
+            var startInfo = new ProcessStartInfo() { WorkingDirectory = dialog.FileName, FileName = Path.Combine(dialog.FileName, configToolName) };
+
+            var proc = Process.Start(startInfo);
+
+            // Wait up to 3000ms for MainWindowHandle to be set...
+            int tries = 3;
+            while(tries >= 0)
+            {
+                tries--;
+                if (proc.MainWindowHandle != IntPtr.Zero)
+                    break;
+
+                System.Threading.Thread.Sleep(1000);
+            }
+
+            SetForegroundWindow(proc.MainWindowHandle);
+            Process.GetCurrentProcess().Kill();
+        }
+
+        [DllImport("user32.dll")]
+        static extern bool SetForegroundWindow(IntPtr hWnd);
     }
 }
