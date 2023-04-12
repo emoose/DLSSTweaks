@@ -12,16 +12,6 @@ namespace DLSSTweaks.ConfigTool
 {
     public partial class Main : Form
     {
-        public static string FirstCharToUpper(string input)
-        {
-            switch (input)
-            {
-                case null: throw new ArgumentNullException(nameof(input));
-                case "": return "";
-                default: return input[0].ToString().ToUpper() + input.Substring(1);
-            }
-        }
-
         Dictionary<string, string> dllOverrides = new Dictionary<string, string>();
 
         string DefaultFormTitle = "DLSSTweaks"; // will be updated to actual text after InitializeComponent
@@ -35,6 +25,8 @@ namespace DLSSTweaks.ConfigTool
         static string HoverAddDLLOverrideText = "DLL override: allows overriding the path that a game will load a DLL from, simply pick the new DLL you wish to override with.\r\n\r\nThis can be useful if you're prevented from editing the game files for some reason.\r\n\r\neg. with Rockstar Game Launcher, you can't easily update nvngx_dlss.dll without RGL reverting it, but by using this you can make the game load DLSS from a completely different path which RGL can't override.";
         static string HoverInstallDllText = "Allows copying this DLSSTweaks config & DLL to a chosen folder.\r\n\r\nCan be used to both install freshly extracted DLSSTweaks into a game, and also to copy existing config + DLL across to other titles.";
         static string HoverInstallDllTextUnavailable = "DLSSTweaks DLL not found in current folder, install not available.";
+
+        static string DllPathOverrideText = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nDelete/clear the path to disable this override.";
 
         static string[] BooleanKeys = new[] { "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId" };
         static string[] OverrideKeys = new[] { "OverrideAutoExposure", "OverrideDlssHud" };
@@ -194,6 +186,17 @@ namespace DLSSTweaks.ConfigTool
                 }
             }
 
+            if (userIni.Entries.ContainsKey("DLLPathOverrides"))
+            {
+                var keys = userIni.Entries["DLLPathOverrides"].Keys.ToArray();
+                foreach(var key in keys)
+                {
+                    var entry = userIni.Entries["DLLPathOverrides"][key];
+                    entry.Comment = DllPathOverrideText;
+                    userIni.Entries["DLLPathOverrides"][key] = entry;
+                }
+            }
+
             var groups = new Dictionary<string, ListViewGroup>();
 
             void AddSetting(string section, string key, string value, string comment)
@@ -209,7 +212,7 @@ namespace DLSSTweaks.ConfigTool
                 bool isBooleanKey = BooleanKeys.Contains(key);
                 bool isOverrideKey = OverrideKeys.Contains(key);
                 if (isBooleanKey)
-                    value = FirstCharToUpper(value);
+                    value = value.FirstCharToUpper();
                 else
                 {
                     if (isOverrideKey)

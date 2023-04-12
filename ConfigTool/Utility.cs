@@ -9,6 +9,18 @@ using System.Windows.Forms;
 
 namespace DLSSTweaks.ConfigTool
 {
+    public static class Utility
+    {
+        public static string FirstCharToUpper(this string input)
+        {
+            switch (input)
+            {
+                case null: throw new ArgumentNullException(nameof(input));
+                case "": return "";
+                default: return input[0].ToString().ToUpper() + input.Substring(1);
+            }
+        }
+    }
     // Quick and dirty INI parser that preserves comments
     public class HackyIniParser
     {
