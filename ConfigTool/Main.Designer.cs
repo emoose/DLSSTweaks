@@ -31,16 +31,20 @@ namespace DLSSTweaks.ConfigTool
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Main));
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
-            this.installToGameFolderToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.splitContainer1 = new System.Windows.Forms.SplitContainer();
-            this.txtDesc = new System.Windows.Forms.TextBox();
-            this.statusStrip1 = new System.Windows.Forms.StatusStrip();
-            this.lblIniPath = new System.Windows.Forms.ToolStripStatusLabel();
             this.saveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.loadToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.addDLLOverrideToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.installToGameFolderToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.splitContainer1 = new System.Windows.Forms.SplitContainer();
+            this.menuSettings = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.ctxDelete = new System.Windows.Forms.ToolStripMenuItem();
+            this.ctxRename = new System.Windows.Forms.ToolStripMenuItem();
+            this.txtDesc = new System.Windows.Forms.TextBox();
+            this.statusStrip1 = new System.Windows.Forms.StatusStrip();
+            this.lblIniPath = new System.Windows.Forms.ToolStripStatusLabel();
             this.lvSettings = new DLSSTweaks.ConfigTool.ListViewEx();
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -49,6 +53,7 @@ namespace DLSSTweaks.ConfigTool
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
+            this.menuSettings.SuspendLayout();
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -66,6 +71,33 @@ namespace DLSSTweaks.ConfigTool
             this.menuStrip1.Size = new System.Drawing.Size(630, 28);
             this.menuStrip1.TabIndex = 0;
             this.menuStrip1.Text = "menuStrip1";
+            // 
+            // saveToolStripMenuItem
+            // 
+            this.saveToolStripMenuItem.Image = global::DLSSTweaks.ConfigTool.Properties.Resources.save;
+            this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
+            this.saveToolStripMenuItem.Size = new System.Drawing.Size(74, 24);
+            this.saveToolStripMenuItem.Text = "Save";
+            this.saveToolStripMenuItem.Click += new System.EventHandler(this.saveToolStripMenuItem_Click);
+            this.saveToolStripMenuItem.MouseHover += new System.EventHandler(this.saveToolStripMenuItem_MouseHover);
+            // 
+            // loadToolStripMenuItem
+            // 
+            this.loadToolStripMenuItem.Image = global::DLSSTweaks.ConfigTool.Properties.Resources.refresh;
+            this.loadToolStripMenuItem.Name = "loadToolStripMenuItem";
+            this.loadToolStripMenuItem.Size = new System.Drawing.Size(90, 24);
+            this.loadToolStripMenuItem.Text = "Reload";
+            this.loadToolStripMenuItem.Click += new System.EventHandler(this.loadToolStripMenuItem_Click);
+            this.loadToolStripMenuItem.MouseHover += new System.EventHandler(this.loadToolStripMenuItem_MouseHover);
+            // 
+            // addDLLOverrideToolStripMenuItem
+            // 
+            this.addDLLOverrideToolStripMenuItem.Image = global::DLSSTweaks.ConfigTool.Properties.Resources.dlloverride;
+            this.addDLLOverrideToolStripMenuItem.Name = "addDLLOverrideToolStripMenuItem";
+            this.addDLLOverrideToolStripMenuItem.Size = new System.Drawing.Size(161, 24);
+            this.addDLLOverrideToolStripMenuItem.Text = "Add DLL Override";
+            this.addDLLOverrideToolStripMenuItem.Click += new System.EventHandler(this.addDLLOverrideToolStripMenuItem_Click);
+            this.addDLLOverrideToolStripMenuItem.MouseHover += new System.EventHandler(this.addDLLOverrideToolStripMenuItem_MouseHover);
             // 
             // installToGameFolderToolStripMenuItem
             // 
@@ -96,6 +128,29 @@ namespace DLSSTweaks.ConfigTool
             this.splitContainer1.SplitterDistance = 419;
             this.splitContainer1.SplitterWidth = 3;
             this.splitContainer1.TabIndex = 3;
+            // 
+            // menuSettings
+            // 
+            this.menuSettings.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.menuSettings.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.ctxRename,
+            this.ctxDelete});
+            this.menuSettings.Name = "menuSettings";
+            this.menuSettings.Size = new System.Drawing.Size(133, 52);
+            // 
+            // ctxDelete
+            // 
+            this.ctxDelete.Name = "ctxDelete";
+            this.ctxDelete.Size = new System.Drawing.Size(132, 24);
+            this.ctxDelete.Text = "Delete";
+            this.ctxDelete.Click += new System.EventHandler(this.ctxDelete_Click);
+            // 
+            // ctxRename
+            // 
+            this.ctxRename.Name = "ctxRename";
+            this.ctxRename.Size = new System.Drawing.Size(132, 24);
+            this.ctxRename.Text = "Rename";
+            this.ctxRename.Click += new System.EventHandler(this.ctxRename_Click);
             // 
             // txtDesc
             // 
@@ -128,38 +183,12 @@ namespace DLSSTweaks.ConfigTool
             this.lblIniPath.Size = new System.Drawing.Size(18, 20);
             this.lblIniPath.Text = "...";
             // 
-            // saveToolStripMenuItem
-            // 
-            this.saveToolStripMenuItem.Image = global::DLSSTweaks.ConfigTool.Properties.Resources.save;
-            this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
-            this.saveToolStripMenuItem.Size = new System.Drawing.Size(74, 24);
-            this.saveToolStripMenuItem.Text = "Save";
-            this.saveToolStripMenuItem.Click += new System.EventHandler(this.saveToolStripMenuItem_Click);
-            this.saveToolStripMenuItem.MouseHover += new System.EventHandler(this.saveToolStripMenuItem_MouseHover);
-            // 
-            // loadToolStripMenuItem
-            // 
-            this.loadToolStripMenuItem.Image = global::DLSSTweaks.ConfigTool.Properties.Resources.refresh;
-            this.loadToolStripMenuItem.Name = "loadToolStripMenuItem";
-            this.loadToolStripMenuItem.Size = new System.Drawing.Size(90, 24);
-            this.loadToolStripMenuItem.Text = "Reload";
-            this.loadToolStripMenuItem.Click += new System.EventHandler(this.loadToolStripMenuItem_Click);
-            this.loadToolStripMenuItem.MouseHover += new System.EventHandler(this.loadToolStripMenuItem_MouseHover);
-            // 
-            // addDLLOverrideToolStripMenuItem
-            // 
-            this.addDLLOverrideToolStripMenuItem.Image = global::DLSSTweaks.ConfigTool.Properties.Resources.dlloverride;
-            this.addDLLOverrideToolStripMenuItem.Name = "addDLLOverrideToolStripMenuItem";
-            this.addDLLOverrideToolStripMenuItem.Size = new System.Drawing.Size(161, 24);
-            this.addDLLOverrideToolStripMenuItem.Text = "Add DLL Override";
-            this.addDLLOverrideToolStripMenuItem.Click += new System.EventHandler(this.addDLLOverrideToolStripMenuItem_Click);
-            this.addDLLOverrideToolStripMenuItem.MouseHover += new System.EventHandler(this.addDLLOverrideToolStripMenuItem_MouseHover);
-            // 
             // lvSettings
             // 
             this.lvSettings.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.columnHeader1,
             this.columnHeader2});
+            this.lvSettings.ContextMenuStrip = this.menuSettings;
             this.lvSettings.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lvSettings.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lvSettings.FullRowSelect = true;
@@ -198,6 +227,7 @@ namespace DLSSTweaks.ConfigTool
             this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.Name = "Main";
             this.Text = "DLSSTweaks ConfigTool";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Main_FormClosing);
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
             this.splitContainer1.Panel1.ResumeLayout(false);
@@ -205,6 +235,7 @@ namespace DLSSTweaks.ConfigTool
             this.splitContainer1.Panel2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
             this.splitContainer1.ResumeLayout(false);
+            this.menuSettings.ResumeLayout(false);
             this.statusStrip1.ResumeLayout(false);
             this.statusStrip1.PerformLayout();
             this.ResumeLayout(false);
@@ -226,5 +257,8 @@ namespace DLSSTweaks.ConfigTool
         private ToolStripMenuItem installToGameFolderToolStripMenuItem;
         private StatusStrip statusStrip1;
         private ToolStripStatusLabel lblIniPath;
+        private ContextMenuStrip menuSettings;
+        private ToolStripMenuItem ctxDelete;
+        private ToolStripMenuItem ctxRename;
     }
 }

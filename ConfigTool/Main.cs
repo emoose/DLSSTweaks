@@ -12,6 +12,15 @@ namespace DLSSTweaks.ConfigTool
 {
     public partial class Main : Form
     {
+        struct IniChange
+        {
+            public string Section;
+            public string Key;
+            public string NewKey;
+
+            public bool IsDeletion => string.IsNullOrEmpty(NewKey);
+        }
+
         Dictionary<string, string> dllOverrides = new Dictionary<string, string>();
 
         string DefaultFormTitle = "DLSSTweaks"; // will be updated to actual text after InitializeComponent
@@ -26,7 +35,7 @@ namespace DLSSTweaks.ConfigTool
         static string HoverInstallDllText = "Allows copying this DLSSTweaks config & DLL to a chosen folder.\r\n\r\nCan be used to both install freshly extracted DLSSTweaks into a game, and also to copy existing config + DLL across to other titles.";
         static string HoverInstallDllTextUnavailable = "DLSSTweaks DLL not found in current folder, install not available.";
 
-        static string DllPathOverrideText = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nDelete/clear the path to disable this override.";
+        static string DllPathOverrideText = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nRight click on the override for options to rename/delete it.";
 
         static string[] BooleanKeys = new[] { "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId" };
         static string[] OverrideKeys = new[] { "OverrideAutoExposure", "OverrideDlssHud" };
@@ -34,6 +43,10 @@ namespace DLSSTweaks.ConfigTool
 
         string DlssTweaksDll = "";
         static string[] DlssTweaksDllFilenames = new[] { "nvngx.dll", "xinput1_3.dll", "xinput1_4.dll", "xinput9_1_0.dll", "dxgi.dll", "XAPOFX1_5.dll", "x3daudio1_7.dll", "winmm.dll" };
+
+        List<IniChange> IniChanges = new List<IniChange>();
+
+        bool IsChangeUnsaved = false;
 
         bool CheckDlssTweaksDllAvailable()
         {
@@ -62,9 +75,14 @@ namespace DLSSTweaks.ConfigTool
 
         public void IniRead()
         {
+            lvSettings.Unfocus();
             lvSettings.Items.Clear();
             lvSettings.Groups.Clear();
             lvSettings.ClearEditCells();
+
+            IsChangeUnsaved = false;
+
+            IniChanges = new List<IniChange>();
 
             string[] lines = null;
 
@@ -262,6 +280,8 @@ namespace DLSSTweaks.ConfigTool
 
         void IniWrite()
         {
+            lvSettings.Unfocus();
+
             PeanutButter.INI.INIFile file = new PeanutButter.INI.INIFile(IniFilename);
             file.WrapValueInQuotes = false;
 
@@ -291,6 +311,14 @@ namespace DLSSTweaks.ConfigTool
                 file["DLLPathOverrides"][kvp.Key] = kvp.Value;
             }
             dllOverrides.Clear();
+
+            foreach(var change in IniChanges)
+            {
+                var value = file[change.Section][change.Key];
+                file.RemoveValue(change.Section, change.Key);
+                if (!change.IsDeletion)
+                    file[change.Section][change.NewKey] = value;
+            }
 
             file.Persist();
 
@@ -328,6 +356,7 @@ namespace DLSSTweaks.ConfigTool
         private void lvSettings_ValueChanged(object sender, EventArgs e)
         {
             this.Text = $"{DefaultFormTitle} - {IniFilename}*";
+            IsChangeUnsaved = true;
         }
 
         private void lvSettings_ItemMouseHover(object sender, ListViewItemMouseHoverEventArgs e)
@@ -338,8 +367,20 @@ namespace DLSSTweaks.ConfigTool
             txtDesc.Text = (string)item.Tag;
         }
 
+        private bool IsDllOverrideSelected()
+        {
+            if (lvSettings.SelectedItems == null || lvSettings.SelectedItems.Count <= 0)
+                return false;
+            var item = lvSettings.SelectedItems[0];
+            if (item.Group == null)
+                return false;
+            return item.Group.Header == "DLLPathOverrides";
+        }
+
         private void lvSettings_SelectedIndexChanged(object sender, EventArgs e)
         {
+            ctxDelete.Enabled = ctxRename.Enabled = IsDllOverrideSelected();
+
             if (lvSettings.SelectedItems.Count <= 0)
             {
                 txtDesc.Text = DefaultDescText;
@@ -351,15 +392,53 @@ namespace DLSSTweaks.ConfigTool
             txtDesc.Text = (string)item.Tag;
         }
 
+        private void ctxDelete_Click(object sender, EventArgs e)
+        {
+            if (!IsDllOverrideSelected())
+                return;
+
+            var item = lvSettings.SelectedItems[0];
+
+            var entryText = $"{item.Text} = {item.SubItems[1].Text}";
+            var result = MessageBox.Show($"Are you sure you want to delete this setting?\r\n\r\n{entryText}\r\n\r\nEntry will be deleted & settings saved, is this OK?", "Confirm", MessageBoxButtons.YesNo);
+            if (result != DialogResult.Yes)
+                return;
+
+            var change = new IniChange() { Section = item.Group.Header, Key = item.Text, NewKey = string.Empty };
+            IniChanges.Add(change);
+            IniWrite();
+        }
+
+        private void ctxRename_Click(object sender, EventArgs e)
+        {
+            if (!IsDllOverrideSelected())
+                return;
+
+            var item = lvSettings.SelectedItems[0];
+
+            string value = item.Text;
+            var result = Utility.InputBox("Setting name", "Enter new name for setting", ref value);
+            if (result != DialogResult.OK || value == item.Text)
+                return;
+
+            var entryText = $"{item.Text} -> {value}";
+            result = MessageBox.Show($"Are you sure you want to rename this setting?\r\n\r\n{entryText}\r\n\r\nEntry will be renamed & settings saved, is this OK?", "Confirm", MessageBoxButtons.YesNo);
+            if (result != DialogResult.Yes)
+                return;
+
+            var change = new IniChange() { Section = item.Group.Header, Key = item.Text, NewKey = value };
+
+            IniChanges.Add(change);
+            IniWrite();
+        }
+
         private void saveToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            lvSettings.Unfocus();
             IniWrite();
         }
 
         private void loadToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            lvSettings.Unfocus();
             IniRead();
         }
 
@@ -374,7 +453,9 @@ namespace DLSSTweaks.ConfigTool
 
             var filepath = ofd.FileName;
             var filename = Path.GetFileNameWithoutExtension(filepath);
-            if (MessageBox.Show($"Setting DLL override\r\n\r\n  {filename} -> {filepath}\r\n\r\nOverride will be added & settings saved, is this OK?", "Confirm", MessageBoxButtons.YesNo) != DialogResult.Yes)
+
+            var result = MessageBox.Show($"Setting DLL override\r\n\r\n{filename} -> {filepath}\r\n\r\nOverride will be added & settings saved, is this OK?", "Confirm", MessageBoxButtons.YesNo);
+            if (result != DialogResult.Yes)
                 return;
 
             dllOverrides[filename] = filepath;
@@ -410,6 +491,14 @@ namespace DLSSTweaks.ConfigTool
             if (!CheckDlssTweaksDllAvailable())
                 MessageBox.Show("Failed to locate DLSSTweaks DLL, install aborted.");
 
+            DialogResult result = DialogResult.No;
+            if (IsChangeUnsaved)
+            {
+                result = MessageBox.Show("You have unsaved changes, save those first?", "Save?", MessageBoxButtons.YesNo);
+                if (result == DialogResult.Yes)
+                    IniWrite();
+            }
+
             var configToolName = Path.GetFileName(Process.GetCurrentProcess().MainModule.FileName);
 
             var filesToCopy = new [] { 
@@ -437,10 +526,11 @@ namespace DLSSTweaks.ConfigTool
             foreach (var file in filesToCopy)
             {
                 var dest = Path.Combine(dialog.FileName, file);
-                infoText += $"  {file} -> {dest}\r\n\r\n";
+                infoText += $"{file} -> {dest}\r\n\r\n";
             }
 
-            if (MessageBox.Show($"Copying DLSSTweaks files\r\n\r\n{infoText}Is this OK?", "Confirm", MessageBoxButtons.YesNo) != DialogResult.Yes)
+            result = MessageBox.Show($"Copying DLSSTweaks files\r\n\r\n{infoText}Is this OK?", "Confirm", MessageBoxButtons.YesNo);
+            if (result != DialogResult.Yes)
                 return;
 
             try
@@ -453,7 +543,8 @@ namespace DLSSTweaks.ConfigTool
                 return;
             }
 
-            if (MessageBox.Show("Files copied to game folder, note that the DLL may need to be renamed for game to load it.\r\n\r\nDo you want to configure this install?", "Confirm", MessageBoxButtons.YesNo) != DialogResult.Yes)
+            result = MessageBox.Show("Files copied to game folder, note that the DLL may need to be renamed for game to load it.\r\n\r\nDo you want to configure this install?", "Confirm", MessageBoxButtons.YesNo);
+            if (result != DialogResult.Yes)
                 return;
 
             var startInfo = new ProcessStartInfo() { WorkingDirectory = dialog.FileName, FileName = Path.Combine(dialog.FileName, configToolName) };
@@ -477,5 +568,15 @@ namespace DLSSTweaks.ConfigTool
 
         [DllImport("user32.dll")]
         static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        private void Main_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (!IsChangeUnsaved)
+                return;
+
+            DialogResult result = MessageBox.Show("You have unsaved changes, save those before exiting?", "Save?", MessageBoxButtons.YesNo);
+            if (result == DialogResult.Yes)
+                IniWrite();
+        }
     }
 }
