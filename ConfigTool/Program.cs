@@ -16,6 +16,11 @@ namespace DLSSTweaks.ConfigTool
         [STAThread]
         static void Main()
         {
+            var args = Environment.GetCommandLineArgs();
+            if (args != null && args.Length > 0)
+                if (NvSigOverride.ProcessArgs())
+                    return;
+
             AppDomain.CurrentDomain.AssemblyResolve += (sender, arg) => { 
                 if (arg.Name.StartsWith("PeanutButter.INI")) 
                     return Assembly.Load(Properties.Resources.PeanutButter_INI); 

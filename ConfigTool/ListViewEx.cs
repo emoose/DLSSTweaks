@@ -669,7 +669,7 @@ namespace DLSSTweaks.ConfigTool
                     this.combo.Visible = !this.hideComboAfterSelChange;
 
                     if (changed && this.ValueChanged != null)
-                        ValueChanged(this, new EventArgs());
+                        ValueChanged(this.Items[row], new EventArgs());
                 }
             }
             catch (Exception ex)

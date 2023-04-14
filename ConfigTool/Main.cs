@@ -35,9 +35,11 @@ namespace DLSSTweaks.ConfigTool
         static string HoverInstallDllText = "Allows copying this DLSSTweaks config & DLL to a chosen folder.\r\n\r\nCan be used to both install freshly extracted DLSSTweaks into a game, and also to copy existing config + DLL across to other titles.";
         static string HoverInstallDllTextUnavailable = "DLSSTweaks DLL not found in current folder, install not available.";
 
+        static string HoverNvSigOverrideText = "Toggles the NVIDIA Signature Override registry key.\r\n\r\nWith the override enabled DLSSTweaks can be used in most DLSS2+ games by naming it as nvngx.dll.\r\n\r\n(this override only affects Nvidia related signature checks, not anything Windows related)\r\n\r\nChanging this requires Administrator privileges, a prompt will appear if necessary.";
+
         static string DllPathOverrideText = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nRight click on the override for options to rename/delete it.";
 
-        static string[] BooleanKeys = new[] { "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId" };
+        static string[] BooleanKeys = new[] { "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId", "EnableNvidiaSigOverride" };
         static string[] OverrideKeys = new[] { "OverrideAutoExposure", "OverrideDlssHud" };
         static string[] OverrideValues = new[] { "Default", "Force disable", "Force enable" }; // 0, -1, 1
 
@@ -269,6 +271,22 @@ namespace DLSSTweaks.ConfigTool
                 }
             }
 
+            // Add EnableNvidiaSigOverride psuedo-setting to list
+            if (userIni.Entries.ContainsKey("DLSS"))
+            {
+                var entry = new HackyIniParser.IniEntry()
+                {
+                    Section = "DLSS",
+                    Key = "EnableNvidiaSigOverride",
+                    Comment = HoverNvSigOverrideText,
+                    Value = NvSigOverride.IsOverride() ? "True" : "False"
+                };
+                userIni.Entries["DLSS"].Add("EnableNvidiaSigOverride", entry);
+            }
+
+            // AddSetting must be called in the exact order of items to add
+            // Can't AddSetting to an earlier section since that would break the hacky ListViewEx input boxes
+            // So all entries should be prepared inside userIni.Entries first
             foreach(var section in userIni.Entries)
             {
                 foreach(var entry in section.Value)
@@ -290,6 +308,9 @@ namespace DLSSTweaks.ConfigTool
                 var section = item.Group.Header;
                 var key = item.Text;
                 var value = item.SubItems[1].Text;
+
+                if (section == "DLSS" && key == "EnableNvidiaSigOverride")
+                    continue;
 
                 if (OverrideKeys.Contains(key))
                 {
@@ -355,8 +376,22 @@ namespace DLSSTweaks.ConfigTool
 
         private void lvSettings_ValueChanged(object sender, EventArgs e)
         {
-            this.Text = $"{DefaultFormTitle} - {IniFilename}*";
-            IsChangeUnsaved = true;
+            var lvi = sender as ListViewItem;
+            if (lvi.Text == "EnableNvidiaSigOverride")
+            {
+                lvSettings.Unfocus();
+                lvSettings.Focus();
+                bool enableOverride = false;
+                if (bool.TryParse(lvi.SubItems[1].Text, out enableOverride))
+                    NvSigOverride.SetOverride(enableOverride);
+                lvi.SubItems[1].Text = NvSigOverride.IsOverride().ToString().FirstCharToUpper();
+            }
+            else
+            {
+                this.Text = $"{DefaultFormTitle} - {IniFilename}*";
+                IsChangeUnsaved = true;
+            }
+            lvSettings.Focus();
         }
 
         private void lvSettings_ItemMouseHover(object sender, ListViewItemMouseHoverEventArgs e)

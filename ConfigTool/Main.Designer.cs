@@ -40,8 +40,8 @@ namespace DLSSTweaks.ConfigTool
             this.installToGameFolderToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.menuSettings = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.ctxDelete = new System.Windows.Forms.ToolStripMenuItem();
             this.ctxRename = new System.Windows.Forms.ToolStripMenuItem();
+            this.ctxDelete = new System.Windows.Forms.ToolStripMenuItem();
             this.txtDesc = new System.Windows.Forms.TextBox();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.lblIniPath = new System.Windows.Forms.ToolStripStatusLabel();
@@ -68,7 +68,7 @@ namespace DLSSTweaks.ConfigTool
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
             this.menuStrip1.ShowItemToolTips = true;
-            this.menuStrip1.Size = new System.Drawing.Size(630, 28);
+            this.menuStrip1.Size = new System.Drawing.Size(1091, 28);
             this.menuStrip1.TabIndex = 0;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -124,8 +124,8 @@ namespace DLSSTweaks.ConfigTool
             // splitContainer1.Panel2
             // 
             this.splitContainer1.Panel2.Controls.Add(this.txtDesc);
-            this.splitContainer1.Size = new System.Drawing.Size(630, 696);
-            this.splitContainer1.SplitterDistance = 419;
+            this.splitContainer1.Size = new System.Drawing.Size(1091, 696);
+            this.splitContainer1.SplitterDistance = 418;
             this.splitContainer1.SplitterWidth = 3;
             this.splitContainer1.TabIndex = 3;
             // 
@@ -138,19 +138,19 @@ namespace DLSSTweaks.ConfigTool
             this.menuSettings.Name = "menuSettings";
             this.menuSettings.Size = new System.Drawing.Size(133, 52);
             // 
-            // ctxDelete
-            // 
-            this.ctxDelete.Name = "ctxDelete";
-            this.ctxDelete.Size = new System.Drawing.Size(132, 24);
-            this.ctxDelete.Text = "Delete";
-            this.ctxDelete.Click += new System.EventHandler(this.ctxDelete_Click);
-            // 
             // ctxRename
             // 
             this.ctxRename.Name = "ctxRename";
             this.ctxRename.Size = new System.Drawing.Size(132, 24);
             this.ctxRename.Text = "Rename";
             this.ctxRename.Click += new System.EventHandler(this.ctxRename_Click);
+            // 
+            // ctxDelete
+            // 
+            this.ctxDelete.Name = "ctxDelete";
+            this.ctxDelete.Size = new System.Drawing.Size(132, 24);
+            this.ctxDelete.Text = "Delete";
+            this.ctxDelete.Click += new System.EventHandler(this.ctxDelete_Click);
             // 
             // txtDesc
             // 
@@ -163,7 +163,7 @@ namespace DLSSTweaks.ConfigTool
             this.txtDesc.Name = "txtDesc";
             this.txtDesc.ReadOnly = true;
             this.txtDesc.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtDesc.Size = new System.Drawing.Size(630, 274);
+            this.txtDesc.Size = new System.Drawing.Size(1091, 275);
             this.txtDesc.TabIndex = 5;
             // 
             // statusStrip1
@@ -173,7 +173,7 @@ namespace DLSSTweaks.ConfigTool
             this.lblIniPath});
             this.statusStrip1.Location = new System.Drawing.Point(0, 724);
             this.statusStrip1.Name = "statusStrip1";
-            this.statusStrip1.Size = new System.Drawing.Size(630, 26);
+            this.statusStrip1.Size = new System.Drawing.Size(1091, 26);
             this.statusStrip1.TabIndex = 4;
             this.statusStrip1.Text = "statusStrip1";
             // 
@@ -197,7 +197,7 @@ namespace DLSSTweaks.ConfigTool
             this.lvSettings.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.lvSettings.MultiSelect = false;
             this.lvSettings.Name = "lvSettings";
-            this.lvSettings.Size = new System.Drawing.Size(630, 419);
+            this.lvSettings.Size = new System.Drawing.Size(1091, 418);
             this.lvSettings.TabIndex = 1;
             this.lvSettings.UseCompatibleStateImageBehavior = false;
             this.lvSettings.View = System.Windows.Forms.View.Details;
@@ -218,7 +218,7 @@ namespace DLSSTweaks.ConfigTool
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(630, 750);
+            this.ClientSize = new System.Drawing.Size(1091, 750);
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.menuStrip1);
             this.Controls.Add(this.statusStrip1);
