@@ -75,6 +75,19 @@ std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLeve
 	{NVSDK_NGX_PerfQuality_Value_UltraQuality, {0,0}},
 };
 
+// The values that we told game about for each quality level, so we can easily look them up later on
+// Based on either qualityLevelRatios or qualityLevelResolutions value set by the user
+std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLevelResolutionsCurrent =
+{
+	{NVSDK_NGX_PerfQuality_Value_UltraPerformance, {0,0}},
+	{NVSDK_NGX_PerfQuality_Value_MaxPerf, {0,0}},
+	{NVSDK_NGX_PerfQuality_Value_Balanced, {0,0}},
+	{NVSDK_NGX_PerfQuality_Value_MaxQuality, {0,0}},
+
+	// see note about UltraQuality in qualityLevelRatios section above
+	{NVSDK_NGX_PerfQuality_Value_UltraQuality, {0,0}},
+};
+
 std::mutex initThreadFinishedMutex;
 std::condition_variable initThreadFinishedVar;
 bool initThreadFinished = false;
@@ -212,7 +225,7 @@ void UserSettings::print_to_log()
 	}
 
 	// only print presets if any of them have been changed
-	if (presetDLAA || presetQuality || presetBalanced || presetPerformance || presetUltraPerformance)
+	if (presetDLAA || presetQuality || presetBalanced || presetPerformance || presetUltraPerformance || presetUltraQuality)
 	{
 		spdlog::info(" - DLSSPresets:");
 		if (presetDLAA)
@@ -225,6 +238,8 @@ void UserSettings::print_to_log()
 			spdlog::info("  - Performance: {}", DLSS_PresetEnumToName(presetPerformance));
 		if (presetUltraPerformance)
 			spdlog::info("  - UltraPerformance: {}", DLSS_PresetEnumToName(presetUltraPerformance));
+		if (presetUltraQuality)
+			spdlog::info("  - UltraQuality: {}", DLSS_PresetEnumToName(presetUltraQuality));
 	}
 	else
 	{
@@ -262,7 +277,8 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(overrideAutoExposure));
 
 	std::string sharpeningString = utility::ini_get_string_safe(ini, "DLSS", "OverrideSharpening", std::move(overrideSharpeningString));
-	if (!sharpeningString.length() || !_stricmp(sharpeningString.c_str(), "ignore") || !_stricmp(sharpeningString.c_str(), "ignored"))
+	if (!sharpeningString.length() || !_stricmp(sharpeningString.c_str(), "default") ||
+		!_stricmp(sharpeningString.c_str(), "ignore") || !_stricmp(sharpeningString.c_str(), "ignored"))
 	{
 		overrideSharpening.reset();
 		overrideSharpeningString = sharpeningString;
@@ -374,6 +390,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 	presetBalanced = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "Balanced", DLSS_PresetEnumToName(presetBalanced)));
 	presetPerformance = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "Performance", DLSS_PresetEnumToName(presetPerformance)));
 	presetUltraPerformance = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "UltraPerformance", DLSS_PresetEnumToName(presetUltraPerformance)));
+	presetUltraQuality = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "UltraQuality", DLSS_PresetEnumToName(presetUltraQuality)));
 
 	// [Compatibility]
 	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));

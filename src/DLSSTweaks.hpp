@@ -53,6 +53,8 @@ struct UserSettings
 	unsigned int presetBalanced = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 	unsigned int presetPerformance = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 	unsigned int presetUltraPerformance = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
+	unsigned int presetUltraQuality = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
+
 	int resolutionOffset = 0; // user-defined offset to apply to DLAA / full-res rendering (some titles don't like DLAA rendering at full res, so small offset is needed)
 	bool disableIniMonitoring = false;
 
@@ -64,6 +66,7 @@ struct UserSettings
 extern UserSettings settings;
 extern std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios;
 extern std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLevelResolutions;
+extern std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLevelResolutionsCurrent;
 void WaitForInitThread();
 
 // HooksNvngx.cpp

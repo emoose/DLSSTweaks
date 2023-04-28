@@ -355,10 +355,9 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 		{
 			unsigned int targetWidth = 0;
 			unsigned int targetHeight = 0;
-			if (isOutWidth)
-				NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
-			if (isOutHeight)
-				NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
+			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
+			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
+			
 			unsigned int renderWidth = 0;
 			unsigned int renderHeight = 0;
 			if (qualityLevelRatios.count(prevQualityValue))
@@ -379,24 +378,25 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 					renderHeight = res.second;
 				}
 			}
+
+			if (renderWidth >= targetWidth)
+			{
+				renderWidth = targetWidth; // DLSS can't render above the target res
+				renderWidth += settings.resolutionOffset; // apply resolutionOffset compatibility hack
+			}
+			if (renderHeight >= targetHeight)
+			{
+				renderHeight = targetHeight; // DLSS can't render above the target res
+				renderHeight += settings.resolutionOffset; // apply resolutionOffset compatibility hack
+			}
+
+			if (renderWidth != 0 && renderHeight != 0)
+				qualityLevelResolutionsCurrent[prevQualityValue] = std::pair<int, int>(renderWidth, renderHeight);
+
 			if (isOutWidth)
-			{
 				*OutValue = renderWidth;
-				if (*OutValue >= targetWidth)
-				{
-					*OutValue = targetWidth; // DLSS can't render above the target res
-					*OutValue += settings.resolutionOffset; // apply resolutionOffset compatibility hack
-				}
-			}
 			if (isOutHeight)
-			{
 				*OutValue = renderHeight;
-				if (*OutValue >= targetHeight)
-				{
-					*OutValue = targetHeight; // DLSS can't render above the target res
-					*OutValue += settings.resolutionOffset; // apply resolutionOffset compatibility hack
-				}
-			}
 		}
 	}
 

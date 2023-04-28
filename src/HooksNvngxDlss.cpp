@@ -115,6 +115,88 @@ void DlssPresetOverrideFunc_Version3_1_1(SafetyHookContext& ctx)
 	nv_settings->zero_customized_values();
 }
 
+// Hook that overrides the method DLSS uses to find the preset from the rendering resolution
+// Seems DLSS just checks what the ratio is against display res, then maps certain ratio ranges to specific quality level
+// (eg. if you had UltraPerf set to 0.666, DLSS is hardcoded to treat 0.666 as Quality, so would use the preset assigned to Quality instead)
+// Instead we'll hook that code so we can check against the users customized ratios, and fetch the correct preset for each level
+// 
+// NOTE: this currently only works on 3.1.11 dev/release
+//   some reason earlier versions duplicated the code that picks (and inits?) the preset, across all 5 blocks that check each ratio range
+//   making it a lot harder for us to be able to hook it and change the preset (since we'd also have to copy the code that inits it all too..)
+//   for now I'm fine leaving this as a 3.1.11+ only hook
+SafetyHookMid CreateDlssInstance_PresetSelection_Hook;
+uint8_t CreateDlssInstance_PresetSelection_Register = 0x83; // register used to access DLSS struct in this func, unfortunately changes between dev/release
+void CreateDlssInstance_PresetSelection(SafetyHookContext& ctx)
+{
+	uint8_t* dlssStruct = 0;
+	if (CreateDlssInstance_PresetSelection_Register == 0x83) // 0x83 = rbx
+		dlssStruct = (uint8_t*)ctx.rbx;
+	else if (CreateDlssInstance_PresetSelection_Register == 0x86) // 0x86 = rsi
+		dlssStruct = (uint8_t*)ctx.rsi;
+
+	if (!dlssStruct)
+		return;
+
+	// Code that we overwrote (TODO: does safetyhook midhook even require this?)
+	*(uint32_t*)(dlssStruct + 0x1F8) = 3;
+
+	if (!settings.overrideQualityLevels)
+		return;
+
+	int dlssWidth = *(int*)(dlssStruct + 0x48);
+	int dlssHeight = *(int*)(dlssStruct + 0x4C);
+	int displayWidth = *(int*)(dlssStruct + 0x60);
+	int displayHeight = *(int*)(dlssStruct + 0x64);
+
+	std::optional<unsigned int> presetValue;
+	presetValue.reset();
+
+	for (auto kvp : qualityLevelResolutionsCurrent)
+	{
+		// Check that both height & width are within 1 pixel of each other either way
+		bool widthIsClose = abs(kvp.second.first - dlssWidth) <= 1;
+		bool heightIsClose = abs(kvp.second.second - dlssHeight) <= 1;
+		if (widthIsClose && heightIsClose)
+		{
+			auto preset = kvp.first;
+
+			if (preset == NVSDK_NGX_PerfQuality_Value_MaxPerf && settings.presetPerformance)
+				presetValue = settings.presetPerformance;
+			else if (preset == NVSDK_NGX_PerfQuality_Value_Balanced && settings.presetBalanced)
+				presetValue = settings.presetBalanced;
+			else if (preset == NVSDK_NGX_PerfQuality_Value_MaxQuality && settings.presetQuality)
+				presetValue = settings.presetQuality;
+			else if (preset == NVSDK_NGX_PerfQuality_Value_UltraPerformance && settings.presetUltraPerformance)
+				presetValue = settings.presetUltraPerformance;
+			else if (preset == NVSDK_NGX_PerfQuality_Value_UltraQuality && settings.presetUltraQuality)
+				presetValue = settings.presetUltraQuality;
+
+			break;
+		}
+	}
+
+	if (!presetValue.has_value())
+	{
+		// No match found for DLSS presets, check whether this could be DLAA
+		if (settings.presetDLAA)
+		{
+			bool widthIsClose = abs(displayWidth - dlssWidth) <= 1;
+			bool heightIsClose = abs(displayHeight - dlssHeight) <= 1;
+			if (widthIsClose && heightIsClose)
+				presetValue = settings.presetDLAA;
+		}
+
+		// If no value override set, return now so DLSS will use whatever it was going to originally
+		if (!presetValue.has_value())
+			return;
+	}
+
+	if (CreateDlssInstance_PresetSelection_Register == 0x83) // release DLL, preset stored in rdx
+		ctx.rdx = *presetValue;
+	else if (CreateDlssInstance_PresetSelection_Register == 0x86) // dev DLL, preset stored in r15
+		ctx.r15 = *presetValue;
+}
+
 SafetyHookMid dlssIndicatorHudHook{};
 bool hook(HMODULE ngx_module)
 {
@@ -163,6 +245,35 @@ bool hook(HMODULE ngx_module)
 				}
 			}
 		}
+	}
+
+	// Hook to override the preset DLSS picks based on ratio, so we can check against users customized ratios/resolutions instead
+	bool presetSelectPatternSuccess = false;
+	auto presetSelectPattern = hook::pattern((void*)ngx_module, "1C C7 ? F8 01 00 00 03 00 00 00");
+	if (presetSelectPattern.size())
+	{
+		uint8_t* match = presetSelectPattern.count(1).get_first<uint8_t>(1);
+		CreateDlssInstance_PresetSelection_Register = match[1];
+
+		// TODO: better way of handling CreateDlssInstance_PresetSelection_Register
+
+		if (CreateDlssInstance_PresetSelection_Register != 0x83 && CreateDlssInstance_PresetSelection_Register != 0x86)
+		{
+			spdlog::error("nvngx_dlss: DLSS preset selection hook failed (unknown register 0x{:X})", CreateDlssInstance_PresetSelection_Register);
+		}
+		else
+		{
+			CreateDlssInstance_PresetSelection_Hook = safetyhook::create_mid(match, CreateDlssInstance_PresetSelection);
+
+			spdlog::info("nvngx_dlss: applied DLSS resolution-to-preset selection hook");
+
+			presetSelectPatternSuccess = true;
+		}
+	}
+	
+	if (!presetSelectPatternSuccess)
+	{
+		spdlog::warn("nvngx_dlss: failed to hook DLSS3.1.11+ preset selection code, presets may act strange when used with customized DLSSQualityLevels - recommend updating to DLSS 3.1.11+!");
 	}
 
 	// OverrideDlssHud hooks
