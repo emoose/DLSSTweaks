@@ -1,17 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
+using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace DLSSTweaks.ConfigTool
 {
     public static class Utility
     {
+        public static string GetNewTempFolder()
+        {
+            string tempFolder = null;
+            try
+            {
+                tempFolder = Path.GetTempFileName();
+                if (File.Exists(tempFolder))
+                    File.Delete(tempFolder);
+                if (!Directory.Exists(tempFolder))
+                    Directory.CreateDirectory(tempFolder);
+                if (Directory.Exists(tempFolder))
+                    return tempFolder;
+            }
+            catch { }
+            return null;
+        }
         public static string FirstCharToUpper(this string input)
         {
             switch (input)
@@ -22,6 +36,40 @@ namespace DLSSTweaks.ConfigTool
             }
         }
 
+        public static T BytesToStruct<T>(byte[] bytes)
+        {
+            // Pin the managed memory while, copy it out the data, then unpin it
+            var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            var theStructure = (T)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(T));
+            handle.Free();
+
+            return theStructure;
+        }
+
+        public static T ReadStruct<T>(this BinaryReader reader)
+        {
+            var size = Marshal.SizeOf(typeof(T));
+            // Read in a byte array
+            var bytes = reader.ReadBytes(size);
+
+            return BytesToStruct<T>(bytes);
+        }
+
+        public static string ReadNullTerminatedString(this BinaryReader reader)
+        {
+            var bytes = new List<byte>();
+            while (true)
+            {
+                var b = reader.ReadByte();
+                if (b == 0)
+                {
+                    break;
+                }
+                bytes.Add(b);
+            }
+            return System.Text.Encoding.ASCII.GetString(bytes.ToArray());
+        }
+
         public static DialogResult InputBox(string title, string promptText, ref string value)
         {
             Form form = new Form();
@@ -29,8 +77,10 @@ namespace DLSSTweaks.ConfigTool
             TextBox textBox = new TextBox();
             Button buttonOk = new Button();
             Button buttonCancel = new Button();
+            Panel panel = new Panel();
 
             form.Text = title;
+            form.BackColor = SystemColors.Window;
             label.Text = promptText;
             textBox.Text = value;
 
@@ -39,23 +89,53 @@ namespace DLSSTweaks.ConfigTool
             buttonOk.DialogResult = DialogResult.OK;
             buttonCancel.DialogResult = DialogResult.Cancel;
 
-            label.SetBounds(9, 20, 372, 13);
-            textBox.SetBounds(12, 36, 372, 20);
-            buttonOk.SetBounds(228, 72, 75, 23);
-            buttonCancel.SetBounds(309, 72, 75, 23);
-
             label.AutoSize = true;
-            textBox.Anchor = textBox.Anchor | AnchorStyles.Right;
-            buttonOk.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            buttonCancel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            label.SetBounds(9, 20, 372, label.Height);
 
-            form.ClientSize = new Size(396, 107);
-            form.Controls.AddRange(new Control[] { label, textBox, buttonOk, buttonCancel });
+            panel.SetBounds(9, label.Bottom + 10, 372, 90);
+            panel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right | AnchorStyles.Left;
+            panel.BackColor = SystemColors.ButtonFace;
+
+            textBox.Anchor = AnchorStyles.Left | AnchorStyles.Bottom | AnchorStyles.Right;
+            textBox.SetBounds(16, 16, 340, 20);
+            textBox.BorderStyle = BorderStyle.FixedSingle;
+
+            buttonOk.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            buttonOk.SetBounds(panel.Width - 132, 48, 100, 33);
+            buttonOk.BackColor = SystemColors.ControlLightLight;
+            buttonOk.FlatStyle = FlatStyle.System;
+
+            buttonCancel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            buttonCancel.SetBounds(panel.Width - 244, 48, 100, 33);
+            buttonCancel.BackColor = SystemColors.ControlLightLight;
+            buttonCancel.FlatStyle = FlatStyle.System;
+
+            panel.Controls.Add(textBox);
+            panel.Controls.Add(buttonOk);
+            panel.Controls.Add(buttonCancel);
+
+            form.ClientSize = new Size(396, panel.Bottom);
+            form.Controls.Add(label);
+            form.Controls.Add(panel);
+
+            form.SuspendLayout();
+
             form.ClientSize = new Size(Math.Max(300, label.Right + 10), form.ClientSize.Height);
+
+            panel.SetBounds(0, label.Bottom + 10, form.ClientSize.Width, 90);
+            form.ClientSize = new Size(form.ClientSize.Width, panel.Bottom);
+            form.MinimumSize = form.Size;
+
+            form.ResumeLayout(false);
+
+            form.AutoScaleMode = AutoScaleMode.None;
+            form.BackColor = SystemColors.Window;
             form.FormBorderStyle = FormBorderStyle.FixedDialog;
             form.StartPosition = FormStartPosition.CenterScreen;
             form.MinimizeBox = false;
             form.MaximizeBox = false;
+            form.AcceptButton = buttonOk;
+            form.CancelButton = buttonCancel;
             form.AcceptButton = buttonOk;
             form.CancelButton = buttonCancel;
 
@@ -64,6 +144,7 @@ namespace DLSSTweaks.ConfigTool
             return dialogResult;
         }
     }
+
     // Quick and dirty INI parser that preserves comments
     public class HackyIniParser
     {

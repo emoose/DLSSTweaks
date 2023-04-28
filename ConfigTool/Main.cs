@@ -32,21 +32,24 @@ namespace DLSSTweaks.ConfigTool
         static string HoverLoadText = "Reload the DLSSTweaks.ini from the same folder as ConfigTool.";
         static string HoverSaveText = "Writes out the changed settings to DLSSTweaks.ini.";
         static string HoverAddDLLOverrideText = "DLL override: allows overriding the path that a game will load a DLL from, simply pick the new DLL you wish to override with.\r\n\r\nThis can be useful if you're prevented from editing the game files for some reason.\r\n\r\neg. with Rockstar Game Launcher, you can't easily update nvngx_dlss.dll without RGL reverting it, but by using this you can make the game load DLSS from a completely different path which RGL can't override.";
-        static string HoverInstallDllText = "Allows copying this DLSSTweaks config & DLL to a chosen folder.\r\n\r\nCan be used to both install freshly extracted DLSSTweaks into a game, and also to copy existing config + DLL across to other titles.";
+        static string HoverInstallDllText = "Allows copying this DLSSTweaks config & DLL into a chosen folder.\r\n\r\nCan be used to either install freshly extracted DLSSTweaks into a game, or to copy existing config + DLL across to other titles.";
         static string HoverInstallDllTextUnavailable = "DLSSTweaks DLL not found in current folder, install not available.";
 
-        static string HoverNvSigOverrideText = "Toggles the NVIDIA Signature Override registry key.\r\n\r\nWith the override enabled DLSSTweaks can be used in most DLSS2+ games by naming it as nvngx.dll.\r\n\r\n(this override only affects Nvidia related signature checks, not anything Windows related)\r\n\r\nChanging this requires Administrator privileges, a prompt will appear if necessary.";
+        static string HoverNvSigOverrideText = "Allows toggling the NVIDIA Signature Override registry key.\r\n\r\nWith the override enabled DLSSTweaks can be used in most DLSS2+ games by naming it as nvngx.dll.\r\n\r\n(this override only affects Nvidia related signature checks, not anything Windows related)\r\n\r\nChanging this requires Administrator privileges, an elevation prompt will appear if necessary.";
 
         static string DllPathOverrideText = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nRight click on the override for options to rename/delete it.";
 
         static string[] BooleanKeys = new[] { "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId", "EnableNvidiaSigOverride" };
+        
         static string[] OverrideKeys = new[] { "OverrideAutoExposure", "OverrideDlssHud" };
         static string[] OverrideValues = new[] { "Default", "Force disable", "Force enable" }; // 0, -1, 1
 
         string DlssTweaksDll = "";
-        static string[] DlssTweaksDllFilenames = new[] { "nvngx.dll", "xinput1_3.dll", "xinput1_4.dll", "xinput9_1_0.dll", "dxgi.dll", "XAPOFX1_5.dll", "x3daudio1_7.dll", "winmm.dll" };
 
-        List<IniChange> IniChanges = new List<IniChange>();
+        // Supported DLL filenames, in order of least -> most preferred (least preferred = most likely to be used by other wrappers)
+        static string[] DlssTweaksDllFilenames = new[] { "nvngx.dll", "xinput1_3.dll", "xinput1_4.dll", "xinput9_1_0.dll", "dxgi.dll", "xapofx1_5.dll", "x3daudio1_7.dll", "winmm.dll" };
+
+        List<IniChange> IniChanges = new List<IniChange>(); // Changes to apply to INI in next IniWrite, stuff like renamed/removed entries, etc
 
         bool IsChangeUnsaved = false;
 
@@ -517,7 +520,7 @@ namespace DLSSTweaks.ConfigTool
             var filepath = ofd.FileName;
             var filename = Path.GetFileNameWithoutExtension(filepath);
 
-            var result = MessageBox.Show($"Setting DLL override\r\n\r\n{filename} -> {filepath}\r\n\r\nOverride will be added & settings saved, is this OK?", "Confirm", MessageBoxButtons.YesNo);
+            var result = MessageBox.Show($"Setting DLL override\r\n\r\n{filename} -> {filepath}\r\n\r\nOverride will be added & settings saved, is this OK?\r\n\r\n(after adding this you can set the name of the DLL to override by right clicking entry and picking Rename)", "Confirm", MessageBoxButtons.YesNo);
             if (result != DialogResult.Yes)
                 return;
 
@@ -605,28 +608,139 @@ namespace DLSSTweaks.ConfigTool
             if (!dialog.Show(Handle))
                 return;
 
+            // TODO: search for existing installed DLSSTweaks DLL inside the chosen game folder
+            //   if found then skip the EXE import module check below, and only allow user to copy as the existing filename, so it would be overwritten
+            //   (we really don't want multiple copies of it being setup on the same game)
+
+            var gameExe = SearchForGameExe(dialog.FileName);
+
+            var tempFolder = "";
+
+            if (!string.IsNullOrEmpty(gameExe))
+            {
+                string[] importedModules = new string[0];
+
+                try
+                {
+                    // Found a game EXE, try checking the imports of it
+                    using (var peStream = new FileStream(gameExe, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (var reader = new BinaryReader(peStream))
+                    {
+                        var modulePe = new QuickPEReader();
+                        if (modulePe.Read(reader))
+                        {
+                            importedModules = modulePe.ReadImportedModules(reader);
+                            if (importedModules == null)
+                                importedModules = new string[0];
+                        }
+                    }
+                }
+                catch
+                {
+                }
+
+                if (importedModules.Length > 0)
+                {
+                    var availableNames = "";
+                    var preferredDllName = "nvngx.dll";
+                    foreach (var module in DlssTweaksDllFilenames)
+                    {
+                        foreach (var importedModule in importedModules)
+                        {
+                            var importedModLower = importedModule.ToLower();
+                            if (importedModLower == module.ToLower())
+                            {
+                                availableNames += ", " + importedModLower;
+                                preferredDllName = importedModLower;
+                            }
+                        }
+                    }
+
+                    // If they have the NV sig override set we'll use nvngx.dll as preferred filename
+                    if (NvSigOverride.IsOverride())
+                        preferredDllName = "nvngx.dll";
+
+                    if (Utility.InputBox("Enter a DLL wrapper filename",
+                        $"The game executable \"{Path.GetFileName(gameExe)}\" supports multiple DLSSTweaks DLL filenames.\n\n" +
+                        $"Please enter the filename you want to use:\r\n  nvngx.dll{availableNames}", ref preferredDllName)
+                        != DialogResult.OK)
+                    {
+                        return;
+                    }
+
+                    // Copy the DLL into a temp folder using the users specified filename
+                    // so that the win32 copy later on can also copy it & handle any existing file issues etc for us
+                    tempFolder = Utility.GetNewTempFolder();
+                    if (!string.IsNullOrEmpty(tempFolder))
+                    {
+                        var tempFileName = Path.Combine(tempFolder, preferredDllName);
+                        File.Copy(DlssTweaksDll, tempFileName, true);
+                        if (File.Exists(tempFileName))
+                            filesToCopy[0] = tempFileName;
+                    }
+                }
+            }
+
             var infoText = "";
             foreach (var file in filesToCopy)
             {
-                var dest = Path.Combine(dialog.FileName, file);
-                infoText += $"{file} -> {dest}\r\n\r\n";
+                var fileName = Path.GetFileName(file);
+                var dest = Path.Combine(dialog.FileName, fileName);
+                infoText += $"{fileName} -> {dest}\r\n\r\n";
             }
 
-            result = MessageBox.Show($"Copying DLSSTweaks files\r\n\r\n{infoText}Is this OK?", "Confirm", MessageBoxButtons.YesNo);
+            result = MessageBox.Show($"Copying the following DLSSTweaks files:\r\n\r\n{infoText}Is this OK?", "Confirm", MessageBoxButtons.YesNo);
             if (result != DialogResult.Yes)
+            {
+                if (!string.IsNullOrEmpty(tempFolder))
+                {
+                    try
+                    {
+                        Directory.Delete(tempFolder, true);
+                        tempFolder = null;
+                    }
+                    catch { }
+                }
                 return;
+            }
 
             try
             {
                 FileOperations.CopyFiles(filesToCopy, dialog.FileName);
+
+                // Wait a sec for the little copy animation
+                System.Threading.Thread.Sleep(1000);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Install failed, exception {ex.Message} during file copy...");
+                if (!string.IsNullOrEmpty(tempFolder))
+                {
+                    try
+                    {
+                        Directory.Delete(tempFolder, true);
+                        tempFolder = null;
+                    }
+                    catch { }
+                }
                 return;
             }
 
-            result = MessageBox.Show("Files copied to game folder, note that the DLL may need to be renamed for game to load it.\r\n\r\nDo you want to configure this install?", "Confirm", MessageBoxButtons.YesNo);
+            var renameNote = ", note that the DLL may need to be renamed for game to load it";
+
+            if (!string.IsNullOrEmpty(tempFolder))
+            {
+                renameNote = "";
+
+                try
+                {
+                    Directory.Delete(tempFolder, true);
+                    tempFolder = null;
+                }
+                catch { }
+            }
+
+            result = MessageBox.Show($"Files copied to game folder{renameNote}.\r\n\r\nDo you want to close down this ConfigTool & configure the new install?", "Confirm", MessageBoxButtons.YesNo);
             if (result != DialogResult.Yes)
                 return;
 
