@@ -8,6 +8,44 @@ using System.Windows.Forms;
 
 namespace DLSSTweaks.ConfigTool
 {
+    public class TempFolder : IDisposable
+    {
+        private string tempFolder;
+        public bool IsSet => string.IsNullOrEmpty(tempFolder) == false;
+
+        public TempFolder()
+        {
+            tempFolder = string.Empty;
+        }
+
+        public void New()
+        {
+            tempFolder = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            int tries = 1;
+            var baseFolder = tempFolder;
+            while (Directory.Exists(tempFolder) && tries < 3)
+            {
+                tempFolder = $"{baseFolder}_{tries}";
+                tries++;
+            }
+            if (tries >= 3)
+                throw new Exception("Failed to create temporary folder");
+
+            Directory.CreateDirectory(tempFolder);
+        }
+
+        public string GetPath()
+        {
+            return tempFolder;
+        }
+
+        public void Dispose()
+        {
+            if (IsSet)
+                Directory.Delete(tempFolder, true);
+        }
+    }
+
     public static class Utility
     {
         public static string GetNewTempFolder()
@@ -70,7 +108,19 @@ namespace DLSSTweaks.ConfigTool
             return System.Text.Encoding.ASCII.GetString(bytes.ToArray());
         }
 
-        public static DialogResult InputBox(string title, string promptText, ref string value)
+        public static DialogResult MultipleChoice(string prompt, string title, string[] choices, string choiceSeperator, ref string result)
+        {
+            var text = $"{prompt}\r\n  ";
+            for (int i = 0; i < choices.Length; i++)
+            {
+                text += choices[i];
+                if (i < choices.Length - 1)
+                    text += choiceSeperator;
+            }
+            return Utility.InputBox(text, title, ref result);
+        }
+
+        public static DialogResult InputBox(string prompt, string title, ref string value)
         {
             Form form = new Form();
             Label label = new Label();
@@ -81,7 +131,7 @@ namespace DLSSTweaks.ConfigTool
 
             form.Text = title;
             form.BackColor = SystemColors.Window;
-            label.Text = promptText;
+            label.Text = prompt;
             textBox.Text = value;
 
             buttonOk.Text = "OK";

@@ -53,29 +53,118 @@ namespace DLSSTweaks.ConfigTool
 
         bool IsChangeUnsaved = false;
 
-        bool CheckDlssTweaksDllAvailable()
+        string[] SearchDlssTweaksDlls(string path)
         {
-            DlssTweaksDll = string.Empty;
+            var dlls = new List<string>();
             foreach (var filename in DlssTweaksDllFilenames)
             {
                 try
                 {
-                    if (!File.Exists(filename))
+                    var filepath = Path.Combine(path, filename);
+                    if (!File.Exists(filepath))
                         continue;
 
-                    FileVersionInfo fileInfo = FileVersionInfo.GetVersionInfo(filename);
+                    FileVersionInfo fileInfo = FileVersionInfo.GetVersionInfo(filepath);
                     if (fileInfo.ProductName != "DLSSTweaks")
                         continue;
 
-                    DlssTweaksDll = filename;
-                    return true;
+                    dlls.Add(filepath);
                 }
                 catch
                 {
                     continue;
                 }
             }
-            return false;
+            return dlls.ToArray();
+        }
+
+        string SearchForGameExe(string path)
+        {
+            // Return largest EXE we find in the specified folder, most likely to be the game EXE
+            // TODO: search subdirectories too and recommend user change folder if larger EXE was found?
+            FileInfo largest = null;
+            foreach (var file in Directory.GetFiles(path, "*.exe"))
+            {
+                if (Path.GetFileName(file).ToLower().Contains("dlsstweak"))
+                    continue;
+
+                var info = new FileInfo(file);
+                if (largest == null || info.Length > largest.Length)
+                    largest = info;
+            }
+            if (largest == null)
+                return null;
+
+            return largest.FullName;
+        }
+
+        string RunDlssTweaksDllCleanup(string prompt, string[] dllsToCleanup, string dllBasePath)
+        {
+            var choices = new List<string>();
+            var keepFileName = "";
+            foreach (var dll in dllsToCleanup)
+            {
+                var dllFilename = Path.GetFileName(dll);
+                var fileVersion = "";
+                try
+                {
+                    var fileVersionInfo = FileVersionInfo.GetVersionInfo(dll);
+                    fileVersion = $" (v{fileVersionInfo.FileVersion})";
+                }
+                catch { }
+                choices.Add(dllFilename + fileVersion);
+                keepFileName = dllFilename; // use last DLL as the default keeper
+            }
+
+            // User has multiple DLSSTweaks DLLs in the current folder, le sigh
+            var result = Utility.MultipleChoice(prompt + "\r\n" +
+                "To let ConfigTool clear these DLLs, enter the filename of the DLL you wish to keep.\r\n" +
+                "The rest will then be removed, alternatively press Cancel to ignore this.\r\n\r\n" +
+                "Detected DLLs:", "Multiple DLSSTweaks DLLs!", choices.ToArray(), "\r\n  ", ref keepFileName);
+            if (result != DialogResult.OK || string.IsNullOrEmpty(keepFileName))
+                return null;
+
+            var keepFilePath = Path.Combine(dllBasePath, keepFileName);
+
+            if (!File.Exists(keepFilePath))
+            {
+                MessageBox.Show($"File {keepFileName} not found, aborting cleanup.", "File cleanup failed");
+                return null;
+            }
+
+            var filesToDelete = new List<string>();
+            foreach (var dll in dllsToCleanup)
+                if (!string.Equals(Path.GetFileName(dll), keepFileName, StringComparison.OrdinalIgnoreCase))
+                    filesToDelete.Add(dll);
+
+            if (MessageBox.Show("The following files will be deleted:\n\n" +
+                string.Join("\n", filesToDelete) + "\n\n" +
+                "The following file will be kept:\n\n" +
+                keepFilePath + "\n\n" +
+                "Is this OK?", "Confirm File Deletion", MessageBoxButtons.OKCancel) != DialogResult.OK)
+            {
+                if (File.Exists(keepFilePath))
+                    return keepFileName;
+
+                return null;
+            }
+
+            foreach (var dll in filesToDelete)
+            {
+                if (!string.Equals(Path.GetFileName(dll), keepFileName, StringComparison.OrdinalIgnoreCase))
+                    try
+                    {
+                        File.Delete(dll);
+                    }
+                    catch
+                    {
+                    }
+            }
+
+            if (File.Exists(keepFilePath))
+                return keepFileName;
+
+            return null;
         }
 
         public void IniRead()
@@ -102,7 +191,10 @@ namespace DLSSTweaks.ConfigTool
                 return;
             }
 
-            this.Text = $"{DefaultFormTitle} - {IniFilename}";
+            var formTitle = $"{DefaultFormTitle} - {IniFilename}";
+            if (!string.IsNullOrEmpty(DlssTweaksDll))
+                formTitle += $" ({DlssTweaksDll})";
+            this.Text = formTitle;
 
             var userIni = new HackyIniParser();
             userIni.Parse(lines);
@@ -368,7 +460,18 @@ namespace DLSSTweaks.ConfigTool
             addDLLOverrideToolStripMenuItem.ToolTipText = HoverAddDLLOverrideText;
             installToGameFolderToolStripMenuItem.ToolTipText = HoverInstallDllText;
 
-            if (!CheckDlssTweaksDllAvailable())
+            var dlssTweaksDlls = SearchDlssTweaksDlls("");
+            DlssTweaksDll = null;
+
+            if (dlssTweaksDlls.Length == 1)
+                DlssTweaksDll = dlssTweaksDlls[0];
+            else if (dlssTweaksDlls.Length > 1)
+            {
+                DlssTweaksDll = RunDlssTweaksDllCleanup(
+                        "Multiple DLSSTweaks DLLs have been detected in the ConfigTool directory, this is likely to result in unstability.", dlssTweaksDlls, "");
+            }
+
+            if (string.IsNullOrEmpty(DlssTweaksDll))
             {
                 installToGameFolderToolStripMenuItem.Enabled = false;
                 installToGameFolderToolStripMenuItem.ToolTipText = HoverInstallDllTextUnavailable;
@@ -386,7 +489,7 @@ namespace DLSSTweaks.ConfigTool
             {
                 // We have a game EXE in this folder
                 // If user is setting up DLSSTweaks as nvngx.dll, check whether registry override is active, and alert them if not
-                if (CheckDlssTweaksDllAvailable() && Path.GetFileName(DlssTweaksDll).ToLower() == "nvngx.dll")
+                if (!string.IsNullOrEmpty(DlssTweaksDll) && Path.GetFileName(DlssTweaksDll).ToLower() == "nvngx.dll")
                 {
                     if (!NvSigOverride.IsOverride())
                     {
@@ -483,7 +586,7 @@ namespace DLSSTweaks.ConfigTool
             var item = lvSettings.SelectedItems[0];
 
             string value = item.Text;
-            var result = Utility.InputBox("Setting name", "Enter new name for setting", ref value);
+            var result = Utility.InputBox("Enter new name for setting", "Setting name", ref value);
             if (result != DialogResult.OK || value == item.Text)
                 return;
 
@@ -546,35 +649,15 @@ namespace DLSSTweaks.ConfigTool
 
         private void installToGameFolderToolStripMenuItem_MouseHover(object sender, EventArgs e)
         {
-            if (CheckDlssTweaksDllAvailable())
+            if (!string.IsNullOrEmpty(DlssTweaksDll))
                 txtDesc.Text = HoverInstallDllText;
             else
                 txtDesc.Text = HoverInstallDllTextUnavailable;
         }
 
-        private string SearchForGameExe(string path)
-        {
-            // Return largest EXE we find in the specified folder, most likely to be the game EXE
-            // TODO: search subdirectories too and recommend user change folder if larger EXE was found?
-            FileInfo largest = null;
-            foreach (var file in Directory.GetFiles(path, "*.exe"))
-            {
-                if (Path.GetFileName(file).ToLower().Contains("dlsstweak"))
-                    continue;
-
-                var info = new FileInfo(file);
-                if (largest == null || info.Length > largest.Length)
-                    largest = info;
-            }
-            if (largest == null)
-                return null;
-
-            return largest.FullName;
-        }
-
         private void installToGameFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (!CheckDlssTweaksDllAvailable())
+            if (string.IsNullOrEmpty(DlssTweaksDll))
                 MessageBox.Show("Failed to locate DLSSTweaks DLL, install aborted.");
 
             DialogResult result = DialogResult.No;
@@ -587,13 +670,13 @@ namespace DLSSTweaks.ConfigTool
 
             var configToolName = Path.GetFileName(Process.GetCurrentProcess().MainModule.FileName);
 
-            var filesToCopy = new [] { 
-                DlssTweaksDll, 
+            var filesToCopy = new[] {
+                DlssTweaksDll,
                 "dlsstweaks.ini",
                 configToolName
             };
 
-            foreach(var file in filesToCopy)
+            foreach (var file in filesToCopy)
             {
                 if (!File.Exists(file))
                 {
@@ -608,141 +691,122 @@ namespace DLSSTweaks.ConfigTool
             if (!dialog.Show(Handle))
                 return;
 
-            // TODO: search for existing installed DLSSTweaks DLL inside the chosen game folder
-            //   if found then skip the EXE import module check below, and only allow user to copy as the existing filename, so it would be overwritten
-            //   (we really don't want multiple copies of it being setup on the same game)
+            var preferredDllName = "";
+            bool isReplacingDll = false;
 
-            var gameExe = SearchForGameExe(dialog.FileName);
-
-            var tempFolder = "";
-
-            if (!string.IsNullOrEmpty(gameExe))
+            // If we have an existing DLSSTweaks DLL in the dest folder, we'll replace that instead of prompting user for filename to use
+            var existingDlls = SearchDlssTweaksDlls(dialog.FileName);
+            if (existingDlls.Length > 0)
             {
-                string[] importedModules = new string[0];
+                preferredDllName =
+                    RunDlssTweaksDllCleanup("Multiple DLSSTweaks DLLs have been detected in the target directory, this is likely to result in unstability.", existingDlls, dialog.FileName);
+            }
+            else
+            {
+                var gameExe = SearchForGameExe(dialog.FileName);
+                if (!string.IsNullOrEmpty(gameExe))
+                {
+                    string[] importedModules = new string[0];
 
-                try
-                {
-                    // Found a game EXE, try checking the imports of it
-                    using (var peStream = new FileStream(gameExe, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    using (var reader = new BinaryReader(peStream))
+                    try
                     {
-                        var modulePe = new QuickPEReader();
-                        if (modulePe.Read(reader))
+                        // Found a game EXE, try checking the imports of it
+                        using (var peStream = new FileStream(gameExe, FileMode.Open, FileAccess.Read, FileShare.Read))
+                        using (var reader = new BinaryReader(peStream))
                         {
-                            importedModules = modulePe.ReadImportedModules(reader);
-                            if (importedModules == null)
-                                importedModules = new string[0];
-                        }
-                    }
-                }
-                catch
-                {
-                }
-
-                if (importedModules.Length > 0)
-                {
-                    var availableNames = "";
-                    var preferredDllName = "nvngx.dll";
-                    foreach (var module in DlssTweaksDllFilenames)
-                    {
-                        foreach (var importedModule in importedModules)
-                        {
-                            var importedModLower = importedModule.ToLower();
-                            if (importedModLower == module.ToLower())
+                            var modulePe = new QuickPEReader();
+                            if (modulePe.Read(reader))
                             {
-                                availableNames += ", " + importedModLower;
-                                preferredDllName = importedModLower;
+                                importedModules = modulePe.ReadImportedModules(reader);
+                                if (importedModules == null)
+                                    importedModules = new string[0];
                             }
                         }
                     }
-
-                    // If they have the NV sig override set we'll use nvngx.dll as preferred filename
-                    if (NvSigOverride.IsOverride())
-                        preferredDllName = "nvngx.dll";
-
-                    if (Utility.InputBox("Enter a DLL wrapper filename",
-                        $"The game executable \"{Path.GetFileName(gameExe)}\" supports multiple DLSSTweaks DLL filenames.\n\n" +
-                        $"Please enter the filename you want to use:\r\n  nvngx.dll{availableNames}", ref preferredDllName)
-                        != DialogResult.OK)
+                    catch
                     {
-                        return;
                     }
 
+                    if (importedModules.Length > 0)
+                    {
+                        var availableNames = "";
+                        preferredDllName = "nvngx.dll";
+                        foreach (var module in DlssTweaksDllFilenames)
+                        {
+                            foreach (var importedModule in importedModules)
+                            {
+                                var importedModLower = importedModule.ToLower();
+                                if (importedModLower == module.ToLower())
+                                {
+                                    availableNames += ", " + importedModLower;
+                                    preferredDllName = importedModLower;
+                                }
+                            }
+                        }
+
+                        // If they have the NV sig override set we'll use nvngx.dll as preferred filename
+                        if (NvSigOverride.IsOverride())
+                            preferredDllName = "nvngx.dll";
+
+                        if (Utility.InputBox($"The game executable \"{Path.GetFileName(gameExe)}\" supports multiple DLSSTweaks DLL filenames.\n\n" +
+                            $"Please enter the filename you want to use:\r\n  nvngx.dll{availableNames}", "Enter a DLL wrapper filename", ref preferredDllName)
+                            != DialogResult.OK)
+                        {
+                            return;
+                        }
+                    }
+                }
+            }
+
+            using (var tempFolder = new TempFolder())
+            {
+                if (!string.IsNullOrEmpty(preferredDllName))
+                {
                     // Copy the DLL into a temp folder using the users specified filename
                     // so that the win32 copy later on can also copy it & handle any existing file issues etc for us
-                    tempFolder = Utility.GetNewTempFolder();
-                    if (!string.IsNullOrEmpty(tempFolder))
-                    {
-                        var tempFileName = Path.Combine(tempFolder, preferredDllName);
-                        File.Copy(DlssTweaksDll, tempFileName, true);
-                        if (File.Exists(tempFileName))
-                            filesToCopy[0] = tempFileName;
-                    }
+                    tempFolder.New();
+
+                    var tempFileName = Path.Combine(tempFolder.GetPath(), preferredDllName);
+                    File.Copy(DlssTweaksDll, tempFileName, true);
+                    if (File.Exists(tempFileName))
+                        filesToCopy[0] = tempFileName;
                 }
-            }
 
-            var infoText = "";
-            foreach (var file in filesToCopy)
-            {
-                var fileName = Path.GetFileName(file);
-                var dest = Path.Combine(dialog.FileName, fileName);
-                infoText += $"{fileName} -> {dest}\r\n\r\n";
-            }
-
-            result = MessageBox.Show($"Copying the following DLSSTweaks files:\r\n\r\n{infoText}Is this OK?", "Confirm", MessageBoxButtons.YesNo);
-            if (result != DialogResult.Yes)
-            {
-                if (!string.IsNullOrEmpty(tempFolder))
+                var infoText = "";
+                foreach (var file in filesToCopy)
                 {
-                    try
-                    {
-                        Directory.Delete(tempFolder, true);
-                        tempFolder = null;
-                    }
-                    catch { }
+                    var fileName = Path.GetFileName(file);
+                    var dest = Path.Combine(dialog.FileName, fileName);
+                    infoText += $"{fileName} -> {dest}\r\n\r\n";
                 }
-                return;
-            }
 
-            try
-            {
-                FileOperations.CopyFiles(filesToCopy, dialog.FileName);
+                var infoTextPost = "";
+                if (isReplacingDll)
+                    infoTextPost = $"\r\n\r\n({preferredDllName} is being replaced with the DLL from the ConfigTool folder)";
 
-                // Wait a sec for the little copy animation
-                System.Threading.Thread.Sleep(1000);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Install failed, exception {ex.Message} during file copy...");
-                if (!string.IsNullOrEmpty(tempFolder))
-                {
-                    try
-                    {
-                        Directory.Delete(tempFolder, true);
-                        tempFolder = null;
-                    }
-                    catch { }
-                }
-                return;
-            }
-
-            var renameNote = ", note that the DLL may need to be renamed for game to load it";
-
-            if (!string.IsNullOrEmpty(tempFolder))
-            {
-                renameNote = "";
+                result = MessageBox.Show($"Copying the following DLSSTweaks files:\r\n\r\n{infoText}Is this OK?{infoTextPost}", "Confirm", MessageBoxButtons.YesNo);
+                if (result != DialogResult.Yes)
+                    return;
 
                 try
                 {
-                    Directory.Delete(tempFolder, true);
-                    tempFolder = null;
-                }
-                catch { }
-            }
+                    FileOperations.CopyFiles(filesToCopy, dialog.FileName);
 
-            result = MessageBox.Show($"Files copied to game folder{renameNote}.\r\n\r\nDo you want to close down this ConfigTool & configure the new install?", "Confirm", MessageBoxButtons.YesNo);
-            if (result != DialogResult.Yes)
-                return;
+                    // Wait a sec for the little copy animation
+                    System.Threading.Thread.Sleep(1000);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Install failed, exception {ex.Message} during file copy...");
+                    return;
+                }
+
+                var renameNote = !tempFolder.IsSet ? ", note that the DLL may need to be renamed for game to load it" : "";
+
+                result = MessageBox.Show($"Files copied to game folder{renameNote}.\r\n\r\nDo you want to close down this ConfigTool & configure the new install?", "Confirm", MessageBoxButtons.YesNo);
+                if (result != DialogResult.Yes)
+                    return;
+            }
 
             var startInfo = new ProcessStartInfo() { WorkingDirectory = dialog.FileName, FileName = Path.Combine(dialog.FileName, configToolName) };
 
@@ -750,7 +814,7 @@ namespace DLSSTweaks.ConfigTool
 
             // Wait up to 3000ms for MainWindowHandle to be set...
             int tries = 3;
-            while(tries >= 0)
+            while (tries >= 0)
             {
                 tries--;
                 if (proc.MainWindowHandle != IntPtr.Zero)
