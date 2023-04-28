@@ -371,6 +371,34 @@ namespace DLSSTweaks.ConfigTool
                 installToGameFolderToolStripMenuItem.ToolTipText = HoverInstallDllTextUnavailable;
             }
 
+            // Alert user if this is being ran with no game EXE in current folder
+            var exePath = SearchForGameExe(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName));
+            if (string.IsNullOrEmpty(exePath))
+            {
+                MessageBox.Show("It appears the DLSSTweaks ConfigTool has been launched outside of a game directory.\n\n" +
+                    "It's recommended to copy DLSSTweaks into a game folder first before configuring it.\n\n" +
+                    "You can let ConfigTool copy the necessary files for you via the \"Copy to game folder...\" command on top right.", "Game EXE not found!");
+            }
+            else
+            {
+                // We have a game EXE in this folder
+                // If user is setting up DLSSTweaks as nvngx.dll, check whether registry override is active, and alert them if not
+                if (CheckDlssTweaksDllAvailable() && Path.GetFileName(DlssTweaksDll).ToLower() == "nvngx.dll")
+                {
+                    if (!NvSigOverride.IsOverride())
+                    {
+                        if (MessageBox.Show("It appears that DLSSTweaks is loading in via the nvngx.dll wrapper method.\n\n" +
+                            "This method requires an Nvidia registry override to be set in order for the DLL to be loaded in.\n\n" +
+                            "This override currently doesn't seem to be active, do you want ConfigTool to apply it for you?\n" +
+                            "(this will require administrator permissions to apply, you will be prompted when continuing.)\n\n" +
+                            "You can also add/remove the override from the tool via the \"EnableNvidiaSigOverride\" setting.", "Registry override not active", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                        {
+                            NvSigOverride.SetOverride(true);
+                        }
+                    }
+                }
+            }
+
             IniRead();
         }
 
@@ -519,6 +547,26 @@ namespace DLSSTweaks.ConfigTool
                 txtDesc.Text = HoverInstallDllText;
             else
                 txtDesc.Text = HoverInstallDllTextUnavailable;
+        }
+
+        private string SearchForGameExe(string path)
+        {
+            // Return largest EXE we find in the specified folder, most likely to be the game EXE
+            // TODO: search subdirectories too and recommend user change folder if larger EXE was found?
+            FileInfo largest = null;
+            foreach (var file in Directory.GetFiles(path, "*.exe"))
+            {
+                if (Path.GetFileName(file).ToLower().Contains("dlsstweak"))
+                    continue;
+
+                var info = new FileInfo(file);
+                if (largest == null || info.Length > largest.Length)
+                    largest = info;
+            }
+            if (largest == null)
+                return null;
+
+            return largest.FullName;
         }
 
         private void installToGameFolderToolStripMenuItem_Click(object sender, EventArgs e)
