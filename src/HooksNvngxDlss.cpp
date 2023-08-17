@@ -79,7 +79,15 @@ uint32_t __fastcall DLSS_GetIndicatorValue(void* thisptr, uint32_t* OutValue)
 // I'd imagine leaving games AppID might help DLSS keep using certain game-specific things, and also probably let any DLSS telemetry be more accurate too
 // @NVIDIA, please consider adding a parameter to tell DLSS to ignore the NV / DRS provided ones instead
 // (or a parameter which lets it always use the game provided NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_XXX param)
-// Don't really enjoy needing to inline hook your code for this, but it's necessary atm...
+SafetyHookInline DlssPresetSetupFunc_3_1_30_Hook;
+uint32_t __fastcall DlssPresetSetupFunc_3_1_30(void* a1, void* a2, void* a3, DlssNvidiaPresetOverrides* nvidiaPresets)
+{
+	nvidiaPresets->zero_customized_values();
+
+	return DlssPresetSetupFunc_3_1_30_Hook.thiscall<uint32_t>(a1, a2, a3, nvidiaPresets);
+}
+
+// Don't really like needing to inline hook NV's code for this, but it's necessary atm...
 SafetyHookMid DlssPresetOverrideFunc_LaterVersion_Hook;
 int8_t DlssPresetOverrideFunc_MovOffset1 = -0x38;
 int8_t DlssPresetOverrideFunc_MovOffset2 = -0x3C;
@@ -126,27 +134,42 @@ void DlssPresetOverrideFunc_Version3_1_1(SafetyHookContext& ctx)
 //   for now I'm fine leaving this as a 3.1.11+ only hook
 SafetyHookMid CreateDlssInstance_PresetSelection_Hook;
 uint8_t CreateDlssInstance_PresetSelection_Register = 0x83; // register used to access DLSS struct in this func, unfortunately changes between dev/release
+uint32_t CreateDlssInstance_PresetSelection_OrigInsnOffset = 0x1F8;
+
 void CreateDlssInstance_PresetSelection(SafetyHookContext& ctx)
 {
 	uint8_t* dlssStruct = 0;
+	struct
+	{
+		uint32_t RenderResolution = 0x48;
+		uint32_t DisplayResolution = 0x60;
+	} offsets;
+
 	if (CreateDlssInstance_PresetSelection_Register == 0x83) // 0x83 = rbx
 		dlssStruct = (uint8_t*)ctx.rbx;
 	else if (CreateDlssInstance_PresetSelection_Register == 0x86) // 0x86 = rsi
 		dlssStruct = (uint8_t*)ctx.rsi;
+	else if (CreateDlssInstance_PresetSelection_Register == 0x87) // 0x87 = rdi
+	{
+		// 3.1.30, offsets of resolutions were changed by 8 bytes, darn...
+		dlssStruct = (uint8_t*)ctx.rdi;
+		offsets.RenderResolution = 0x50;
+		offsets.DisplayResolution = 0x68;
+	}
 
 	if (!dlssStruct)
 		return;
 
 	// Code that we overwrote (TODO: does safetyhook midhook even require this?)
-	*(uint32_t*)(dlssStruct + 0x1F8) = 3;
+	*(uint32_t*)(dlssStruct + CreateDlssInstance_PresetSelection_OrigInsnOffset) = 3;
 
 	if (!settings.overrideQualityLevels)
 		return;
 
-	int dlssWidth = *(int*)(dlssStruct + 0x48);
-	int dlssHeight = *(int*)(dlssStruct + 0x4C);
-	int displayWidth = *(int*)(dlssStruct + 0x60);
-	int displayHeight = *(int*)(dlssStruct + 0x64);
+	int dlssWidth = *(int*)(dlssStruct + offsets.RenderResolution);
+	int dlssHeight = *(int*)(dlssStruct + offsets.RenderResolution + 4);
+	int displayWidth = *(int*)(dlssStruct + offsets.DisplayResolution);
+	int displayHeight = *(int*)(dlssStruct + offsets.DisplayResolution + 4);
 
 	std::optional<unsigned int> presetValue;
 	presetValue.reset();
@@ -195,6 +218,8 @@ void CreateDlssInstance_PresetSelection(SafetyHookContext& ctx)
 		ctx.rdx = *presetValue;
 	else if (CreateDlssInstance_PresetSelection_Register == 0x86) // dev DLL, preset stored in r15
 		ctx.r15 = *presetValue;
+	else if (CreateDlssInstance_PresetSelection_Register == 0x87) // 3.1.30, preset stored in rdx
+		ctx.rdx = *presetValue;
 }
 
 SafetyHookMid dlssIndicatorHudHook{};
@@ -218,30 +243,44 @@ bool hook(HMODULE ngx_module)
 		}
 		else
 		{
-			// Couldn't find the preset override func, seems it might be inlined inside earlier DLLs...
-			// Search for & hook the inlined code instead
-			// (unfortunately registers changed between 3.1.1 & 3.1.2, and probably the ones between 3.1.2 and 3.1.11 too, ugh)
-			pattern = hook::pattern((void*)ngx_module, "89 4D ? 8B 08 89 ? 1C 48 8B ?");
-			if (!pattern.size())
-				spdlog::warn("nvngx_dlss: failed to apply DLSS preset override hooks, recommend enabling OverrideAppId instead");
+			// 3.1.30 hook
+			pattern = hook::pattern((void*)ngx_module, "49 8B CA 48 8D 15 ? ? ? ? 49 8B F9");
+			if (pattern.size())
+			{
+				uint8_t* func_3_1_30 = pattern.get(0).get<uint8_t>(-0x23);
+				uint8_t func_known_start[] = { 0x48, 0x89, 0x5C, 0x24 };
+				if (!memcmp(func_3_1_30, func_known_start, 4))
+				{
+					DlssPresetSetupFunc_3_1_30_Hook = safetyhook::create_inline(func_3_1_30, DlssPresetSetupFunc_3_1_30);
+				}
+			}
 			else
 			{
-				uint8_t* match = pattern.count(1).get_first<uint8_t>();
-				uint8_t* midhookAddress = match + 5;
-				uint8_t destReg = match[6];
-				if (destReg == 0x4B) // rbx, 3.1.2
-				{
-					DlssPresetOverrideFunc_EarlyVersion_Hook = safetyhook::create_mid(midhookAddress, DlssPresetOverrideFunc_Version3_1_2);
-					spdlog::info("nvngx_dlss: applied DLSS preset override hook (v3.1.2)");
-				}
-				else if (destReg == 0x4F) // rdi, 3.1.1
-				{
-					DlssPresetOverrideFunc_EarlyVersion_Hook = safetyhook::create_mid(midhookAddress, DlssPresetOverrideFunc_Version3_1_1);
-					spdlog::info("nvngx_dlss: applied DLSS preset override hook (v3.1.1)");
-				}
+				// Couldn't find the preset override func, seems it might be inlined inside earlier DLLs...
+				// Search for & hook the inlined code instead
+				// (unfortunately registers changed between 3.1.1 & 3.1.2, and probably the ones between 3.1.2 and 3.1.11 too, ugh)
+				pattern = hook::pattern((void*)ngx_module, "89 4D ? 8B 08 89 ? 1C 48 8B ?");
+				if (!pattern.size())
+					spdlog::warn("nvngx_dlss: failed to apply DLSS preset override hooks, recommend enabling OverrideAppId instead");
 				else
 				{
-					spdlog::warn("nvngx_dlss: failed to find DLSS preset override code, recommend enabling OverrideAppId instead");
+					uint8_t* match = pattern.count(1).get_first<uint8_t>();
+					uint8_t* midhookAddress = match + 5;
+					uint8_t destReg = match[6];
+					if (destReg == 0x4B) // rbx, 3.1.2
+					{
+						DlssPresetOverrideFunc_EarlyVersion_Hook = safetyhook::create_mid(midhookAddress, DlssPresetOverrideFunc_Version3_1_2);
+						spdlog::info("nvngx_dlss: applied DLSS preset override hook (v3.1.2)");
+					}
+					else if (destReg == 0x4F) // rdi, 3.1.1
+					{
+						DlssPresetOverrideFunc_EarlyVersion_Hook = safetyhook::create_mid(midhookAddress, DlssPresetOverrideFunc_Version3_1_1);
+						spdlog::info("nvngx_dlss: applied DLSS preset override hook (v3.1.1)");
+					}
+					else
+					{
+						spdlog::warn("nvngx_dlss: failed to find DLSS preset override code, recommend enabling OverrideAppId instead");
+					}
 				}
 			}
 		}
@@ -249,15 +288,18 @@ bool hook(HMODULE ngx_module)
 
 	// Hook to override the preset DLSS picks based on ratio, so we can check against users customized ratios/resolutions instead
 	bool presetSelectPatternSuccess = false;
-	auto presetSelectPattern = hook::pattern((void*)ngx_module, "1C C7 ? F8 01 00 00 03 00 00 00");
+	auto presetSelectPattern = hook::pattern((void*)ngx_module, "8B ? ? C7 ? ? ? 00 00 03 00 00 00");
 	if (presetSelectPattern.size())
 	{
-		uint8_t* match = presetSelectPattern.count(1).get_first<uint8_t>(1);
+		uint8_t* match = presetSelectPattern.count(1).get_first<uint8_t>(3);
 		CreateDlssInstance_PresetSelection_Register = match[1];
+		CreateDlssInstance_PresetSelection_OrigInsnOffset = *(uint32_t*)&match[2];
 
 		// TODO: better way of handling CreateDlssInstance_PresetSelection_Register
 
-		if (CreateDlssInstance_PresetSelection_Register != 0x83 && CreateDlssInstance_PresetSelection_Register != 0x86)
+		if (CreateDlssInstance_PresetSelection_Register != 0x83 && 
+			CreateDlssInstance_PresetSelection_Register != 0x86 && 
+			CreateDlssInstance_PresetSelection_Register != 0x87)
 		{
 			spdlog::error("nvngx_dlss: DLSS preset selection hook failed (unknown register 0x{:X})", CreateDlssInstance_PresetSelection_Register);
 		}
@@ -273,7 +315,7 @@ bool hook(HMODULE ngx_module)
 	
 	if (!presetSelectPatternSuccess)
 	{
-		spdlog::warn("nvngx_dlss: failed to hook DLSS3.1.11+ preset selection code, presets may act strange when used with customized DLSSQualityLevels - recommend updating to DLSS 3.1.11+!");
+		spdlog::warn("nvngx_dlss: failed to hook DLSS3.1.11+ preset selection code, presets may act strange when used with customized DLSSQualityLevels - recommend using DLSS 3.1.11 / 3.1.30!");
 	}
 
 	// OverrideDlssHud hooks
