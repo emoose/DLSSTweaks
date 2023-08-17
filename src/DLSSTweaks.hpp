@@ -62,6 +62,7 @@ struct UserSettings
 	unsigned int presetUltraQuality = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 
 	int resolutionOffset = 0; // user-defined offset to apply to DLAA / full-res rendering (some titles don't like DLAA rendering at full res, so small offset is needed)
+	bool overrideDynamicResolution = true;
 	bool disableIniMonitoring = false;
 
 	bool read(const std::filesystem::path& iniPath);
