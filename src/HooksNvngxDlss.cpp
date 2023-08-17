@@ -420,7 +420,7 @@ void settings_changed()
 
 	// Search for DLSSG watermark text and null it if found
 	auto pattern = hook::pattern((void*)module_handle,
-		"56 49 44 49 41 20 43 4F 4E 46 49 44 45 4E 54 49 41 4C 20 2D 20 50 52 4F 56 49 44 45 44 20 55 4E 44 45 52 20 4E 44 41");
+		"56 49 44 49 41 20 43 4F 4E 46 49 44 45 4E 54 49 41 4C 20 2D 20");
 
 	int count = pattern.size();
 	if (!count)
