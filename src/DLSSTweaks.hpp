@@ -9,6 +9,12 @@
 // Not included in DLSS SDK, but is mentioned inside & seems to be checked by the DLSS 3.1 DLLs
 // (unfortunately not every version checks it though...)
 #define NVSDK_NGX_Parameter_Disable_Watermark "Disable.Watermark"
+typedef enum NVSDK_NGX_DLSS_Hint_Render_Preset_Ext
+{
+	// Preset G isn't exposed in public SDK but seems to be mentioned in docs & DLL itself
+	// (add _Ext to end so we don't conflict once SDK adds it...)
+	NVSDK_NGX_DLSS_Hint_Render_Preset_G_Ext = NVSDK_NGX_DLSS_Hint_Render_Preset_F + 1,
+};
 
 struct DlssNvidiaPresetOverrides
 {
