@@ -395,7 +395,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 
 	// [Compatibility]
 	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));
-	overrideDynamicResolution = ini.Get<int>("Compatibility", "OverrideDynamicResolution", std::move(overrideDynamicResolution));
+	overrideDynamicResolution = ini.Get<bool>("Compatibility", "OverrideDynamicResolution", std::move(overrideDynamicResolution));
 	disableIniMonitoring = ini.Get<bool>("Compatibility", "DisableIniMonitoring", std::move(disableIniMonitoring));
 	overrideAppId = ini.Get<bool>("Compatibility", "OverrideAppId", std::move(overrideAppId));
 
