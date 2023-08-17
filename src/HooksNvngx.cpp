@@ -328,8 +328,12 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 	if (ret != NVSDK_NGX_Result_Success)
 		return ret;
 
-	bool isOutWidth = !_stricmp(InName, NVSDK_NGX_Parameter_OutWidth);
-	bool isOutHeight = !_stricmp(InName, NVSDK_NGX_Parameter_OutHeight);
+	bool isOutWidth = !_stricmp(InName, NVSDK_NGX_Parameter_OutWidth) ||
+		!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Max_Render_Width) ||
+		!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Width);
+	bool isOutHeight = !_stricmp(InName, NVSDK_NGX_Parameter_OutHeight) || 
+		!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Max_Render_Height) ||
+		!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Height);
 
 	// DLAA force by overwriting OutWidth/OutHeight with the full res
 	bool overrideWidth = settings.forceDLAA && isOutWidth;
