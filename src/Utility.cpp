@@ -13,7 +13,7 @@ namespace utility
 
 std::string DLSS_PresetEnumToName(unsigned int val)
 {
-	if (val <= NVSDK_NGX_DLSS_Hint_Render_Preset_Default || val > NVSDK_NGX_DLSS_Hint_Render_Preset_G_Ext)
+	if (val <= NVSDK_NGX_DLSS_Hint_Render_Preset_Default || val > EXT_NVSDK_NGX_DLSS_Hint_Render_Preset_G)
 		return "Default";
 	int charVal = int(val) - 1 + 'A';
 	std::string ret(1, charVal);
@@ -37,7 +37,7 @@ unsigned int DLSS_PresetNameToEnum(const std::string& val)
 	if (!stricmp(val.c_str(), "F"))
 		return NVSDK_NGX_DLSS_Hint_Render_Preset_F;
 	if (!stricmp(val.c_str(), "G"))
-		return NVSDK_NGX_DLSS_Hint_Render_Preset_G_Ext;
+		return EXT_NVSDK_NGX_DLSS_Hint_Render_Preset_G;
 
 	return NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 }

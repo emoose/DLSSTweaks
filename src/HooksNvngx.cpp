@@ -311,6 +311,8 @@ void __cdecl NVSDK_NGX_Parameter_SetUI(NVSDK_NGX_Parameter* InParameter, const c
 		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance, settings.presetPerformance);
 	if (settings.presetUltraPerformance != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
 		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance, settings.presetUltraPerformance);
+	if (settings.presetUltraQuality != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
+		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality, settings.presetUltraQuality);
 	if (settings.overrideSharpening.has_value())
 		NVSDK_NGX_Parameter_SetF_Hook.call(InParameter, NVSDK_NGX_Parameter_Sharpness, *settings.overrideSharpening);
 
@@ -326,7 +328,7 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 
 	auto OutValueOrig = *OutValue;
 
-	bool isDynamicRes = (settings.dynamicResolutionOverride && strstr(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic));
+	bool isDynamicRes = (settings.dynamicResolutionOverride && strstr(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic) == InName);
 
 	bool isOutWidth = !_stricmp(InName, NVSDK_NGX_Parameter_OutWidth) ||
 		(isDynamicRes && (

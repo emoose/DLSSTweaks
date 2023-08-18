@@ -6,16 +6,22 @@
 #include <nvsdk_ngx_defs.h>
 #include <nvsdk_ngx_params.h>
 
-// Not included in DLSS SDK, but is mentioned inside & seems to be checked by the DLSS 3.1 DLLs
-// (unfortunately not every version checks it though...)
+// Certain settings which aren't currently included in DLSS SDK, but do seem checked by DLSS 3.1+ DLL files.
+// (added EXT_ to start so we don't conflict once/if SDK adds them...)
+#ifndef NVSDK_NGX_Parameter_Disable_Watermark
 #define NVSDK_NGX_Parameter_Disable_Watermark "Disable.Watermark"
-typedef enum NVSDK_NGX_DLSS_Hint_Render_Preset_Ext
+#endif
+#ifndef NVSDK_NGX_Parameter_DLSS_Get_Dynamic
+#define NVSDK_NGX_Parameter_DLSS_Get_Dynamic "DLSS.Get.Dynamic."
+#endif
+#ifndef NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality
+#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality "DLSS.Hint.Render.Preset.UltraQuality"
+#endif
+typedef enum EXT_NVSDK_NGX_DLSS_Hint_Render_Preset
 {
 	// Preset G isn't exposed in public SDK but seems to be mentioned in docs & DLL itself
-	// (add _Ext to end so we don't conflict once SDK adds it...)
-	NVSDK_NGX_DLSS_Hint_Render_Preset_G_Ext = NVSDK_NGX_DLSS_Hint_Render_Preset_F + 1,
-};
-#define NVSDK_NGX_Parameter_DLSS_Get_Dynamic     "DLSS.Get.Dynamic."
+	EXT_NVSDK_NGX_DLSS_Hint_Render_Preset_G = NVSDK_NGX_DLSS_Hint_Render_Preset_F + 1,
+} EXT_NVSDK_NGX_DLSS_Hint_Render_Preset;
 
 struct DlssNvidiaPresetOverrides
 {
