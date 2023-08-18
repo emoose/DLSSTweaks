@@ -78,17 +78,61 @@ namespace DLSSTweaks.ConfigTool
             return dlls.ToArray();
         }
 
-        string SearchForGameExe(string path)
+        string SearchForGameExe(string dirPath)
         {
+            List<string> filesToCheck = new List<string>();
+
+            // Try searching for UE4/UE5 specific EXE name
+            var allExeFiles = Directory.GetFiles(dirPath, "*.exe", SearchOption.AllDirectories);
+            foreach(var filePath in allExeFiles)
+            {
+                var fileName = Path.GetFileNameWithoutExtension(filePath).ToLower();
+                if (fileName.Contains("-win") && fileName.EndsWith("-shipping"))
+                    filesToCheck.Add(filePath);
+            }
+
+            // blacklist some DLLs that are known to not be relevant
+            var blacklistDlls = new string[]
+            {
+                    "dlsstweak",
+                    "igxess",
+                    "libxess",
+                    "nvngx",
+                    "EOSSDK-",
+                    "steam_api",
+                    "sl.",
+                    "D3D12",
+                    "dstorage",
+                    "PhysX",
+                    "NvBlast",
+                    "amd_"
+            };
+
+            if (filesToCheck.Count <= 0)
+            {
+                // Fetch all EXE/DLL files in the chosen dir
+                filesToCheck.AddRange(Directory.GetFiles(dirPath, "*.exe"));
+                filesToCheck.AddRange(Directory.GetFiles(dirPath, "*.dll"));
+            }
+
+            long dllSizeMinimum = 2_097_152; // 2MB
+
             // Return largest EXE we find in the specified folder, most likely to be the game EXE
             // TODO: search subdirectories too and recommend user change folder if larger EXE was found?
             FileInfo largest = null;
-            foreach (var file in Directory.GetFiles(path, "*.exe"))
+            foreach (var file in filesToCheck)
             {
-                if (Path.GetFileName(file).ToLower().Contains("dlsstweak"))
+                var lowerName = Path.GetFileName(file).ToLower();
+
+                // Check against blacklistDlls array
+                if (blacklistDlls.Any(blacklistDll => lowerName.StartsWith(blacklistDll.ToLower())))
                     continue;
 
                 var info = new FileInfo(file);
+
+                if (info.Extension.ToLower() == "dll" && info.Length < dllSizeMinimum)
+                    continue;
+
                 if (largest == null || info.Length > largest.Length)
                     largest = info;
             }
@@ -181,7 +225,10 @@ namespace DLSSTweaks.ConfigTool
             string[] lines = null;
 
             if (File.Exists(IniFilename))
+            {
+                lblIniPath.Text = Path.GetFullPath(IniFilename);
                 lines = File.ReadAllLines(IniFilename);
+            }
 
             if (lines == null || lines.Length == 0)
             {
@@ -415,7 +462,8 @@ namespace DLSSTweaks.ConfigTool
             }
             catch (UnauthorizedAccessException ex)
             {
-                MessageBox.Show($"UnauthorizedAccessException: DLSSTweaks failed to write INI file to the following path:\r\n  {Path.GetFullPath(IniFilename)}\r\n\r\nYou may need to relaunch ConfigTool as administrator.");
+                MessageBox.Show($"UnauthorizedAccessException: DLSSTweaks failed to write INI file to the following path:\r\n\r\n" + 
+                    $"  {Path.GetFullPath(IniFilename)}\r\n\r\nYou may need to relaunch ConfigTool as administrator.", "Failed to write INI", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -473,6 +521,8 @@ namespace DLSSTweaks.ConfigTool
         {
             InitializeComponent();
 
+            statusStrip1.LayoutStyle = ToolStripLayoutStyle.Flow;
+
             lblIniPath.Text = Path.GetFullPath(IniFilename);
 
             AutoScaleMode = AutoScaleMode.Dpi;
@@ -509,7 +559,7 @@ namespace DLSSTweaks.ConfigTool
             var exePath = SearchForGameExe(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName));
             if (string.IsNullOrEmpty(exePath))
             {
-                MessageBox.Show("It appears the DLSSTweaks ConfigTool has been launched outside of a game directory (no game EXE found).\n\n" +
+                MessageBox.Show("It looks like DLSSTweaks ConfigTool has been launched outside of a game directory (no game EXE found).\n\n" +
                     "It's recommended to copy DLSSTweaks into a game folder first before configuring it.\n\n" +
                     "You can let ConfigTool copy the necessary files for you via the \"Copy to game folder...\" command on top right.", "Game EXE not found!");
             }
@@ -535,8 +585,8 @@ namespace DLSSTweaks.ConfigTool
 
             if (!IniCheckPermissions())
             {
-                if(MessageBox.Show("DLSSTweaks ConfigTool is unable to write to dlsstweaks.ini, the file may be protected, or ConfigTool may need to run as administrator." +
-                    "\r\n\r\nDo you want to relaunch ConfigTool as admin? (requires UAC prompt)", "INI access denied", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                if(MessageBox.Show("DLSSTweaks ConfigTool is unable to write to DLSSTweaks.ini, the file may be protected, or ConfigTool may need to run as administrator." +
+                    "\r\n\r\nDo you want to relaunch ConfigTool as admin? (requires UAC prompt)", "INI access denied", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                 {
                     NvSigOverride.Elevate("", false);
                     Application.Exit();
@@ -733,16 +783,22 @@ namespace DLSSTweaks.ConfigTool
             var preferredDllName = "";
             bool isReplacingDll = false;
 
+            var destFolderPath = dialog.FileName;
+
             // If we have an existing DLSSTweaks DLL in the dest folder, we'll replace that instead of prompting user for filename to use
-            var existingDlls = SearchDlssTweaksDlls(dialog.FileName);
-            if (existingDlls.Length > 0)
+            var existingDlls = SearchDlssTweaksDlls(destFolderPath);
+            if (existingDlls.Length == 1)
+            {
+                preferredDllName = Path.GetFileName(existingDlls[0]);
+            }
+            else if (existingDlls.Length > 1)
             {
                 preferredDllName =
                     RunDlssTweaksDllCleanup("Multiple DLSSTweaks DLLs have been detected in the target directory, this is likely to result in unstability.", existingDlls, dialog.FileName);
             }
             else
             {
-                var gameExe = SearchForGameExe(dialog.FileName);
+                var gameExe = SearchForGameExe(destFolderPath);
                 if (!string.IsNullOrEmpty(gameExe))
                 {
                     string[] importedModules = new string[0];
@@ -789,12 +845,18 @@ namespace DLSSTweaks.ConfigTool
                         if (NvSigOverride.IsOverride())
                             preferredDllName = "nvngx.dll";
 
-                        if (Utility.InputBox($"The game executable \"{Path.GetFileName(gameExe)}\" {supportedDllText} DLSSTweaks DLL filenames.\n\n" +
+                        var gameFileType = "executable";
+                        if (Path.GetExtension(gameExe).ToLower() == ".dll")
+                            gameFileType = "file";
+
+                        if (Utility.InputBox($"The game {gameFileType} \"{Path.GetFileName(gameExe)}\" {supportedDllText} DLSSTweaks DLL filenames.\n\n" +
                             $"Please enter the filename you want to use:\r\n  {availableNames}", "Enter a DLL wrapper filename", ref preferredDllName)
                             != DialogResult.OK)
                         {
                             return;
                         }
+
+                        destFolderPath = Path.GetDirectoryName(gameExe);
                     }
                 }
             }
@@ -817,7 +879,7 @@ namespace DLSSTweaks.ConfigTool
                 foreach (var file in filesToCopy)
                 {
                     var fileName = Path.GetFileName(file);
-                    var dest = Path.Combine(dialog.FileName, fileName);
+                    var dest = Path.Combine(destFolderPath, fileName);
                     infoText += $"{fileName} -> {dest}\r\n\r\n";
                 }
 
@@ -831,7 +893,7 @@ namespace DLSSTweaks.ConfigTool
 
                 try
                 {
-                    FileOperations.CopyFiles(filesToCopy, dialog.FileName);
+                    FileOperations.CopyFiles(filesToCopy, destFolderPath);
 
                     // Wait a sec for the little copy animation
                     System.Threading.Thread.Sleep(1000);
@@ -849,7 +911,7 @@ namespace DLSSTweaks.ConfigTool
                     return;
             }
 
-            var startInfo = new ProcessStartInfo() { WorkingDirectory = dialog.FileName, FileName = Path.Combine(dialog.FileName, configToolName) };
+            var startInfo = new ProcessStartInfo() { WorkingDirectory = destFolderPath, FileName = Path.Combine(destFolderPath, configToolName) };
 
             var proc = Process.Start(startInfo);
 
