@@ -39,15 +39,15 @@ namespace DLSSTweaks.ConfigTool
             this.addDLLOverrideToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.installToGameFolderToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
-            this.lvSettings = new DLSSTweaks.ConfigTool.ListViewEx();
-            this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.menuSettings = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.ctxRename = new System.Windows.Forms.ToolStripMenuItem();
             this.ctxDelete = new System.Windows.Forms.ToolStripMenuItem();
             this.txtDesc = new System.Windows.Forms.TextBox();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.lblIniPath = new System.Windows.Forms.ToolStripStatusLabel();
+            this.lvSettings = new DLSSTweaks.ConfigTool.ListViewEx();
+            this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -59,6 +59,7 @@ namespace DLSSTweaks.ConfigTool
             // 
             // menuStrip1
             // 
+            this.menuStrip1.GripMargin = new System.Windows.Forms.Padding(2, 2, 0, 2);
             this.menuStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.saveToolStripMenuItem,
@@ -67,9 +68,9 @@ namespace DLSSTweaks.ConfigTool
             this.installToGameFolderToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Padding = new System.Windows.Forms.Padding(4, 2, 0, 2);
+            this.menuStrip1.Padding = new System.Windows.Forms.Padding(7, 4, 0, 4);
             this.menuStrip1.ShowItemToolTips = true;
-            this.menuStrip1.Size = new System.Drawing.Size(434, 28);
+            this.menuStrip1.Size = new System.Drawing.Size(856, 42);
             this.menuStrip1.TabIndex = 0;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -77,7 +78,7 @@ namespace DLSSTweaks.ConfigTool
             // 
             this.saveToolStripMenuItem.Image = global::DLSSTweaks.ConfigTool.Properties.Resources.save;
             this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
-            this.saveToolStripMenuItem.Size = new System.Drawing.Size(63, 24);
+            this.saveToolStripMenuItem.Size = new System.Drawing.Size(94, 34);
             this.saveToolStripMenuItem.Text = "Save";
             this.saveToolStripMenuItem.Click += new System.EventHandler(this.saveToolStripMenuItem_Click);
             this.saveToolStripMenuItem.MouseHover += new System.EventHandler(this.saveToolStripMenuItem_MouseHover);
@@ -86,7 +87,7 @@ namespace DLSSTweaks.ConfigTool
             // 
             this.loadToolStripMenuItem.Image = global::DLSSTweaks.ConfigTool.Properties.Resources.refresh;
             this.loadToolStripMenuItem.Name = "loadToolStripMenuItem";
-            this.loadToolStripMenuItem.Size = new System.Drawing.Size(75, 24);
+            this.loadToolStripMenuItem.Size = new System.Drawing.Size(114, 34);
             this.loadToolStripMenuItem.Text = "Reload";
             this.loadToolStripMenuItem.Click += new System.EventHandler(this.loadToolStripMenuItem_Click);
             this.loadToolStripMenuItem.MouseHover += new System.EventHandler(this.loadToolStripMenuItem_MouseHover);
@@ -95,7 +96,7 @@ namespace DLSSTweaks.ConfigTool
             // 
             this.addDLLOverrideToolStripMenuItem.Image = global::DLSSTweaks.ConfigTool.Properties.Resources.dlloverride;
             this.addDLLOverrideToolStripMenuItem.Name = "addDLLOverrideToolStripMenuItem";
-            this.addDLLOverrideToolStripMenuItem.Size = new System.Drawing.Size(132, 24);
+            this.addDLLOverrideToolStripMenuItem.Size = new System.Drawing.Size(215, 34);
             this.addDLLOverrideToolStripMenuItem.Text = "Add DLL Override";
             this.addDLLOverrideToolStripMenuItem.Click += new System.EventHandler(this.addDLLOverrideToolStripMenuItem_Click);
             this.addDLLOverrideToolStripMenuItem.MouseHover += new System.EventHandler(this.addDLLOverrideToolStripMenuItem_MouseHover);
@@ -105,7 +106,7 @@ namespace DLSSTweaks.ConfigTool
             this.installToGameFolderToolStripMenuItem.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
             this.installToGameFolderToolStripMenuItem.Image = global::DLSSTweaks.ConfigTool.Properties.Resources.install;
             this.installToGameFolderToolStripMenuItem.Name = "installToGameFolderToolStripMenuItem";
-            this.installToGameFolderToolStripMenuItem.Size = new System.Drawing.Size(157, 24);
+            this.installToGameFolderToolStripMenuItem.Size = new System.Drawing.Size(256, 34);
             this.installToGameFolderToolStripMenuItem.Text = "Copy to game folder...";
             this.installToGameFolderToolStripMenuItem.Click += new System.EventHandler(this.installToGameFolderToolStripMenuItem_Click);
             this.installToGameFolderToolStripMenuItem.MouseHover += new System.EventHandler(this.installToGameFolderToolStripMenuItem_MouseHover);
@@ -113,8 +114,8 @@ namespace DLSSTweaks.ConfigTool
             // splitContainer1
             // 
             this.splitContainer1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.splitContainer1.Location = new System.Drawing.Point(0, 28);
-            this.splitContainer1.Margin = new System.Windows.Forms.Padding(2);
+            this.splitContainer1.Location = new System.Drawing.Point(0, 42);
+            this.splitContainer1.Margin = new System.Windows.Forms.Padding(4);
             this.splitContainer1.Name = "splitContainer1";
             this.splitContainer1.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -125,10 +126,64 @@ namespace DLSSTweaks.ConfigTool
             // splitContainer1.Panel2
             // 
             this.splitContainer1.Panel2.Controls.Add(this.txtDesc);
-            this.splitContainer1.Size = new System.Drawing.Size(434, 559);
-            this.splitContainer1.SplitterDistance = 335;
-            this.splitContainer1.SplitterWidth = 2;
+            this.splitContainer1.Size = new System.Drawing.Size(856, 1043);
+            this.splitContainer1.SplitterDistance = 625;
             this.splitContainer1.TabIndex = 3;
+            // 
+            // menuSettings
+            // 
+            this.menuSettings.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.menuSettings.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.ctxRename,
+            this.ctxDelete});
+            this.menuSettings.Name = "menuSettings";
+            this.menuSettings.Size = new System.Drawing.Size(162, 76);
+            // 
+            // ctxRename
+            // 
+            this.ctxRename.Name = "ctxRename";
+            this.ctxRename.Size = new System.Drawing.Size(161, 36);
+            this.ctxRename.Text = "Rename";
+            this.ctxRename.Click += new System.EventHandler(this.ctxRename_Click);
+            // 
+            // ctxDelete
+            // 
+            this.ctxDelete.Name = "ctxDelete";
+            this.ctxDelete.Size = new System.Drawing.Size(161, 36);
+            this.ctxDelete.Text = "Delete";
+            this.ctxDelete.Click += new System.EventHandler(this.ctxDelete_Click);
+            // 
+            // txtDesc
+            // 
+            this.txtDesc.BackColor = System.Drawing.SystemColors.Window;
+            this.txtDesc.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.txtDesc.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.txtDesc.Location = new System.Drawing.Point(0, 0);
+            this.txtDesc.Margin = new System.Windows.Forms.Padding(4);
+            this.txtDesc.Multiline = true;
+            this.txtDesc.Name = "txtDesc";
+            this.txtDesc.ReadOnly = true;
+            this.txtDesc.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.txtDesc.Size = new System.Drawing.Size(856, 414);
+            this.txtDesc.TabIndex = 5;
+            // 
+            // statusStrip1
+            // 
+            this.statusStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.lblIniPath});
+            this.statusStrip1.Location = new System.Drawing.Point(0, 1085);
+            this.statusStrip1.Name = "statusStrip1";
+            this.statusStrip1.Padding = new System.Windows.Forms.Padding(2, 0, 18, 0);
+            this.statusStrip1.Size = new System.Drawing.Size(856, 39);
+            this.statusStrip1.TabIndex = 4;
+            this.statusStrip1.Text = "statusStrip1";
+            // 
+            // lblIniPath
+            // 
+            this.lblIniPath.Name = "lblIniPath";
+            this.lblIniPath.Size = new System.Drawing.Size(28, 30);
+            this.lblIniPath.Text = "...";
             // 
             // lvSettings
             // 
@@ -141,10 +196,10 @@ namespace DLSSTweaks.ConfigTool
             this.lvSettings.FullRowSelect = true;
             this.lvSettings.HideSelection = false;
             this.lvSettings.Location = new System.Drawing.Point(0, 0);
-            this.lvSettings.Margin = new System.Windows.Forms.Padding(2);
+            this.lvSettings.Margin = new System.Windows.Forms.Padding(4);
             this.lvSettings.MultiSelect = false;
             this.lvSettings.Name = "lvSettings";
-            this.lvSettings.Size = new System.Drawing.Size(434, 335);
+            this.lvSettings.Size = new System.Drawing.Size(856, 625);
             this.lvSettings.TabIndex = 1;
             this.lvSettings.UseCompatibleStateImageBehavior = false;
             this.lvSettings.View = System.Windows.Forms.View.Details;
@@ -154,79 +209,24 @@ namespace DLSSTweaks.ConfigTool
             // columnHeader1
             // 
             this.columnHeader1.Text = "Setting";
-            this.columnHeader1.Width = 200;
+            this.columnHeader1.Width = 300;
             // 
             // columnHeader2
             // 
             this.columnHeader2.Text = "Value";
             this.columnHeader2.Width = 250;
             // 
-            // menuSettings
-            // 
-            this.menuSettings.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.menuSettings.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.ctxRename,
-            this.ctxDelete});
-            this.menuSettings.Name = "menuSettings";
-            this.menuSettings.Size = new System.Drawing.Size(118, 48);
-            // 
-            // ctxRename
-            // 
-            this.ctxRename.Name = "ctxRename";
-            this.ctxRename.Size = new System.Drawing.Size(117, 22);
-            this.ctxRename.Text = "Rename";
-            this.ctxRename.Click += new System.EventHandler(this.ctxRename_Click);
-            // 
-            // ctxDelete
-            // 
-            this.ctxDelete.Name = "ctxDelete";
-            this.ctxDelete.Size = new System.Drawing.Size(117, 22);
-            this.ctxDelete.Text = "Delete";
-            this.ctxDelete.Click += new System.EventHandler(this.ctxDelete_Click);
-            // 
-            // txtDesc
-            // 
-            this.txtDesc.BackColor = System.Drawing.SystemColors.Window;
-            this.txtDesc.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.txtDesc.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtDesc.Location = new System.Drawing.Point(0, 0);
-            this.txtDesc.Margin = new System.Windows.Forms.Padding(2);
-            this.txtDesc.Multiline = true;
-            this.txtDesc.Name = "txtDesc";
-            this.txtDesc.ReadOnly = true;
-            this.txtDesc.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtDesc.Size = new System.Drawing.Size(434, 222);
-            this.txtDesc.TabIndex = 5;
-            // 
-            // statusStrip1
-            // 
-            this.statusStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
-            this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.lblIniPath});
-            this.statusStrip1.Location = new System.Drawing.Point(0, 587);
-            this.statusStrip1.Name = "statusStrip1";
-            this.statusStrip1.Padding = new System.Windows.Forms.Padding(1, 0, 10, 0);
-            this.statusStrip1.Size = new System.Drawing.Size(434, 22);
-            this.statusStrip1.TabIndex = 4;
-            this.statusStrip1.Text = "statusStrip1";
-            // 
-            // lblIniPath
-            // 
-            this.lblIniPath.Name = "lblIniPath";
-            this.lblIniPath.Size = new System.Drawing.Size(16, 17);
-            this.lblIniPath.Text = "...";
-            // 
             // Main
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(11F, 24F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(434, 609);
+            this.ClientSize = new System.Drawing.Size(856, 1124);
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.menuStrip1);
             this.Controls.Add(this.statusStrip1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.menuStrip1;
-            this.Margin = new System.Windows.Forms.Padding(2);
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "Main";
             this.Text = "DLSSTweaks ConfigTool";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Main_FormClosing);

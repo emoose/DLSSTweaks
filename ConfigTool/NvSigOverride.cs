@@ -49,7 +49,7 @@ namespace DLSSTweaks.ConfigTool
             if (!IsElevated())
             {
                 if (allowElevate)
-                    Elevate(enableOverride);
+                    Elevate(enableOverride ? "-enableSigOverride" : "-disableSigOverride");
 
                 return IsOverride() == enableOverride;
             }
@@ -92,19 +92,20 @@ namespace DLSSTweaks.ConfigTool
             }
         }
 
-        private static void Elevate(bool enableOverride)
+        public static void Elevate(string args = "", bool waitForExit = true)
         {
             ProcessStartInfo startInfo = new ProcessStartInfo();
             startInfo.UseShellExecute = true;
             startInfo.WorkingDirectory = Environment.CurrentDirectory;
             startInfo.FileName = Process.GetCurrentProcess().MainModule.FileName;
             startInfo.Verb = "runas";
-            startInfo.Arguments = enableOverride ? "-enableSigOverride" : "-disableSigOverride";
+            startInfo.Arguments = args;
 
             try
             {
                 var proc = Process.Start(startInfo);
-                proc.WaitForExit();
+                if (waitForExit)
+                    proc.WaitForExit();
             }
             catch (Exception ex)
             {

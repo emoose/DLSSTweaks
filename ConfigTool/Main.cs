@@ -391,7 +391,35 @@ namespace DLSSTweaks.ConfigTool
             }
         }
 
+        bool IniCheckPermissions()
+        {
+            try
+            {
+                // Get the file attributes
+                using (FileStream fileStream = File.Open(IniFilename, FileMode.OpenOrCreate, FileAccess.Write))
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+
         void IniWrite()
+        {
+            try
+            {
+                IniWriteMain();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                MessageBox.Show($"UnauthorizedAccessException: DLSSTweaks failed to write INI file to the following path:\r\n  {Path.GetFullPath(IniFilename)}\r\n\r\nYou may need to relaunch ConfigTool as administrator.");
+            }
+        }
+
+        void IniWriteMain()
         {
             lvSettings.Unfocus();
 
@@ -481,7 +509,7 @@ namespace DLSSTweaks.ConfigTool
             var exePath = SearchForGameExe(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName));
             if (string.IsNullOrEmpty(exePath))
             {
-                MessageBox.Show("It appears the DLSSTweaks ConfigTool has been launched outside of a game directory.\n\n" +
+                MessageBox.Show("It appears the DLSSTweaks ConfigTool has been launched outside of a game directory (no game EXE found).\n\n" +
                     "It's recommended to copy DLSSTweaks into a game folder first before configuring it.\n\n" +
                     "You can let ConfigTool copy the necessary files for you via the \"Copy to game folder...\" command on top right.", "Game EXE not found!");
             }
@@ -502,6 +530,17 @@ namespace DLSSTweaks.ConfigTool
                             NvSigOverride.SetOverride(true);
                         }
                     }
+                }
+            }
+
+            if (!IniCheckPermissions())
+            {
+                if(MessageBox.Show("DLSSTweaks ConfigTool is unable to write to dlsstweaks.ini, the file may be protected, or ConfigTool may need to run as administrator." +
+                    "\r\n\r\nDo you want to relaunch ConfigTool as admin? (requires UAC prompt)", "INI access denied", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                {
+                    NvSigOverride.Elevate("", false);
+                    Application.Exit();
+                    Process.GetCurrentProcess().Kill();
                 }
             }
 
@@ -729,8 +768,9 @@ namespace DLSSTweaks.ConfigTool
 
                     if (importedModules.Length > 0)
                     {
-                        var availableNames = "";
+                        var availableNames = "nvngx.dll";
                         preferredDllName = "nvngx.dll";
+                        string supportedDllText = "only supports the following";
                         foreach (var module in DlssTweaksDllFilenames)
                         {
                             foreach (var importedModule in importedModules)
@@ -740,6 +780,7 @@ namespace DLSSTweaks.ConfigTool
                                 {
                                     availableNames += ", " + importedModLower;
                                     preferredDllName = importedModLower;
+                                    supportedDllText = "supports multiple";
                                 }
                             }
                         }
@@ -748,8 +789,8 @@ namespace DLSSTweaks.ConfigTool
                         if (NvSigOverride.IsOverride())
                             preferredDllName = "nvngx.dll";
 
-                        if (Utility.InputBox($"The game executable \"{Path.GetFileName(gameExe)}\" supports multiple DLSSTweaks DLL filenames.\n\n" +
-                            $"Please enter the filename you want to use:\r\n  nvngx.dll{availableNames}", "Enter a DLL wrapper filename", ref preferredDllName)
+                        if (Utility.InputBox($"The game executable \"{Path.GetFileName(gameExe)}\" {supportedDllText} DLSSTweaks DLL filenames.\n\n" +
+                            $"Please enter the filename you want to use:\r\n  {availableNames}", "Enter a DLL wrapper filename", ref preferredDllName)
                             != DialogResult.OK)
                         {
                             return;

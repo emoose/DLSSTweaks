@@ -85,7 +85,7 @@ void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
 void on_init_appid(unsigned long long& appId)
 {
 	settings.dlss.appId = appId;
-	spdlog::debug("on_init_appid: {:X} ({:X})", appId, settings.dlss.appIdDlss());
+	spdlog::debug("on_init_appid: 0x{:X} (0x{:X})", appId, settings.dlss.appIdDlss());
 	if (settings.overrideAppId)
 		appId = appIdOverride;
 }
@@ -362,60 +362,57 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 	}
 
 	// Override with DLSSQualityLevels value if user set it
-	if (settings.overrideQualityLevels)
+	if (settings.overrideQualityLevels && (isOutWidth || isOutHeight))
 	{
-		if (isOutWidth || isOutHeight)
-		{
-			unsigned int targetWidth = 0;
-			unsigned int targetHeight = 0;
-			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
-			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
+		unsigned int targetWidth = 0;
+		unsigned int targetHeight = 0;
+		NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, &targetWidth); // fetch full screen width
+		NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, &targetHeight); // fetch full screen height
 			
-			unsigned int renderWidth = 0;
-			unsigned int renderHeight = 0;
-			if (qualityLevelRatios.count(prevQualityValue))
-			{
-				auto ratio = qualityLevelRatios[prevQualityValue];
+		unsigned int renderWidth = 0;
+		unsigned int renderHeight = 0;
+		if (qualityLevelRatios.count(prevQualityValue))
+		{
+			auto ratio = qualityLevelRatios[prevQualityValue];
 
-				// calculate width/height from custom ratio
-				renderWidth = unsigned int(roundf(float(targetWidth) * ratio));
-				renderHeight = unsigned int(roundf(float(targetHeight) * ratio));
-			}
-			if (qualityLevelResolutions.count(prevQualityValue))
+			// calculate width/height from custom ratio
+			renderWidth = unsigned int(roundf(float(targetWidth) * ratio));
+			renderHeight = unsigned int(roundf(float(targetHeight) * ratio));
+		}
+		if (qualityLevelResolutions.count(prevQualityValue))
+		{
+			// if custom res is set for this level, override it with that
+			auto& res = qualityLevelResolutions[prevQualityValue];
+			if (utility::ValidResolution(res))
 			{
-				// if custom res is set for this level, override it with that
-				auto& res = qualityLevelResolutions[prevQualityValue];
-				if (utility::ValidResolution(res))
-				{
-					renderWidth = res.first;
-					renderHeight = res.second;
-				}
+				renderWidth = res.first;
+				renderHeight = res.second;
 			}
+		}
 
-			if (renderWidth >= targetWidth)
-			{
-				renderWidth = targetWidth; // DLSS can't render above the target res
-				renderWidth += settings.resolutionOffset; // apply resolutionOffset compatibility hack
-			}
-			if (renderHeight >= targetHeight)
-			{
-				renderHeight = targetHeight; // DLSS can't render above the target res
-				renderHeight += settings.resolutionOffset; // apply resolutionOffset compatibility hack
-			}
+		if (renderWidth >= targetWidth)
+		{
+			renderWidth = targetWidth; // DLSS can't render above the target res
+			renderWidth += settings.resolutionOffset; // apply resolutionOffset compatibility hack
+		}
+		if (renderHeight >= targetHeight)
+		{
+			renderHeight = targetHeight; // DLSS can't render above the target res
+			renderHeight += settings.resolutionOffset; // apply resolutionOffset compatibility hack
+		}
 
-			if (renderWidth != 0 && renderHeight != 0)
-				qualityLevelResolutionsCurrent[prevQualityValue] = std::pair<int, int>(renderWidth, renderHeight);
+		if (renderWidth != 0 && renderHeight != 0)
+			qualityLevelResolutionsCurrent[prevQualityValue] = std::pair<int, int>(renderWidth, renderHeight);
 
-			if (isOutWidth)
-			{
-				*OutValue = renderWidth;
-				isOutValueOverridden = true;
-			}
-			if (isOutHeight)
-			{
-				*OutValue = renderHeight;
-				isOutValueOverridden = true;
-			}
+		if (isOutWidth)
+		{
+			*OutValue = renderWidth;
+			isOutValueOverridden = true;
+		}
+		if (isOutHeight)
+		{
+			*OutValue = renderHeight;
+			isOutValueOverridden = true;
 		}
 	}
 
