@@ -15,6 +15,7 @@ typedef enum NVSDK_NGX_DLSS_Hint_Render_Preset_Ext
 	// (add _Ext to end so we don't conflict once SDK adds it...)
 	NVSDK_NGX_DLSS_Hint_Render_Preset_G_Ext = NVSDK_NGX_DLSS_Hint_Render_Preset_F + 1,
 };
+#define NVSDK_NGX_Parameter_DLSS_Get_Dynamic     "DLSS.Get.Dynamic."
 
 struct DlssNvidiaPresetOverrides
 {
@@ -30,6 +31,14 @@ struct DlssSettings
 {
 	int featureCreateFlags = 0;
 	std::optional<DlssNvidiaPresetOverrides> nvidiaOverrides;
+	unsigned long long appId = 0;
+	std::string projectId;
+
+	// app ID displayed by DLSS overlay is xored for some reason
+	unsigned long long appIdDlss()
+	{
+		return appId ^ 0xE658703;
+	}
 };
 struct UserSettings
 {
@@ -62,7 +71,8 @@ struct UserSettings
 	unsigned int presetUltraQuality = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 
 	int resolutionOffset = 0; // user-defined offset to apply to DLAA / full-res rendering (some titles don't like DLAA rendering at full res, so small offset is needed)
-	bool overrideDynamicResolution = true;
+	bool dynamicResolutionOverride = true;
+	int dynamicResolutionMinOffset = -1;
 	bool disableIniMonitoring = false;
 
 	bool read(const std::filesystem::path& iniPath);

@@ -13,7 +13,7 @@ const char* projectIdOverride = "24480451-f00d-face-1304-0308dabad187";
 const unsigned long long appIdOverride = 0x24480451;
 
 // the hooks defined below can work using two different methods
-// method 0: if we were loaded in via nvngx wrapper (requires reg edit), the hooks below are exported as the nvngx functions themselves, which do our work and then call back to original DLL
+// method 0: if we were loaded in via nvngx wrapper (requires reg edit), the hooks below are exported as the nvngx functions themselveswhich do our work and then call back to original DLL
 // method 1: if we were loaded in via other DLL wrapper (dxgi etc), then _nvngx.dll is hooked to call these functions instead, and call back to _nvngx via safetyhook unsafe_call
 // these are handled via either nvngx::hook or nvngx::init setting up the HookOrigFn structs for each function
 
@@ -82,6 +82,22 @@ void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
 	prevExposureTexture = pInExposureTexture;
 }
 
+void on_init_appid(unsigned long long& appId)
+{
+	settings.dlss.appId = appId;
+	spdlog::debug("on_init_appid: {:X} ({:X})", appId, settings.dlss.appIdDlss());
+	if (settings.overrideAppId)
+		appId = appIdOverride;
+}
+
+void on_init_projectid(const char*& projectId)
+{
+	settings.dlss.projectId = projectId;
+	spdlog::debug("on_init_projectid: {}", projectId);
+	if (settings.overrideAppId)
+		projectId = projectIdOverride;
+}
+
 HookOrigFn NVSDK_NGX_D3D11_EvaluateFeature_Hook;
 PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_EvaluateFeature(class ID3D11DeviceContext* InDevCtx, const NVSDK_NGX_Handle* InFeatureHandle, const NVSDK_NGX_Parameter* InParameters, void* InCallback)
 {
@@ -94,9 +110,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_Init(unsigned long long InAp
 {
 	WaitForInitThread();
 
-	if (settings.overrideAppId)
-		InApplicationId = appIdOverride;
-
+	on_init_appid(InApplicationId);
 	return NVSDK_NGX_D3D11_Init_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 HookOrigFn NVSDK_NGX_D3D11_Init_Ext_Hook;
@@ -104,9 +118,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_Init_Ext(unsigned long long 
 {
 	WaitForInitThread();
 
-	if (settings.overrideAppId)
-		InApplicationId = appIdOverride;
-
+	on_init_appid(InApplicationId);
 	return NVSDK_NGX_D3D11_Init_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, a3, a4, a5);
 }
 HookOrigFn NVSDK_NGX_D3D11_Init_ProjectID_Hook;
@@ -114,9 +126,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_Init_ProjectID(const char* I
 {
 	WaitForInitThread();
 
-	if (settings.overrideAppId)
-		InProjectId = projectIdOverride;
-
+	on_init_projectid(InProjectId);
 	return NVSDK_NGX_D3D11_Init_ProjectID_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 
@@ -131,9 +141,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_Init(unsigned long long InAp
 {
 	WaitForInitThread();
 
-	if (settings.overrideAppId)
-		InApplicationId = appIdOverride;
-
+	on_init_appid(InApplicationId);
 	return NVSDK_NGX_D3D12_Init_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 HookOrigFn NVSDK_NGX_D3D12_Init_Ext_Hook;
@@ -141,9 +149,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_Init_Ext(unsigned long long 
 {
 	WaitForInitThread();
 
-	if (settings.overrideAppId)
-		InApplicationId = appIdOverride;
-
+	on_init_appid(InApplicationId);
 	return NVSDK_NGX_D3D12_Init_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, a3, a4, a5);
 }
 HookOrigFn NVSDK_NGX_D3D12_Init_ProjectID_Hook;
@@ -151,9 +157,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_Init_ProjectID(const char* I
 {
 	WaitForInitThread();
 
-	if (settings.overrideAppId)
-		InProjectId = projectIdOverride;
-
+	on_init_projectid(InProjectId);
 	return NVSDK_NGX_D3D12_Init_ProjectID_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 }
 
@@ -168,9 +172,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init(unsigned long long InA
 {
 	WaitForInitThread();
 
-	if (settings.overrideAppId)
-		InApplicationId = appIdOverride;
-
+	on_init_appid(InApplicationId);
 	return NVSDK_NGX_VULKAN_Init_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice, InSDKVersion);
 }
 HookOrigFn NVSDK_NGX_VULKAN_Init_Ext_Hook;
@@ -178,9 +180,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_Ext(unsigned long long
 {
 	WaitForInitThread();
 
-	if (settings.overrideAppId)
-		InApplicationId = appIdOverride;
-
+	on_init_appid(InApplicationId);
 	return NVSDK_NGX_VULKAN_Init_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice, InSDKVersion, InFeatureInfo);
 }
 HookOrigFn NVSDK_NGX_VULKAN_Init_ProjectID_Hook;
@@ -188,9 +188,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_ProjectID(const char* 
 {
 	WaitForInitThread();
 
-	if (settings.overrideAppId)
-		InProjectId = projectIdOverride;
-
+	on_init_projectid(InProjectId);
 	return NVSDK_NGX_VULKAN_Init_ProjectID_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InInstance, InPD, InDevice, InSDKVersion, InFeatureInfo);
 }
 
@@ -198,8 +196,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_ProjectID(const char* 
 HookOrigFn NVSDK_NGX_VULKAN_Init_Ext2_Hook;
 NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_Ext2(unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, struct VkInstance* InInstance, struct VkPhysicalDevice* InPD, struct VkDevice* InDevice, void* InGIPA, void* InGDPA, NVSDK_NGX_Version InSDKVersion, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
 {
-	if (settings.overrideAppId)
-		InApplicationId = appIdOverride;
+	on_init_appid(InApplicationId);
 	return NVSDK_NGX_VULKAN_Init_Ext2_Hook.unsafe_call<NVSDK_NGX_Result>(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice, InGIPA, InGDPA, InSDKVersion, InFeatureInfo);
 }
 HookOrigFn NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook;
@@ -207,8 +204,7 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_Init_ProjectID_Ext(const char* InProje
 {
 	WaitForInitThread();
 
-	if (settings.overrideAppId)
-		InProjectId = projectIdOverride;
+	on_init_projectid(InProjectId);
 	return NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook.unsafe_call<NVSDK_NGX_Result>(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath, InInstance, InPD, InDevice, InGIPA, InGDPA, InSDKVersion, InFeatureInfo);
 }
 
@@ -328,15 +324,21 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 	if (ret != NVSDK_NGX_Result_Success)
 		return ret;
 
+	auto OutValueOrig = *OutValue;
+
+	bool isDynamicRes = (settings.dynamicResolutionOverride && strstr(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic));
+
 	bool isOutWidth = !_stricmp(InName, NVSDK_NGX_Parameter_OutWidth) ||
-		(settings.overrideDynamicResolution && (
+		(isDynamicRes && (
 			!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Max_Render_Width) ||
 			!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Width)));
 
 	bool isOutHeight = !_stricmp(InName, NVSDK_NGX_Parameter_OutHeight) ||
-		(settings.overrideDynamicResolution && (
+		(isDynamicRes && (
 			!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Max_Render_Height) ||
 			!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Height)));
+
+	bool isOutValueOverridden = false;
 
 	// DLAA force by overwriting OutWidth/OutHeight with the full res
 	bool overrideWidth = settings.forceDLAA && isOutWidth;
@@ -347,11 +349,13 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 		{
 			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Width, OutValue);
 			*OutValue += settings.resolutionOffset;
+			isOutValueOverridden = true;
 		}
 		if (overrideHeight && *OutValue != 0)
 		{
 			NVSDK_NGX_Parameter_GetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_Height, OutValue);
 			*OutValue += settings.resolutionOffset;
+			isOutValueOverridden = true;
 		}
 	}
 
@@ -401,10 +405,32 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 				qualityLevelResolutionsCurrent[prevQualityValue] = std::pair<int, int>(renderWidth, renderHeight);
 
 			if (isOutWidth)
+			{
 				*OutValue = renderWidth;
+				isOutValueOverridden = true;
+			}
 			if (isOutHeight)
+			{
 				*OutValue = renderHeight;
+				isOutValueOverridden = true;
+			}
 		}
+	}
+
+	if (isOutValueOverridden)
+	{
+		if (isDynamicRes)
+		{
+			bool isDynamicMin =
+				(!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Width) ||
+					!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Height));
+			if (isDynamicMin)
+			{
+				*OutValue = *OutValue + settings.dynamicResolutionMinOffset;
+			}
+		}
+
+		spdlog::debug("NVSDK_NGX_Parameter_GetUI: {} -> {} (orig value: {})", InName, *OutValue, OutValueOrig);
 	}
 
 	return ret;

@@ -208,7 +208,8 @@ void UserSettings::print_to_log()
 	spdlog::info(" - OverrideDlssHud: {}", overrideDlssHud == 0 ? "default" : (overrideDlssHud > 0 ? "enable" : "disable"));
 	spdlog::info(" - DisableDevWatermark: {}", disableDevWatermark ? "true" : "false");
 	spdlog::info(" - ResolutionOffset: {}", resolutionOffset);
-	spdlog::info(" - OverrideDynamicResolution: {}", overrideDynamicResolution ? "true" : "false");
+	spdlog::info(" - DynamicResolutionOverride: {}", dynamicResolutionOverride ? "true" : "false");
+	spdlog::info(" - DynamicResolutionMinOffset: {}", dynamicResolutionMinOffset);
 	spdlog::info(" - DisableIniMonitoring: {}", disableIniMonitoring ? "true" : "false");
 	spdlog::info(" - DLSSQualityLevels enabled: {}", overrideQualityLevels ? "true" : "false");
 
@@ -395,7 +396,8 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 
 	// [Compatibility]
 	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));
-	overrideDynamicResolution = ini.Get<bool>("Compatibility", "OverrideDynamicResolution", std::move(overrideDynamicResolution));
+	dynamicResolutionOverride = ini.Get<bool>("Compatibility", "DynamicResolutionOverride", std::move(dynamicResolutionOverride));
+	dynamicResolutionMinOffset = ini.Get<int>("Compatibility", "DynamicResolutionMinOffset", std::move(dynamicResolutionMinOffset));
 	disableIniMonitoring = ini.Get<bool>("Compatibility", "DisableIniMonitoring", std::move(disableIniMonitoring));
 	overrideAppId = ini.Get<bool>("Compatibility", "OverrideAppId", std::move(overrideAppId));
 
