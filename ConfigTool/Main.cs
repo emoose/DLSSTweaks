@@ -39,7 +39,7 @@ namespace DLSSTweaks.ConfigTool
 
         static string DllPathOverrideText = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nRight click on the override for options to rename/delete it.";
 
-        static string[] BooleanKeys = new[] { "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId", "EnableNvidiaSigOverride" };
+        static string[] BooleanKeys = new[] { "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId", "EnableNvidiaSigOverride", "DynamicResolutionOverride" };
         
         static string[] OverrideKeys = new[] { "OverrideAutoExposure", "OverrideDlssHud" };
         static string[] OverrideValues = new[] { "Default", "Force disable", "Force enable" }; // 0, -1, 1
