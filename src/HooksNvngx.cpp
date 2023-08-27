@@ -423,7 +423,7 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 			bool isDynamicMin =
 				(!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Width) ||
 					!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Height));
-			if (isDynamicMin)
+			if (isDynamicMin && *OutValue > 0)
 			{
 				*OutValue = *OutValue + settings.dynamicResolutionMinOffset;
 			}

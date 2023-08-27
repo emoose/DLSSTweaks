@@ -240,6 +240,7 @@ bool hook(HMODULE ngx_module)
 			DlssPresetOverrideFunc_LaterVersion_Hook = safetyhook::create_mid(match + 4, DlssPresetOverrideFunc_LaterVersion);
 
 			spdlog::info("nvngx_dlss: applied DLSS preset override hook (> v3.1.2)");
+			spdlog::debug("nvngx_dlss: DlssPresetOverrideFunc_LaterVersion MovOffset1 = 0x{:X}, MovOffset2 = 0x{:X}", DlssPresetOverrideFunc_MovOffset1, DlssPresetOverrideFunc_MovOffset2);
 		}
 		else
 		{
@@ -252,6 +253,7 @@ bool hook(HMODULE ngx_module)
 				if (!memcmp(func_3_1_30, func_known_start, 4))
 				{
 					DlssPresetSetupFunc_3_1_30_Hook = safetyhook::create_inline(func_3_1_30, DlssPresetSetupFunc_3_1_30);
+					spdlog::info("nvngx_dlss: applied DLSS preset override hook (> v3.1.30)");
 				}
 			}
 			else
@@ -311,6 +313,9 @@ bool hook(HMODULE ngx_module)
 
 			presetSelectPatternSuccess = true;
 		}
+
+		spdlog::debug("nvngx_dlss: CreateDlssInstance_PresetSelection Register = 0x{:X}, OrigInsnOffset = 0x{:X}",
+			CreateDlssInstance_PresetSelection_Register, CreateDlssInstance_PresetSelection_OrigInsnOffset);
 	}
 	
 	if (!presetSelectPatternSuccess)
