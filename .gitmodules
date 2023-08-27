@@ -7,6 +7,3 @@
 [submodule "external/ini-cpp"]
 	path = external/ini-cpp
 	url = https://github.com/SSARCandy/ini-cpp
-[submodule "external/DLSS"]
-	path = external/DLSS
-	url = https://github.com/NVIDIA/DLSS.git
