@@ -14,14 +14,6 @@
 #ifndef NVSDK_NGX_Parameter_DLSS_Get_Dynamic
 #define NVSDK_NGX_Parameter_DLSS_Get_Dynamic "DLSS.Get.Dynamic."
 #endif
-#ifndef NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality
-#define NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality "DLSS.Hint.Render.Preset.UltraQuality"
-#endif
-typedef enum EXT_NVSDK_NGX_DLSS_Hint_Render_Preset
-{
-	// Preset G isn't exposed in public SDK but seems to be mentioned in docs & DLL itself
-	EXT_NVSDK_NGX_DLSS_Hint_Render_Preset_G = NVSDK_NGX_DLSS_Hint_Render_Preset_F + 1,
-} EXT_NVSDK_NGX_DLSS_Hint_Render_Preset;
 
 struct DlssNvidiaPresetOverrides
 {
