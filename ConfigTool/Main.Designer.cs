@@ -230,7 +230,6 @@ namespace DLSSTweaks.ConfigTool
             this.Name = "Main";
             this.Text = "DLSSTweaks ConfigTool";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Main_FormClosing);
-            this.Shown += new System.EventHandler(this.Main_Shown);
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
             this.splitContainer1.Panel1.ResumeLayout(false);

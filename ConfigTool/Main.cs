@@ -30,7 +30,7 @@ namespace DLSSTweaks.ConfigTool
         static string IniFilename = "dlsstweaks.ini";
         static string IniFilenameFriendly = "DLSSTweaks.ini";
 
-        static string DefaultDescText = "Welcome to the DLSSTweaks ConfigTool!\r\n\r\nSelect or hover over any setting name to view a description of it here, or click on the value for the setting to edit it.\r\n\r\nIf you just want to force DLAA, simply edit the ForceDLAA value above and then save the file.";
+        static string DefaultDescText = "Welcome to the DLSSTweaks ConfigTool!\r\n\r\nSelect or hover over any setting name to view a description of it here, or click on the value for the setting to edit it.\r\n\r\nIf you just want to force DLAA, simply edit the ForceDLAA value above and then save the changes.";
         static string UltraQualityText = "UltraQuality: allows setting the ratio for the 'UltraQuality' level.\r\n\r\nNot every game allows using this level, some may only expose it as an option once this has been set to non-zero.\r\nA very small number might also already show an UltraQuality level, which this setting should be able to customize.\r\n(the number of games that work with this is very small unfortunately)\r\n\r\nSet to 0 to leave this as DLSS default.";
         static string HoverLoadText = $"Reload the {IniFilenameFriendly} from the same folder as ConfigTool.";
         static string HoverSaveText = $"Writes out the changed settings to {IniFilenameFriendly}.";
@@ -38,12 +38,14 @@ namespace DLSSTweaks.ConfigTool
         static string HoverInstallDllText = "Allows copying this DLSSTweaks config & DLL into a chosen folder.\r\n\r\nCan be used to either install freshly extracted DLSSTweaks into a game, or to copy existing config + DLL across to other titles.";
         static string HoverInstallDllTextUnavailable = "DLSSTweaks DLL not found in current folder, install not available.";
 
-        static string HoverNvSigOverrideText = "Allows toggling the NVIDIA Signature Override registry key.\r\n\r\nWith the override enabled DLSSTweaks can be used in most DLSS2+ games by naming it as nvngx.dll.\r\n\r\n(this override only affects Nvidia related signature checks, not anything Windows related)\r\n\r\nChanging this requires Administrator privileges, an elevation prompt will appear if necessary.";
-
         static string NvidiaGlobalsSectionName = "NvGlobalProfileSettings (non-DLSSTweaks settings, DLSS 3.1.11+ only)";
         static string NvidiaGlobalsSectionNameShort = "NvGlobalProfileSettings";
 
-        static string HoverNvidiaGlobalsDisclaimer = $"{NvidiaGlobalsSectionNameShort} settings are checked by any games using DLSS 3.1.11+, and don't require DLSSTweaks to be setup for DLSS to use them.\r\n\r\nHowever, changes to the \"{NvidiaGlobalsSectionNameShort}\" section require ConfigTool to be ran as admin, if necessary you will be prompted to relaunch when saving.\r\n\r\n";
+        static string HoverNvSigOverrideText = "EnableNvidiaSigOverride: allows toggling the NVIDIA Signature Override registry key.\r\n\r\nWith the override enabled the DLSSTweaks DLL can be used in most DLSS2+ games by naming it as nvngx.dll.\r\n\r\n" +
+            $"(note that the settings listed under {NvidiaGlobalsSectionNameShort} don't require this, this setting is only needed if you're using the DLSSTweaks DLL in a game - this override also only affects Nvidia related signature checks, not anything Windows related)\r\n\r\nChanging this requires Administrator privileges, an elevation prompt will appear if necessary.";
+
+
+        static string HoverNvidiaGlobalsDisclaimer = $"{NvidiaGlobalsSectionNameShort} settings are checked by any games using DLSS 3.1.11+, and don't require the DLSSTweaks DLL to be setup for DLSS to use them.\r\n\r\nHowever, changes to the \"{NvidiaGlobalsSectionNameShort}\" section require ConfigTool to be ran as admin, if necessary you will be prompted to relaunch when saving.\r\n\r\n";
 
         static string HoverGlobalForceDLAAText = "GlobalForceDLAA: if set to true, all DLSS quality levels will be forced as DLAA instead, on all DLSS 3.1.11+ games (without DLSSTweaks needing to be setup on them).\r\n\r\nMay have compatibility issues with certain titles as this setting is handled by DLSS itself, not DLSSTweaks, so the compatibility workarounds used by DLSSTweaks can't be applied to it.";
         static string HoverGlobalForcedScaleText = "GlobalForcedScale: if set, forces all DLSS quality levels to the specified render scale, on all DLSS 3.1.11+ games (without DLSSTweaks needing to be setup on them).\r\n\r\nValid range is 0.33 to 1.00, set to 0 to disable.";
@@ -291,7 +293,7 @@ namespace DLSSTweaks.ConfigTool
             }
             else
             {
-                lblIniPath.Text = $"Failed to load settings from {IniFilenameFriendly}, Nvidia profile globals can be changed.";
+                lblIniPath.Text = $"Failed to load DLSSTweaks settings from INI, only showing Nvidia profile globals.";
             }
 
             addDLLOverrideToolStripMenuItem.Enabled = !IniIsEmpty;
@@ -723,7 +725,7 @@ namespace DLSSTweaks.ConfigTool
                 {
                     if (MessageBox.Show($"UnauthorizedAccessException: ConfigTool failed to write {NvidiaGlobalsSectionNameShort}.\r\n\r\n" +
                         $"Any DLSSTweaks INI changes have been saved, but {NvidiaGlobalsSectionNameShort} changes failed to apply.\r\n\r\n" +
-                        "ConfigTool may need to be launched as administrator, do you want to relaunch ConfigTool as admin? (requires UAC prompt)", "Failed to write DRS settings", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                        "ConfigTool may need to be launched as administrator, do you want to relaunch as admin? (requires UAC prompt)", "Failed to write DRS settings", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                     {
                         NvSigOverride.Elevate("", false);
                         Process.GetCurrentProcess().Kill();
@@ -1167,14 +1169,6 @@ namespace DLSSTweaks.ConfigTool
             DialogResult result = MessageBox.Show("You have unsaved changes, save those before exiting?", "Save?", MessageBoxButtons.YesNo);
             if (result == DialogResult.Yes)
                 IniWrite();
-        }
-
-        private void Main_Shown(object sender, EventArgs e)
-        {
-            if (IniIsEmpty && !SkipLoadWarnings)
-                MessageBox.Show($"Failed to load DLSSTweaks settings from {IniFilenameFriendly}, file either doesn't exist or is empty.\r\n\r\n" +
-                    "Nvidia global settings can still be viewed/edited, but DLSSTweaks settings will be unavailable.\r\n\r\n" +
-                    $"To configure DLSSTweaks, please extract {IniFilenameFriendly} from the ZIP you downloaded next to this tool first before running.", "Failed to load DLSSTweaks settings", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 }
