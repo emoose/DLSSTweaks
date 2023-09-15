@@ -99,7 +99,7 @@ namespace DLSSTweaks.ConfigTool
             startInfo.WorkingDirectory = Environment.CurrentDirectory;
             startInfo.FileName = Process.GetCurrentProcess().MainModule.FileName;
             startInfo.Verb = "runas";
-            startInfo.Arguments = args;
+            startInfo.Arguments = args + " -SkipLoadWarnings";
 
             try
             {

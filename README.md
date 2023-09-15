@@ -12,8 +12,7 @@ Check [releases section](https://github.com/emoose/DLSSTweaks/releases) for info
 
 ---
 
-Many hours have gone into developing/testing/rewriting, along with debugging issues with different games.  
-If the tweaks have helped improve your experience, please consider buying a coffee to support future development & help to obtain more games to test with. Thank you!
+If the tweaks helped improve your experience consider buying a coffee to support future development & help to obtain more games to test with. Thank you!
 
 <a href='https://ko-fi.com/emoose' target='_blank'><img src='https://i.imgur.com/I3zDqrO.png' border='0' alt='Buy Me a Coffee at ko-fi.com' />
 

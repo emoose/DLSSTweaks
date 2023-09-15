@@ -28,11 +28,12 @@ namespace DLSSTweaks.ConfigTool
         string DefaultFormTitle = "DLSSTweaks"; // will be updated to actual text after InitializeComponent
 
         static string IniFilename = "dlsstweaks.ini";
+        static string IniFilenameFriendly = "DLSSTweaks.ini";
 
         static string DefaultDescText = "Welcome to the DLSSTweaks ConfigTool!\r\n\r\nSelect any setting to view a description of it here, or click on the value for the setting to edit it.\r\n\r\nIf you just want to force DLAA, simply edit the ForceDLAA value above and then save the file.";
         static string UltraQualityText = "UltraQuality: allows setting the ratio for the 'UltraQuality' level.\r\n\r\nNot every game allows using this level, some may only expose it as an option once this has been set to non-zero.\r\nA very small number might also already show an UltraQuality level, which this setting should be able to customize.\r\n(the number of games that work with this is very small unfortunately)\r\n\r\nSet to 0 to leave this as DLSS default.";
-        static string HoverLoadText = "Reload the DLSSTweaks.ini from the same folder as ConfigTool.";
-        static string HoverSaveText = "Writes out the changed settings to DLSSTweaks.ini.";
+        static string HoverLoadText = $"Reload the {IniFilenameFriendly} from the same folder as ConfigTool.";
+        static string HoverSaveText = $"Writes out the changed settings to {IniFilenameFriendly}.";
         static string HoverAddDLLOverrideText = "DLL override: allows overriding the path that a game will load a DLL from, simply pick the new DLL you wish to override with.\r\n\r\nThis can be useful if you're prevented from editing the game files for some reason.\r\n\r\neg. with Rockstar Game Launcher, you can't easily update nvngx_dlss.dll without RGL reverting it, but by using this you can make the game load DLSS from a completely different path which RGL can't override.";
         static string HoverInstallDllText = "Allows copying this DLSSTweaks config & DLL into a chosen folder.\r\n\r\nCan be used to either install freshly extracted DLSSTweaks into a game, or to copy existing config + DLL across to other titles.";
         static string HoverInstallDllTextUnavailable = "DLSSTweaks DLL not found in current folder, install not available.";
@@ -41,7 +42,7 @@ namespace DLSSTweaks.ConfigTool
 
         static string NvidiaGlobalsSectionName = "NvGlobalProfileSettings";
 
-        static string HoverNvidiaGlobalsDisclaimer = $"NOTE: applying changes to \"{NvidiaGlobalsSectionName}\" section requires ConfigTool to be ran as admin!\r\n\r\n";
+        static string HoverNvidiaGlobalsDisclaimer = $"NOTE: applying changes to \"{NvidiaGlobalsSectionName}\" section requires ConfigTool to be ran as admin, you will be prompted to relaunch if necessary.\r\n\r\n";
 
         static string HoverGlobalForceDLAAText = "GlobalForceDLAA: if set to true, all DLSS quality levels will be forced as DLAA instead, on all DLSS 3.1.11+ games (without DLSSTweaks needing to be setup on them).\r\n\r\nMay have compatibility issues with certain titles as this setting is handled by DLSS itself, not DLSSTweaks, so the compatibility workarounds used by DLSSTweaks can't be applied to it.";
         static string HoverGlobalForcedScaleText = "GlobalForcedScale: if set, forces all DLSS quality levels to the specified render scale, on all DLSS 3.1.11+ games (without DLSSTweaks needing to be setup on them).\r\n\r\nValid range is 0.33 to 1.00.";
@@ -107,7 +108,7 @@ namespace DLSSTweaks.ConfigTool
 
             // Try searching for UE4/UE5 specific EXE name
             var allExeFiles = Directory.GetFiles(dirPath, "*.exe", SearchOption.AllDirectories);
-            foreach(var filePath in allExeFiles)
+            foreach (var filePath in allExeFiles)
             {
                 var fileName = Path.GetFileNameWithoutExtension(filePath).ToLower();
                 if (fileName.Contains("-win") && fileName.EndsWith("-shipping"))
@@ -163,6 +164,22 @@ namespace DLSSTweaks.ConfigTool
                 return null;
 
             return largest.FullName;
+        }
+
+        bool IniIsLikelyValid()
+        {
+            if (!File.Exists(IniFilename))
+                return false;
+
+            try
+            {
+                var info = new FileInfo(IniFilename);
+                if (info.Length > 0)
+                    return true;
+            }
+            catch { }
+
+            return false;
         }
 
         string RunDlssTweaksDllCleanup(string prompt, string[] dllsToCleanup, string dllBasePath)
@@ -234,6 +251,21 @@ namespace DLSSTweaks.ConfigTool
             return null;
         }
 
+        bool SkipLoadWarnings = false;
+
+        void ProcessArgs()
+        {
+            var args = Environment.GetCommandLineArgs();
+            if (args == null || args.Length < 2)
+                return;
+
+            foreach (var arg in args)
+                if (arg.ToLower() == "-SkipLoadWarnings".ToLower())
+                    SkipLoadWarnings = true;
+        }
+
+        bool IniIsEmpty = false;
+
         public void IniRead()
         {
             lvSettings.Unfocus();
@@ -247,19 +279,19 @@ namespace DLSSTweaks.ConfigTool
 
             string[] lines = null;
 
-            if (File.Exists(IniFilename))
+            IniIsEmpty = !IniIsLikelyValid();
+
+            if (!IniIsEmpty)
             {
                 lblIniPath.Text = Path.GetFullPath(IniFilename);
                 lines = File.ReadAllLines(IniFilename);
             }
-
-            if (lines == null || lines.Length == 0)
+            else
             {
-                MessageBox.Show("Failed to load dlsstweaks.ini, or INI file is empty.\r\n\r\nPlease extract dlsstweaks.ini from the ZIP you downloaded next to this tool first before running.");
-                Application.Exit();
-                System.Diagnostics.Process.GetCurrentProcess().Kill();
-                return;
+                lblIniPath.Text = $"Failed to load settings from {IniFilenameFriendly}, Nvidia profile globals can be changed.";
             }
+
+            addDLLOverrideToolStripMenuItem.Enabled = !IniIsEmpty;
 
             var formTitle = $"{DefaultFormTitle} - {IniFilename}";
             if (!string.IsNullOrEmpty(DlssTweaksDll))
@@ -442,7 +474,7 @@ namespace DLSSTweaks.ConfigTool
             }
 
             // Add Global pseudo-settings to list
-            if (!userIni.Entries.ContainsKey(NvidiaGlobalsSectionName) && userIni.Entries.ContainsKey("DLSS"))
+            if (!userIni.Entries.ContainsKey(NvidiaGlobalsSectionName))
             {
                 var entries = new Dictionary<string, HackyIniParser.IniEntry>()
                 {
@@ -530,18 +562,29 @@ namespace DLSSTweaks.ConfigTool
 
         bool IniCheckPermissions()
         {
+            bool deleteAfter = !File.Exists(IniFilename);
+            bool hasPermission = false;
+
             try
             {
-                // Get the file attributes
                 using (FileStream fileStream = File.Open(IniFilename, FileMode.OpenOrCreate, FileAccess.Write))
                 {
-                    return true;
+                    hasPermission = true;
                 }
             }
             catch (Exception ex)
             {
-                return false;
+                hasPermission = false;
             }
+
+            if (File.Exists(IniFilename) && deleteAfter)
+                try
+                {
+                    File.Delete(IniFilename);
+                }
+                catch { }
+
+            return hasPermission;
         }
 
         void IniWrite()
@@ -561,7 +604,12 @@ namespace DLSSTweaks.ConfigTool
         {
             lvSettings.Unfocus();
 
-            PeanutButter.INI.INIFile file = new PeanutButter.INI.INIFile(IniFilename);
+            PeanutButter.INI.INIFile file = new PeanutButter.INI.INIFile();
+
+            // Only let INIParser read from INI if it already exists, we don't handle creating INI yet
+            if (!IniIsEmpty)
+                file = new PeanutButter.INI.INIFile(IniFilename);
+
             file.WrapValueInQuotes = false;
 
             foreach (ListViewItem item in lvSettings.Items)
@@ -620,7 +668,7 @@ namespace DLSSTweaks.ConfigTool
             }
             dllOverrides.Clear();
 
-            foreach(var change in IniChanges)
+            foreach (var change in IniChanges)
             {
                 var value = file[change.Section][change.Key];
                 file.RemoveValue(change.Section, change.Key);
@@ -628,7 +676,9 @@ namespace DLSSTweaks.ConfigTool
                     file[change.Section][change.NewKey] = value;
             }
 
-            file.Persist();
+            // Write out changed INI -- but only if INI already exists, ConfigTool currently doesn't handle creating new one
+            if (!IniIsEmpty)
+                file.Persist();
 
             // INI has been written, try writing any DRS settings if they've been changed
             if (Drs.HasChanges())
@@ -639,7 +689,6 @@ namespace DLSSTweaks.ConfigTool
                 }
                 catch (UnauthorizedAccessException ex)
                 {
-
                     if (MessageBox.Show($"UnauthorizedAccessException: ConfigTool failed to write {NvidiaGlobalsSectionName}.\r\n\r\n" +
                         $"Any DLSSTweaks INI changes have been saved, but {NvidiaGlobalsSectionName} changes failed to apply.\r\n\r\n" +
                         "ConfigTool may need to be launched as administrator, do you want to relaunch ConfigTool as admin? (requires UAC prompt)", "Failed to write DRS settings", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
@@ -656,6 +705,7 @@ namespace DLSSTweaks.ConfigTool
         public Main()
         {
             InitializeComponent();
+            ProcessArgs();
 
             statusStrip1.LayoutStyle = ToolStripLayoutStyle.Flow;
 
@@ -693,13 +743,26 @@ namespace DLSSTweaks.ConfigTool
                 installToGameFolderToolStripMenuItem.ToolTipText = HoverInstallDllTextUnavailable;
             }
 
+            if (!IniCheckPermissions())
+            {
+                if (MessageBox.Show($"DLSSTweaks ConfigTool is unable to write to {IniFilenameFriendly}, the file may be protected, or ConfigTool may need to run as administrator." +
+                    "\r\n\r\nDo you want to relaunch ConfigTool as admin? (requires UAC prompt)", "INI access denied", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                {
+                    NvSigOverride.Elevate("", false);
+                    Process.GetCurrentProcess().Kill();
+                }
+            }
+
+            IniRead();
+
             // Alert user if this is being ran with no game EXE in current folder
             var exePath = SearchForGameExe(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName));
             if (string.IsNullOrEmpty(exePath))
             {
-                MessageBox.Show("It looks like DLSSTweaks ConfigTool has been launched outside of a game directory (no game EXE found).\n\n" +
-                    "It's recommended to copy DLSSTweaks into a game folder first before configuring it.\n\n" +
-                    "You can let ConfigTool copy the necessary files for you via the \"Copy to game folder...\" command on top right.", "Game EXE not found!");
+                if (!SkipLoadWarnings)
+                    MessageBox.Show("It looks like DLSSTweaks ConfigTool has been launched outside of a game directory (no game EXE found).\n\n" +
+                        "It's recommended to copy DLSSTweaks into a game folder first before configuring it.\n\n" +
+                        "You can let ConfigTool copy the necessary files for you via the \"Copy to game folder...\" command on top right.", "Game EXE not found!");
             }
             else
             {
@@ -709,7 +772,7 @@ namespace DLSSTweaks.ConfigTool
                 {
                     if (!NvSigOverride.IsOverride())
                     {
-                        if (MessageBox.Show("It appears that DLSSTweaks is loading in via the nvngx.dll wrapper method.\n\n" +
+                        if (!SkipLoadWarnings && MessageBox.Show("It appears that DLSSTweaks is loading in via the nvngx.dll wrapper method.\n\n" +
                             "This method requires an Nvidia registry override to be set in order for the DLL to be loaded in.\n\n" +
                             "This override currently doesn't seem to be active, do you want ConfigTool to apply it for you?\n" +
                             "(this will require administrator permissions to apply, you will be prompted when continuing.)\n\n" +
@@ -720,18 +783,6 @@ namespace DLSSTweaks.ConfigTool
                     }
                 }
             }
-
-            if (!IniCheckPermissions())
-            {
-                if (MessageBox.Show("DLSSTweaks ConfigTool is unable to write to DLSSTweaks.ini, the file may be protected, or ConfigTool may need to run as administrator." +
-                    "\r\n\r\nDo you want to relaunch ConfigTool as admin? (requires UAC prompt)", "INI access denied", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
-                {
-                    NvSigOverride.Elevate("", false);
-                    Process.GetCurrentProcess().Kill();
-                }
-            }
-
-            IniRead();
         }
 
         private void lvSettings_ValueChanged(object sender, EventArgs e)
@@ -904,7 +955,7 @@ namespace DLSSTweaks.ConfigTool
 
             var filesToCopy = new[] {
                 DlssTweaksDll,
-                "dlsstweaks.ini",
+                IniFilename,
                 configToolName
             };
 
@@ -1084,6 +1135,14 @@ namespace DLSSTweaks.ConfigTool
             DialogResult result = MessageBox.Show("You have unsaved changes, save those before exiting?", "Save?", MessageBoxButtons.YesNo);
             if (result == DialogResult.Yes)
                 IniWrite();
+        }
+
+        private void Main_Shown(object sender, EventArgs e)
+        {
+            if (IniIsEmpty && !SkipLoadWarnings)
+                MessageBox.Show($"Failed to load DLSSTweaks settings from {IniFilenameFriendly}, file either doesn't exist or is empty.\r\n\r\n" +
+                    "Nvidia global settings can still be viewed/edited, but DLSSTweaks settings will be unavailable.\r\n\r\n" +
+                    $"To configure DLSSTweaks, please extract {IniFilenameFriendly} from the ZIP you downloaded next to this tool first before running.", "Failed to load DLSSTweaks settings", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 }

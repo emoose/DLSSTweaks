@@ -217,7 +217,10 @@ namespace DLSSTweaks.ConfigTool
 
             Entries = new Dictionary<string, Dictionary<string, IniEntry>>();
 
-            foreach(var line in lines)
+            if (lines == null)
+                return;
+
+            foreach (var line in lines)
             {
                 var trimmed = line.TrimStart(' ').TrimEnd(' ').TrimStart('\t').TrimEnd('\t');
                 if (trimmed.Length <= 0)

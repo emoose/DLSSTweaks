@@ -366,7 +366,7 @@ namespace DLSSTweaks.ConfigTool
 
         public long RVA2Offset(long rva)
         {
-            foreach(var section in Sections)
+            foreach (var section in Sections)
             {
                 var sectionStart = section.VirtualAddress;
                 var sectionEnd = section.VirtualAddress + section.VirtualSize;
@@ -409,7 +409,7 @@ namespace DLSSTweaks.ConfigTool
             DataDirectories = reader.ReadStruct<IMAGE_DATA_DIRECTORIES>();
 
             Sections = new List<IMAGE_SECTION_HEADER>();
-            for(int i = 0; i < NtHeaders.FileHeader.NumberOfSections; i++)
+            for (int i = 0; i < NtHeaders.FileHeader.NumberOfSections; i++)
             {
                 var section = reader.ReadStruct<IMAGE_SECTION_HEADER>();
                 Sections.Add(section);
