@@ -39,15 +39,16 @@ namespace DLSSTweaks.ConfigTool
             this.addDLLOverrideToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.installToGameFolderToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
+            this.lvSettings = new DLSSTweaks.ConfigTool.ListViewEx();
+            this.chSetting = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.chValue = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.menuSettings = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.ctxRename = new System.Windows.Forms.ToolStripMenuItem();
             this.ctxDelete = new System.Windows.Forms.ToolStripMenuItem();
             this.txtDesc = new System.Windows.Forms.TextBox();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.lblIniPath = new System.Windows.Forms.ToolStripStatusLabel();
-            this.lvSettings = new DLSSTweaks.ConfigTool.ListViewEx();
-            this.chSetting = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.chValue = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.toolTip = new System.Windows.Forms.ToolTip(this.components);
             this.menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -130,6 +131,37 @@ namespace DLSSTweaks.ConfigTool
             this.splitContainer1.SplitterDistance = 625;
             this.splitContainer1.TabIndex = 3;
             // 
+            // lvSettings
+            // 
+            this.lvSettings.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.chSetting,
+            this.chValue});
+            this.lvSettings.ContextMenuStrip = this.menuSettings;
+            this.lvSettings.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lvSettings.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lvSettings.FullRowSelect = true;
+            this.lvSettings.HideSelection = false;
+            this.lvSettings.Location = new System.Drawing.Point(0, 0);
+            this.lvSettings.Margin = new System.Windows.Forms.Padding(4);
+            this.lvSettings.MultiSelect = false;
+            this.lvSettings.Name = "lvSettings";
+            this.lvSettings.Size = new System.Drawing.Size(856, 625);
+            this.lvSettings.TabIndex = 1;
+            this.lvSettings.UseCompatibleStateImageBehavior = false;
+            this.lvSettings.View = System.Windows.Forms.View.Details;
+            this.lvSettings.SelectedIndexChanged += new System.EventHandler(this.lvSettings_SelectedIndexChanged);
+            this.lvSettings.MouseMove += new System.Windows.Forms.MouseEventHandler(this.lvSettings_MouseMove);
+            // 
+            // chSetting
+            // 
+            this.chSetting.Text = "Setting";
+            this.chSetting.Width = 300;
+            // 
+            // chValue
+            // 
+            this.chValue.Text = "Value";
+            this.chValue.Width = 300;
+            // 
             // menuSettings
             // 
             this.menuSettings.ImageScalingSize = new System.Drawing.Size(20, 20);
@@ -185,37 +217,6 @@ namespace DLSSTweaks.ConfigTool
             this.lblIniPath.Size = new System.Drawing.Size(28, 30);
             this.lblIniPath.Text = "...";
             // 
-            // lvSettings
-            // 
-            this.lvSettings.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.chSetting,
-            this.chValue});
-            this.lvSettings.ContextMenuStrip = this.menuSettings;
-            this.lvSettings.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lvSettings.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lvSettings.FullRowSelect = true;
-            this.lvSettings.HideSelection = false;
-            this.lvSettings.Location = new System.Drawing.Point(0, 0);
-            this.lvSettings.Margin = new System.Windows.Forms.Padding(4);
-            this.lvSettings.MultiSelect = false;
-            this.lvSettings.Name = "lvSettings";
-            this.lvSettings.Size = new System.Drawing.Size(856, 625);
-            this.lvSettings.TabIndex = 1;
-            this.lvSettings.UseCompatibleStateImageBehavior = false;
-            this.lvSettings.View = System.Windows.Forms.View.Details;
-            this.lvSettings.SelectedIndexChanged += new System.EventHandler(this.lvSettings_SelectedIndexChanged);
-            this.lvSettings.MouseMove += new System.Windows.Forms.MouseEventHandler(this.lvSettings_MouseMove);
-            // 
-            // chSetting
-            // 
-            this.chSetting.Text = "Setting";
-            this.chSetting.Width = 300;
-            // 
-            // chValue
-            // 
-            this.chValue.Text = "Value";
-            this.chValue.Width = 300;
-            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(11F, 24F);
@@ -262,5 +263,6 @@ namespace DLSSTweaks.ConfigTool
         private ContextMenuStrip menuSettings;
         private ToolStripMenuItem ctxDelete;
         private ToolStripMenuItem ctxRename;
+        private ToolTip toolTip;
     }
 }

@@ -477,6 +477,13 @@ namespace DLSSTweaks.ConfigTool
                 listViewItem.SubItems.Add(value);
                 lvSettings.Items.Add(listViewItem);
 
+                // If this is a scale value calculate the resolution & display it in tooltip
+                if ((group.Header.ToLower() == "dlssqualitylevels" && key.ToLower() != "enable") ||
+                    (group.Header == NvidiaGlobalsSectionName && key == NvidiaGlobalsForcedScaleKey))
+                {
+                    listViewItem.ToolTipText = CalculateResForScale(value);
+                }
+
                 var row = lvSettings.Items.Count - 1;
 
                 if (isBooleanKey)
@@ -487,7 +494,7 @@ namespace DLSSTweaks.ConfigTool
                         lvSettings.AddComboBoxCell(row, 1, OverrideValues);
                     else
                     {
-                        if (section == "DLSSPresets" || key == "GlobalForcedPreset")
+                        if (section == "DLSSPresets" || key == NvidiaGlobalsForcedPresetKey)
                             lvSettings.AddComboBoxCell(row, 1, new string[] { "Default", "A", "B", "C", "D", "E", "F", "G" });
                         else if (key.StartsWith(NvidiaGlobalsVideoSuperResKey))
                             lvSettings.AddComboBoxCell(row, 1, new string[] { "Disabled", "1", "2", "3", "4", "5" });
@@ -862,6 +869,21 @@ namespace DLSSTweaks.ConfigTool
             }
         }
 
+        private string CalculateResForScale(string scaleVal)
+        {
+            float scale = 0;
+            if (!float.TryParse(scaleVal, out scale) || scale < 0)
+                return string.Empty;
+
+            var screen = Screen.FromControl(this);
+            int width = screen.Bounds.Width;
+            int height = screen.Bounds.Height;
+            int newWidth = (int)Math.Ceiling(scale * width);
+            int newHeight = (int)Math.Ceiling(scale * height);
+
+            return $"     {width}x{height} @ {scaleVal}x\r\n      = {newWidth}x{newHeight}";
+        }
+
         private void lvSettings_ValueChanged(object sender, EventArgs e)
         {
             var lvi = sender as ListViewItem;
@@ -876,24 +898,60 @@ namespace DLSSTweaks.ConfigTool
             }
             else
             {
+                if ((lvi.Text == NvidiaGlobalsForcedScaleKey) ||
+                    (lvi.Group.Header.ToLower() == "dlssqualitylevels" && lvi.Text.ToLower() != "enable"))
+                {
+                    lvi.ToolTipText = CalculateResForScale(lvi.SubItems[1].Text);
+                }
+
                 IsChangeUnsaved = true;
                 UpdateTitle();
             }
             lvSettings.Focus();
         }
 
-        private void lvSettings_MouseMove(object sender, MouseEventArgs e)
+        // Returns whether tooltip should be shown or hidden
+        ListViewItem.ListViewSubItem prevSubItem = null;
+        private bool lvSettings_MouseMove_Main(object sender, MouseEventArgs e)
         {
-            var hitTest = lvSettings.HitTest(e.X, e.Y);
+            ListViewHitTestInfo hitTest = null;
+            try
+            {
+                hitTest = lvSettings.HitTest(e.X, e.Y);
+            }
+            catch
+            {
+                hitTest = null;
+            }
+
             if (hitTest == null)
-                return;
+                return false;
 
             var item = hitTest.Item;
-            if (item == null || item.Tag == null || item.Tag.GetType() != typeof(string))
-                return;
+            if (item == null || item.Tag == null || item.Tag.GetType() != typeof(string) || hitTest.SubItem == null)
+                return false;
+
+            if (prevSubItem != hitTest.SubItem)
+                toolTip.Hide(lvSettings);
+
+            prevSubItem = hitTest.SubItem;
 
             if (hitTest.SubItem == item.SubItems[0])
                 txtDesc.Text = (string)item.Tag;
+            else if(hitTest.SubItem == item.SubItems[1])
+            {
+                // Display the tooltip for the item under the mouse cursor
+                toolTip.Show(hitTest.Item.ToolTipText, lvSettings, e.Location);
+                return true;
+            }
+
+            return false;
+        }
+        private void lvSettings_MouseMove(object sender, MouseEventArgs e)
+        {
+            var res = lvSettings_MouseMove_Main(sender, e);
+            if (!res)
+                toolTip.Hide(lvSettings);
         }
 
         private bool IsDllOverrideSelected()
@@ -1023,8 +1081,10 @@ namespace DLSSTweaks.ConfigTool
             DialogResult result = DialogResult.No;
             if (IsChangeUnsaved)
             {
-                result = MessageBox.Show("You have unsaved changes, save those first?", "Save?", MessageBoxButtons.YesNo);
-                if (result == DialogResult.Yes)
+                result = MessageBox.Show("You have unsaved changes, save those first?", "Save?", MessageBoxButtons.YesNoCancel);
+                if (result == DialogResult.Cancel)
+                    return;
+                else if (result == DialogResult.Yes)
                     IniWrite();
             }
 
@@ -1209,8 +1269,10 @@ namespace DLSSTweaks.ConfigTool
             if (!IsChangeUnsaved)
                 return;
 
-            DialogResult result = MessageBox.Show("You have unsaved changes, save those before exiting?", "Save?", MessageBoxButtons.YesNo);
-            if (result == DialogResult.Yes)
+            DialogResult result = MessageBox.Show("You have unsaved changes, save those before exiting?", "Save?", MessageBoxButtons.YesNoCancel);
+            if (result == DialogResult.Cancel)
+                e.Cancel = true;
+            else if (result == DialogResult.Yes)
                 IniWrite();
         }
     }

@@ -637,12 +637,15 @@ namespace DLSSTweaks.ConfigTool
             {
                 if (this.row != -1 && this.col != -1)
                 {
-                    bool changed = this.Items[row].SubItems[col].Text != this.textBox.Text;
-                    this.Items[row].SubItems[col].Text = this.textBox.Text;
+                    var curRow = this.Items[row];
+                    var curCol = curRow.SubItems[col];
+
+                    bool changed = curCol.Text != this.textBox.Text;
+                    curCol.Text = this.textBox.Text;
                     this.textBox.Hide();
 
                     if (changed && this.ValueChanged != null)
-                        ValueChanged(this, new EventArgs());
+                        ValueChanged(curRow, new EventArgs());
                 }
             }
             catch (Exception ex)
