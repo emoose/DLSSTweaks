@@ -2,6 +2,7 @@ using DLSSTweaks.ConfigTool.Properties;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -32,8 +33,8 @@ namespace DLSSTweaks.ConfigTool
 
         static string DefaultDescText = "Welcome to the DLSSTweaks ConfigTool!\r\n\r\nSelect or hover over any setting name to view a description of it here, or click on the value for the setting to edit it.\r\n\r\nIf you just want to force DLAA, simply edit the ForceDLAA value above and then save the changes.";
         static string UltraQualityText = "UltraQuality: allows setting the ratio for the 'UltraQuality' level.\r\n\r\nNot every game allows using this level, some may only expose it as an option once this has been set to non-zero.\r\nA very small number might also already show an UltraQuality level, which this setting should be able to customize.\r\n(the number of games that work with this is very small unfortunately)\r\n\r\nSet to 0 to leave this as DLSS default.";
-        static string HoverLoadText = $"Reload the {IniFilenameFriendly} from the same folder as ConfigTool.";
-        static string HoverSaveText = $"Writes out the changed settings to {IniFilenameFriendly}.";
+        static string HoverLoadText = $"Reloads settings from INI & Nvidia profiles.";
+        static string HoverSaveText = $"Writes out the changed settings to INI / Nvidia profiles.";
         static string HoverAddDLLOverrideText = "DLL override: allows overriding the path that a game will load a DLL from, simply pick the new DLL you wish to override with.\r\n\r\nThis can be useful if you're prevented from editing the game files for some reason.\r\n\r\neg. with Rockstar Game Launcher, you can't easily update nvngx_dlss.dll without RGL reverting it, but by using this you can make the game load DLSS from a completely different path which RGL can't override.";
         static string HoverInstallDllText = "Allows copying this DLSSTweaks config & DLL into a chosen folder.\r\n\r\nCan be used to either install freshly extracted DLSSTweaks into a game, or to copy existing config + DLL across to other titles.";
         static string HoverInstallDllTextUnavailable = "DLSSTweaks DLL not found in current folder, install not available.";
@@ -270,6 +271,25 @@ namespace DLSSTweaks.ConfigTool
                     SkipLoadWarnings = true;
         }
 
+        void UpdateTitle()
+        {
+            var formTitle = $"{DefaultFormTitle}";
+            if (!IniIsEmpty)
+                formTitle += $" - {IniFilename}";
+            else
+                formTitle += $" - Nvidia Settings";
+
+            if (IsChangeUnsaved)
+                formTitle += "*";
+
+            if (!string.IsNullOrEmpty(DlssTweaksDll))
+                formTitle += $" ({DlssTweaksDll})";
+            if (NvSigOverride.IsElevated())
+                formTitle += " (admin)";
+
+            this.Text = formTitle;
+        }
+
         bool IniIsEmpty = false;
 
         public void IniRead()
@@ -301,13 +321,7 @@ namespace DLSSTweaks.ConfigTool
 
             addDLLOverrideToolStripMenuItem.Enabled = !IniIsEmpty;
 
-            var formTitle = $"{DefaultFormTitle} - {IniFilename}";
-            if (!string.IsNullOrEmpty(DlssTweaksDll))
-                formTitle += $" ({DlssTweaksDll})";
-            if (NvSigOverride.IsElevated())
-                formTitle += " (admin)";
-
-            this.Text = formTitle;
+            UpdateTitle();
 
             var userIni = new HackyIniParser();
             userIni.Parse(lines);
@@ -744,6 +758,29 @@ namespace DLSSTweaks.ConfigTool
             InitializeComponent();
             ProcessArgs();
 
+            // Column header sizing seems to act weird at different DPIs, ugh
+            {
+                float dpi = 96;
+                Graphics g = CreateGraphics();
+                try
+                {
+                    dpi = Math.Max(g.DpiX, g.DpiY);
+                }
+                finally
+                {
+                    g.Dispose();
+                }
+
+                if (dpi < 96)
+                    dpi = 96;
+
+                float origDpi = 168; // DPI used during dev
+
+                float scale = dpi / origDpi;
+                chSetting.Width = (int)Math.Ceiling(scale * chSetting.Width);
+                chValue.Width = (int)Math.Ceiling(scale * chValue.Width);
+            }
+
             statusStrip1.LayoutStyle = ToolStripLayoutStyle.Flow;
 
             lblIniPath.Text = Path.GetFullPath(IniFilename);
@@ -837,8 +874,8 @@ namespace DLSSTweaks.ConfigTool
             }
             else
             {
-                this.Text = $"{DefaultFormTitle} - {IniFilename}*";
                 IsChangeUnsaved = true;
+                UpdateTitle();
             }
             lvSettings.Focus();
         }

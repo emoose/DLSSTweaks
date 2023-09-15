@@ -46,8 +46,8 @@ namespace DLSSTweaks.ConfigTool
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.lblIniPath = new System.Windows.Forms.ToolStripStatusLabel();
             this.lvSettings = new DLSSTweaks.ConfigTool.ListViewEx();
-            this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.columnHeader2 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.chSetting = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.chValue = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -188,8 +188,8 @@ namespace DLSSTweaks.ConfigTool
             // lvSettings
             // 
             this.lvSettings.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnHeader1,
-            this.columnHeader2});
+            this.chSetting,
+            this.chValue});
             this.lvSettings.ContextMenuStrip = this.menuSettings;
             this.lvSettings.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lvSettings.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -206,15 +206,15 @@ namespace DLSSTweaks.ConfigTool
             this.lvSettings.SelectedIndexChanged += new System.EventHandler(this.lvSettings_SelectedIndexChanged);
             this.lvSettings.MouseMove += new System.Windows.Forms.MouseEventHandler(this.lvSettings_MouseMove);
             // 
-            // columnHeader1
+            // chSetting
             // 
-            this.columnHeader1.Text = "Setting";
-            this.columnHeader1.Width = 300;
+            this.chSetting.Text = "Setting";
+            this.chSetting.Width = 300;
             // 
-            // columnHeader2
+            // chValue
             // 
-            this.columnHeader2.Text = "Value";
-            this.columnHeader2.Width = 300;
+            this.chValue.Text = "Value";
+            this.chValue.Width = 300;
             // 
             // Main
             // 
@@ -251,8 +251,8 @@ namespace DLSSTweaks.ConfigTool
         private ToolStripMenuItem saveToolStripMenuItem;
         private MenuStrip menuStrip1;
         private ListViewEx lvSettings;
-        private ColumnHeader columnHeader1;
-        private ColumnHeader columnHeader2;
+        private ColumnHeader chSetting;
+        private ColumnHeader chValue;
         private SplitContainer splitContainer1;
         private TextBox txtDesc;
         private ToolStripMenuItem addDLLOverrideToolStripMenuItem;
