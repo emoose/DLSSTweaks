@@ -8,9 +8,9 @@
     <Title>DLSSTweaks.ConfigTool</Title>
     <Authors>emoose</Authors>
     <PackageProjectUrl>https://github.com/emoose/DLSSTweaks</PackageProjectUrl>
-    <AssemblyVersion>0.200.7.5</AssemblyVersion>
-    <FileVersion>0.200.7.5</FileVersion>
-    <Version>0.200.7.5</Version>
+    <AssemblyVersion>0.200.7.6</AssemblyVersion>
+    <FileVersion>0.200.7.6</FileVersion>
+    <Version>0.200.7.6</Version>
     <Copyright>Copyright (c) emoose 2023</Copyright>
     <StartupObject>DLSSTweaks.ConfigTool.Program</StartupObject>
   </PropertyGroup>

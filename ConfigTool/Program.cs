@@ -18,8 +18,24 @@ namespace DLSSTweaks.ConfigTool
         {
             var args = Environment.GetCommandLineArgs();
             if (args != null && args.Length > 0)
+            {
                 if (NvSigOverride.ProcessArgs())
                     return;
+                try
+                {
+                    if (ConfigTool.Main.Drs.ProcessArgs())
+                        return;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    var argStr = "";
+                    for (int i = 1; i < args.Length; i++)
+                        argStr += $"\"{args[i]}\" ";
+
+                    NvSigOverride.Elevate(argStr, false);
+                    return;
+                }
+            }
 
             AppDomain.CurrentDomain.AssemblyResolve += (sender, arg) => { 
                 if (arg.Name.StartsWith("PeanutButter.INI")) 

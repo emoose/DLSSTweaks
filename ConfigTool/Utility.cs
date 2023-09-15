@@ -74,6 +74,20 @@ namespace DLSSTweaks.ConfigTool
             }
         }
 
+        public static bool ParseBool(string input)
+        {
+            input = input.ToLower();
+            bool ret = false;
+            if (!bool.TryParse(input, out ret))
+            {
+                if (input == "0" || input == "no" || input == "n" || input == "f")
+                    ret = false;
+                else
+                    ret = true;
+            }
+            return ret;
+        }
+
         public static T BytesToStruct<T>(byte[] bytes)
         {
             // Pin the managed memory while, copy it out the data, then unpin it

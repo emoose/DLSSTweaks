@@ -22,7 +22,7 @@ namespace DLSSTweaks.ConfigTool
             public bool IsDeletion => string.IsNullOrEmpty(NewKey);
         }
 
-        DrsSettings Drs = new DrsSettings();
+        public static DrsSettings Drs = new DrsSettings();
 
         Dictionary<string, string> dllOverrides = new Dictionary<string, string>();
 
@@ -60,12 +60,12 @@ namespace DLSSTweaks.ConfigTool
 
         static string DllPathOverrideText = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nRight click on the override for options to rename/delete it.";
 
-        static string NvidiaGlobalsForceDLAAKey = "GlobalForceDLAA";
-        static string NvidiaGlobalsForcedScaleKey = "GlobalForcedScale";
-        static string NvidiaGlobalsForcedPresetKey = "GlobalForcedPreset";
-        static string NvidiaGlobalsHudOverrideKey = "GlobalHudOverride";
-        static string NvidiaGlobalsSigOverrideKey = "EnableNvidiaSigOverride";
-        static string NvidiaGlobalsVideoSuperResKey = "VSRQuality";
+        public static string NvidiaGlobalsForceDLAAKey = "GlobalForceDLAA";
+        public static string NvidiaGlobalsForcedScaleKey = "GlobalForcedScale";
+        public static string NvidiaGlobalsForcedPresetKey = "GlobalForcedPreset";
+        public static string NvidiaGlobalsHudOverrideKey = "GlobalHudOverride";
+        public static string NvidiaGlobalsSigOverrideKey = "EnableNvidiaSigOverride";
+        public static string NvidiaGlobalsVideoSuperResKey = "VSRQuality";
 
         static string NvidiaHudOverrideEnabledDevValue = "Enabled (dev DLLs only)";
         static string NvidiaHudOverrideEnabledAllValue = "Enabled (all DLLs)";
@@ -659,7 +659,7 @@ namespace DLSSTweaks.ConfigTool
                 if (section == NvidiaGlobalsSectionName)
                 {
                     if (key == NvidiaGlobalsForceDLAAKey)
-                        Drs.OverrideForceDLAA = bool.Parse(value);
+                        Drs.OverrideForceDLAA = Utility.ParseBool(value);
                     else if (key == NvidiaGlobalsForcedPresetKey)
                     {
                         Drs.OverrideRenderPreset = 0;
@@ -684,7 +684,7 @@ namespace DLSSTweaks.ConfigTool
                     else if (key.StartsWith(NvidiaGlobalsVideoSuperResKey))
                     {
                         var numBegin = key.IndexOf("#");
-                        if(numBegin > -1)
+                        if (numBegin > -1)
                         {
                             var indexStr = key.Substring(numBegin + 1);
                             var index = uint.Parse(indexStr);

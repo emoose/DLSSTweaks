@@ -141,17 +141,19 @@ namespace DLSSTweaks.ConfigTool
 
             NvAPI_Status res = NvAPI_Status.NVAPI_OK;
 
-            if (hSession == IntPtr.Zero)
+            // Always create a new session when we want to read settings
+            // Otherwise we could be reading stale data...
+            if (hSession != IntPtr.Zero)
             {
-                if ((res = nvapi.DRS_CreateSession(ref hSession)) == NvAPI_Status.NVAPI_OK)
-                    if ((res = nvapi.DRS_LoadSettings(hSession)) == NvAPI_Status.NVAPI_OK)
-                        res = nvapi.DRS_DecryptSession(hSession);
+                nvapi.DRS_DestroySession(hSession);
+                hSession = IntPtr.Zero;
+                hProfile = IntPtr.Zero;
             }
 
-            if (hProfile == IntPtr.Zero && res == NvAPI_Status.NVAPI_OK)
-            {
-                res = nvapi.DRS_GetBaseProfile(hSession, ref hProfile);
-            }
+            if ((res = nvapi.DRS_CreateSession(ref hSession)) == NvAPI_Status.NVAPI_OK)
+                if ((res = nvapi.DRS_LoadSettings(hSession)) == NvAPI_Status.NVAPI_OK)
+                    if ((res = nvapi.DRS_DecryptSession(hSession)) == NvAPI_Status.NVAPI_OK)
+                        res = nvapi.DRS_GetBaseProfile(hSession, ref hProfile);
 
             if (res != NvAPI_Status.NVAPI_OK)
                 return;
@@ -275,6 +277,130 @@ namespace DLSSTweaks.ConfigTool
 
             // Run Read again to update our Orig values
             Read();
+        }
+
+
+        // Updates DRS settings based on command-line args
+        public bool ProcessArgs()
+        {
+            var args = Environment.GetCommandLineArgs();
+            if (args == null || args.Length < 2)
+                return false;
+
+            Read();
+
+            var argGlobalForceDLAA = Main.NvidiaGlobalsForceDLAAKey.ToLower();
+            var argGlobalForcedScaleKey = Main.NvidiaGlobalsForcedScaleKey.ToLower();
+            var argGlobalsForcedPresetKey = Main.NvidiaGlobalsForcedPresetKey.ToLower();
+            var argGlobalsHudOverrideKey = Main.NvidiaGlobalsHudOverrideKey.ToLower();
+            var argGlobalsVideoSuperResKey = Main.NvidiaGlobalsVideoSuperResKey.ToLower();
+
+            bool hasDrsArg = false;
+
+            for (int i = 1; i < args.Length; i++)
+            {
+                var arg = args[i];
+                if (arg.Length <= 0)
+                    continue;
+
+                var isArg = arg[0] == '-' || arg[0] == '/';
+                if (!isArg)
+                    continue;
+
+                string argValue = "";
+                if (i + 1 < args.Length)
+                {
+                    argValue = args[i + 1];
+
+                    // don't allow any arg-looking strings as the value
+                    if (argValue.Length > 0)
+                        if (argValue[0] == '-' || argValue[0] == '/')
+                            argValue = string.Empty;
+                }
+
+                bool hasValue = !string.IsNullOrEmpty(argValue);
+
+                arg = arg.Substring(1).ToLower();
+
+                if (arg == argGlobalForceDLAA)
+                {
+                    hasDrsArg = true;
+
+                    bool value = true; // if GlobalForceDLAA arg is specified we treat it as enabling, unless user provided a value
+                    if (hasValue)
+                    {
+                        value = Utility.ParseBool(argValue);
+                        i++;
+                    }
+
+                    OverrideForceDLAA = value;
+                }
+                else if (arg == argGlobalForcedScaleKey)
+                {
+                    hasDrsArg = true;
+                    if (hasValue)
+                    {
+                        float value = float.Parse(argValue);
+                        OverrideScaleRatio = value;
+                        i++;
+                    }
+                }
+                else if (arg == argGlobalsForcedPresetKey)
+                {
+                    hasDrsArg = true;
+                    if (hasValue)
+                    {
+                        if (argValue.ToLower() == "default" || argValue == "0")
+                            OverrideRenderPreset = 0;
+                        else
+                        {
+                            var ch = argValue.ToUpper()[0] - 'A';
+                            OverrideRenderPreset = (uint)(ch + 1);
+                        }
+                        i++;
+                    }
+                }
+                else if (arg == argGlobalsHudOverrideKey)
+                {
+                    hasDrsArg = true;
+                    HudStatus = NvHudStatus.EnabledAllDlls;
+
+                    if (hasValue)
+                    {
+                        i++;
+                        argValue = argValue.ToLower();
+                        if (argValue == "0" || argValue == "false" || argValue == "disabled" || argValue == "default")
+                            HudStatus = NvHudStatus.Disabled;
+                        else if (argValue == "dev")
+                            HudStatus = NvHudStatus.Enabled;
+                    }
+                }
+                else if (arg == argGlobalsVideoSuperResKey || arg == "vsr")
+                {
+                    hasDrsArg = true;
+                    VideoSuperResolutionQuality[0] = 4; // if VSR arg is specified we treat it as enabling, unless user provided a value
+
+                    if (hasValue)
+                    {
+                        i++;
+                        argValue = argValue.ToLower();
+                        if (argValue == "0" || argValue == "false" || argValue == "disabled" || argValue == "default")
+                            VideoSuperResolutionQuality[0] = 0;
+                        else
+                        {
+                            try
+                            {
+                                VideoSuperResolutionQuality[0] = uint.Parse(argValue);
+                            }
+                            catch { }
+                        }
+                    }
+                }
+            }
+
+            Write();
+
+            return hasDrsArg;
         }
     }
 }
