@@ -617,12 +617,18 @@ namespace DLSSTweaks.ConfigTool
             lvSettings.Focus();
         }
 
-        private void lvSettings_ItemMouseHover(object sender, ListViewItemMouseHoverEventArgs e)
+        private void lvSettings_MouseMove(object sender, MouseEventArgs e)
         {
-            var item = e.Item as ListViewItem;
+            var hitTest = lvSettings.HitTest(e.X, e.Y);
+            if (hitTest == null)
+                return;
+
+            var item = hitTest.Item;
             if (item == null || item.Tag == null || item.Tag.GetType() != typeof(string))
                 return;
-            txtDesc.Text = (string)item.Tag;
+
+            if (hitTest.SubItem == item.SubItems[0])
+                txtDesc.Text = (string)item.Tag;
         }
 
         private bool IsDllOverrideSelected()
