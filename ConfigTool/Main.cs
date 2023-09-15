@@ -51,14 +51,16 @@ namespace DLSSTweaks.ConfigTool
         static string HoverGlobalHudOverrideText = "GlobalHudOverride: updates the registry key used by all DLSS games to know if the DLSS debug HUD should be activated.\r\n\r\nThe OverrideDlssHud setting included in DLSSTweaks can already enable the HUD for you, but this may still be useful if DLSSTweaks is unable to show the HUD for some reason.\r\n\r\n" +
             "The (dev DLLs only) option will only enable the DLSS HUD on certain 'dev' versions of DLSS, while (all DLLs) will let it show on all versions of DLSS.";
 
-        static string DllPathOverrideText = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nRight click on the override for options to rename/delete it.";
+        static string HoverGlobalVideoSuperResText = "VSRQuality ##(NUM): changes quality level for Nvidia VideoSuperResolution on monitor number #(NUM).\r\n\r\nWhen enabled VSR can improve the scaling applied to internet videos & certain video-playing apps.\r\n\r\nNvidia Control Panel can let you pick from quality 1 - 4, but the video setting itself allows choosing up to quality 5 - it's unknown whether this gives any image quality improvement (power draw seems the same as quality 4 at least).";
 
+        static string DllPathOverrideText = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nRight click on the override for options to rename/delete it.";
 
         static string NvidiaGlobalsForceDLAAKey = "GlobalForceDLAA";
         static string NvidiaGlobalsForcedScaleKey = "GlobalForcedScale";
         static string NvidiaGlobalsForcedPresetKey = "GlobalForcedPreset";
         static string NvidiaGlobalsHudOverrideKey = "GlobalHudOverride";
         static string NvidiaGlobalsSigOverrideKey = "EnableNvidiaSigOverride";
+        static string NvidiaGlobalsVideoSuperResKey = "VSRQuality";
 
         static string NvidiaHudOverrideEnabledDevValue = "Enabled (dev DLLs only)";
         static string NvidiaHudOverrideEnabledAllValue = "Enabled (all DLLs)";
@@ -466,7 +468,9 @@ namespace DLSSTweaks.ConfigTool
                     {
                         if (section == "DLSSPresets" || key == "GlobalForcedPreset")
                             lvSettings.AddComboBoxCell(row, 1, new string[] { "Default", "A", "B", "C", "D", "E", "F", "G" });
-                        else if (key == "GlobalHudOverride")
+                        else if (key.StartsWith(NvidiaGlobalsVideoSuperResKey))
+                            lvSettings.AddComboBoxCell(row, 1, new string[] { "Disabled", "1", "2", "3", "4", "5" });
+                        else if (key == NvidiaGlobalsHudOverrideKey)
                             lvSettings.AddComboBoxCell(row, 1, new string[] { NvidiaHudOverrideDisabledValue, NvidiaHudOverrideEnabledDevValue, NvidiaHudOverrideEnabledAllValue });
                         else
                             lvSettings.AddEditableCell(row, 1);
@@ -531,6 +535,18 @@ namespace DLSSTweaks.ConfigTool
                         }
                     },
                 };
+
+                foreach (var kvp in Drs.VideoSuperResolutionQuality)
+                {
+                    var key = $"{NvidiaGlobalsVideoSuperResKey} #{kvp.Key}";
+                    entries.Add(key, new HackyIniParser.IniEntry()
+                    {
+                        Section = NvidiaGlobalsSectionName,
+                        Key = key,
+                        Comment = HoverGlobalVideoSuperResText.Replace("#(NUM)", $"{kvp.Key}"),
+                        Value = kvp.Value == 0 ? "Disabled" : kvp.Value.ToString()
+                    });
+                }
                 userIni.Entries.Add(NvidiaGlobalsSectionName, entries);
             }
 
@@ -643,6 +659,21 @@ namespace DLSSTweaks.ConfigTool
                             Drs.HudStatus = DrsSettings.NvHudStatus.Enabled;
                         else if (value == NvidiaHudOverrideEnabledAllValue)
                             Drs.HudStatus = DrsSettings.NvHudStatus.EnabledAllDlls;
+                    }
+                    else if (key.StartsWith(NvidiaGlobalsVideoSuperResKey))
+                    {
+                        var numBegin = key.IndexOf("#");
+                        if(numBegin > -1)
+                        {
+                            var indexStr = key.Substring(numBegin + 1);
+                            var index = uint.Parse(indexStr);
+
+                            Drs.VideoSuperResolutionQuality[index] = 0;
+                            if (value != "Disabled")
+                            {
+                                Drs.VideoSuperResolutionQuality[index] = uint.Parse(value);
+                            }
+                        }
                     }
 
                     continue;

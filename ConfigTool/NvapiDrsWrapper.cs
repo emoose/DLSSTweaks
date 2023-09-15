@@ -7,6 +7,7 @@ using System.Text;
 // DRS settings wrapper from NvidiaProfileInspector:
 //  https://raw.githubusercontent.com/Orbmu2k/nvidiaProfileInspector/8b6c13216a4f136f3fd48986a487cf71896dd81c/nspector/Native/NVAPI/NvapiDrsWrapper.cs
 // Edited to include DRS_DecryptSession as some DRS settings needed that called first before they would read properly
+// Also added EnumNvidiaDisplayHandle / GetVideoStateEx / SetVideoStateEx and associated structs (many unknowns...)
 
 namespace nspector.Native.NVAPI2
 {
@@ -301,6 +302,37 @@ namespace nspector.Native.NVAPI2
 
     }
 
+    [StructLayout(LayoutKind.Sequential, Pack = 8)]
+    internal struct NVAPI_GetVideoStateEx
+    {
+        public uint version;
+        public uint settingId;
+        public uint deviceNum;
+        public uint flags;
+        public uint enabled;
+        public uint unk14;
+        public uint valueMin;
+        public uint valueMax;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 0xC)]
+        public byte[] unk20;
+        public uint value;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 0x50)]
+        public byte[] unk30;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 8)]
+    internal struct NVAPI_SetVideoStateEx
+    {
+        public uint version;
+        public uint settingId;
+        public uint deviceNum;
+        public uint flags;
+        public uint enable;
+        public uint value;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 0x28)]
+        public byte[] unk18;
+    }
+
     [StructLayout(LayoutKind.Sequential, Pack = 8, CharSet = CharSet.Unicode)]
     internal struct NVDRS_SETTING
     {
@@ -482,6 +514,18 @@ namespace nspector.Native.NVAPI2
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate NvAPI_Status SYS_GetDriverAndBranchVersionDelegate(ref uint pDriverVersion, [MarshalAs(UnmanagedType.LPStr, SizeConst = (int)NvapiDrsWrapper.NVAPI_SHORT_STRING_MAX)] StringBuilder szBuildBranchString);
         public static readonly SYS_GetDriverAndBranchVersionDelegate SYS_GetDriverAndBranchVersion;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate NvAPI_Status EnumNvidiaDisplayHandleDelegate(uint displayNum, ref IntPtr phDisplay);
+        public static readonly EnumNvidiaDisplayHandleDelegate EnumNvidiaDisplayHandle;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate NvAPI_Status GetVideoStateExDelegate(IntPtr hDisplay, ref NVAPI_GetVideoStateEx pState);
+        public static readonly GetVideoStateExDelegate GetVideoStateEx;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate NvAPI_Status SetVideoStateExDelegate(IntPtr hDisplay, ref NVAPI_SetVideoStateEx pState);
+        public static readonly SetVideoStateExDelegate SetVideoStateEx;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate NvAPI_Status DRS_CreateSessionDelegate(ref IntPtr phSession);
@@ -730,7 +774,6 @@ namespace nspector.Native.NVAPI2
                         GetDelegate(0x2926AAAD, out SYS_GetDriverAndBranchVersion);
                         GetDelegate(0x0694D52E, out DRS_CreateSession);
                         GetDelegate(0xDAD9CFF8, out DRS_DestroySession);
-                        GetDelegate(0x8FC247B7, out DRS_DecryptSession);
                         GetDelegate(0x375DBD6B, out DRS_LoadSettings);
                         GetDelegate(0xFCBC7E14, out DRS_SaveSettings);
                         GetDelegate(0xD3EDE889, out DRS_LoadSettingsFromFile);
@@ -764,6 +807,12 @@ namespace nspector.Native.NVAPI2
                         GetDelegate(0xFA5F6134, out DRS_RestoreProfileDefault);
                         GetDelegate(0x7DD5B261, out DRS_RestoreProfileDefaultSetting, 0x53F0381E);
                         GetDelegate(0xDA8466A0, out DRS_GetBaseProfile);
+
+                        GetDelegate(0x8FC247B7, out DRS_DecryptSession);
+
+                        GetDelegate(0x9abdd40d, out EnumNvidiaDisplayHandle);
+                        GetDelegate(0x0b6ef8b9, out GetVideoStateEx);
+                        GetDelegate(0x9321ca5b, out SetVideoStateEx);
                         #endregion
                     }
                 }

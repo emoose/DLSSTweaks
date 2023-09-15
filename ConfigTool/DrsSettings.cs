@@ -19,12 +19,17 @@ namespace DLSSTweaks.ConfigTool
         const uint DRS_NGX_FORCE_DLAA = 0x10E41DF4;
         const uint DRS_NGX_SCALE_RATIO = 0x10E41DF5;
 
+        const uint VIDEO_STATE_VIDEOSUPERRESOLUTION = 29;
+
         public uint OverrideRenderPreset = 0;
         uint OverrideRenderPresetOrig = 0;
         public bool OverrideForceDLAA = false;
         bool OverrideForceDLAAOrig = false;
         public float OverrideScaleRatio = 0;
         float OverrideScaleRatioOrig = 0;
+
+        public Dictionary<uint, uint> VideoSuperResolutionQuality = new Dictionary<uint, uint>();
+        Dictionary<uint, uint> VideoSuperResolutionQualityOrig = new Dictionary<uint, uint>();
 
         public enum NvHudStatus : uint
         {
@@ -60,15 +65,79 @@ namespace DLSSTweaks.ConfigTool
                 RegistryKey key = Registry.LocalMachine.OpenSubKey("SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore", true);
                 key.SetValue("ShowDlssIndicator", (uint)HudStatus, RegistryValueKind.DWord);
             }
-            catch (SecurityException ex)
+            catch (SecurityException)
             {
                 throw new UnauthorizedAccessException();
             }
         }
 
+        public void ReadVideoSettings()
+        {
+            uint displayIdx = 0;
+            IntPtr displayHandle = IntPtr.Zero;
+
+            VideoSuperResolutionQuality = new Dictionary<uint, uint>();
+            VideoSuperResolutionQualityOrig = new Dictionary<uint, uint>();
+
+            while (nvapi.EnumNvidiaDisplayHandle(displayIdx, ref displayHandle) == NvAPI_Status.NVAPI_OK)
+            {
+                NVAPI_GetVideoStateEx state = new NVAPI_GetVideoStateEx();
+                state.version = 0x10080;
+                state.deviceNum = 0;
+                state.settingId = VIDEO_STATE_VIDEOSUPERRESOLUTION;
+
+                if (nvapi.GetVideoStateEx(displayHandle, ref state) == NvAPI_Status.NVAPI_OK)
+                {
+                    if (state.enabled == 0)
+                        state.value = 0;
+                }
+                else
+                    state.value = 0;
+
+                VideoSuperResolutionQualityOrig[displayIdx] = VideoSuperResolutionQuality[displayIdx] = state.value;
+
+                displayIdx++;
+            }
+        }
+
+        public void WriteVideoSettings()
+        {
+            foreach (var kvp in VideoSuperResolutionQuality)
+            {
+                bool keyChanged = !VideoSuperResolutionQualityOrig.ContainsKey(kvp.Key) || VideoSuperResolutionQualityOrig[kvp.Key] != kvp.Value;
+                if (!keyChanged)
+                    continue;
+
+                IntPtr displayHandle = IntPtr.Zero;
+                if (nvapi.EnumNvidiaDisplayHandle(kvp.Key, ref displayHandle) != NvAPI_Status.NVAPI_OK)
+                    continue;
+
+                NVAPI_SetVideoStateEx state = new NVAPI_SetVideoStateEx();
+                state.version = 0x10040;
+                state.deviceNum = 0;
+                state.settingId = VIDEO_STATE_VIDEOSUPERRESOLUTION;
+                state.enable = kvp.Value != 0 ? 1u : 0u;
+                state.value = kvp.Value;
+
+                nvapi.SetVideoStateEx(displayHandle, ref state);
+            }
+        }
+
+        bool HasVideoChanges()
+        {
+            foreach (var kvp in VideoSuperResolutionQuality)
+            {
+                bool keyChanged = !VideoSuperResolutionQualityOrig.ContainsKey(kvp.Key) || VideoSuperResolutionQualityOrig[kvp.Key] != kvp.Value;
+                if (keyChanged)
+                    return true;
+            }
+            return false;
+        }
+
         public void Read()
         {
             ReadHudStatus();
+            ReadVideoSettings();
 
             NvAPI_Status res = NvAPI_Status.NVAPI_OK;
 
@@ -111,7 +180,8 @@ namespace DLSSTweaks.ConfigTool
                 (OverrideRenderPreset != OverrideRenderPresetOrig) ||
                 (OverrideForceDLAA != OverrideForceDLAAOrig) ||
                 (OverrideScaleRatio != OverrideScaleRatioOrig) ||
-                (HudStatus != HudStatusOrig);
+                (HudStatus != HudStatusOrig) ||
+                HasVideoChanges();
         }
 
         public void Write()
@@ -120,6 +190,7 @@ namespace DLSSTweaks.ConfigTool
                 return;
 
             WriteHudStatus();
+            WriteVideoSettings();
 
             if (hSession == IntPtr.Zero)
             {
@@ -201,6 +272,9 @@ namespace DLSSTweaks.ConfigTool
                 else
                     throw new Exception($"NVAPI Result: {res}");
             }
+
+            // Run Read again to update our Orig values
+            Read();
         }
     }
 }
