@@ -15,9 +15,14 @@ namespace DLSSTweaks.ConfigTool
         static IntPtr hSession = IntPtr.Zero;
         static IntPtr hProfile = IntPtr.Zero;
 
+        const string HudRegistryKeyPath = "SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore";
+        const string HudRegistryValueName = "ShowDlssIndicator";
+
+        const uint DRS_NGX_DLSS_PRIVATE_FLAGS = 0x10AFB76A; // flags 1/2/4, affects "fast uav clear"
         const uint DRS_NGX_OVERRIDE_RENDER_PRESET_SELECTION = 0x10E41DF3;
         const uint DRS_NGX_FORCE_DLAA = 0x10E41DF4;
         const uint DRS_NGX_SCALE_RATIO = 0x10E41DF5;
+        const uint DRS_NGX_DLSSG_PRIVATE_FLAGS = 0x10E41DF6; // flag 1 = DISABLE_SCENE_CHANGE_DETECTION, added in v3.5
 
         const uint VIDEO_STATE_VIDEOSUPERRESOLUTION = 29;
 
@@ -46,8 +51,8 @@ namespace DLSSTweaks.ConfigTool
             // Read in DLSS HUD indicator value
             try
             {
-                RegistryKey key = Registry.LocalMachine.OpenSubKey("SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore", false);
-                var value = (uint)(int)key.GetValue("ShowDlssIndicator");
+                RegistryKey key = Registry.LocalMachine.OpenSubKey(HudRegistryKeyPath, false);
+                var value = (uint)(int)key.GetValue(HudRegistryValueName);
                 HudStatusOrig = HudStatus = (NvHudStatus)value;
             }
             catch
@@ -62,8 +67,11 @@ namespace DLSSTweaks.ConfigTool
             {
                 if (HudStatus == HudStatusOrig)
                     return; // nothing to do
-                RegistryKey key = Registry.LocalMachine.OpenSubKey("SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore", true);
-                key.SetValue("ShowDlssIndicator", (uint)HudStatus, RegistryValueKind.DWord);
+                var key = Registry.LocalMachine.OpenSubKey(HudRegistryKeyPath, true);
+                if (key == null)
+                    key = Registry.LocalMachine.CreateSubKey(HudRegistryKeyPath, true);
+
+                key.SetValue(HudRegistryValueName, (uint)HudStatus, RegistryValueKind.DWord);
             }
             catch (SecurityException)
             {

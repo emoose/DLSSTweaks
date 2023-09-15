@@ -952,7 +952,7 @@ namespace DLSSTweaks.ConfigTool
 
             if (hitTest.SubItem == item.SubItems[0])
                 txtDesc.Text = (string)item.Tag;
-            else if(hitTest.SubItem == item.SubItems[1])
+            else if (hitTest.SubItem == item.SubItems[1])
             {
                 // Display the tooltip for the item under the mouse cursor
                 toolTip.Show(hitTest.Item.ToolTipText, lvSettings, e.Location);

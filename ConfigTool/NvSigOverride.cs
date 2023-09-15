@@ -7,6 +7,9 @@ namespace DLSSTweaks.ConfigTool
 {
     public static class NvSigOverride
     {
+        const string RegistryKeyPath = "SOFTWARE\\NVIDIA Corporation\\Global";
+        const string RegistryKeyValueName = "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}";
+
         public static bool ProcessArgs()
         {
             var args = Environment.GetCommandLineArgs();
@@ -32,8 +35,8 @@ namespace DLSSTweaks.ConfigTool
         {
             try
             {
-                RegistryKey key = Registry.LocalMachine.OpenSubKey("SOFTWARE\\NVIDIA Corporation\\Global", false);
-                byte[] binaryValue = key.GetValue("{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}") as byte[];
+                RegistryKey key = Registry.LocalMachine.OpenSubKey(RegistryKeyPath, false);
+                byte[] binaryValue = key.GetValue(RegistryKeyValueName) as byte[];
                 if (binaryValue == null || binaryValue.Length < 1)
                     return false;
                 return binaryValue[0] == 1;
@@ -56,20 +59,22 @@ namespace DLSSTweaks.ConfigTool
             try
             {
                 // Update the registry entry
-                RegistryKey key = Registry.LocalMachine.OpenSubKey("SOFTWARE\\NVIDIA Corporation\\Global", true);
+                RegistryKey key = Registry.LocalMachine.OpenSubKey(RegistryKeyPath, true);
+                if (key == null)
+                    key = Registry.LocalMachine.CreateSubKey(RegistryKeyPath, true);
 
                 byte[] binaryValue = new byte[] { 0 };
                 if (enableOverride)
                     binaryValue[0] = 1;
 
-                key.SetValue("{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}", binaryValue, RegistryValueKind.Binary);
+                key.SetValue(RegistryKeyValueName, binaryValue, RegistryValueKind.Binary);
 
                 if (!enableOverride)
                 {
                     try
                     {
                         // Try deleting key if we're disabling override, its fine if this part fails since above should have set to 0
-                        key.DeleteValue("{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}");
+                        key.DeleteValue(RegistryKeyValueName);
                     }
                     catch
                     {
