@@ -84,7 +84,7 @@ namespace DLSSTweaks.ConfigTool
             }
         }
 
-        private static bool IsElevated()
+        public static bool IsElevated()
         {
             using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
             {

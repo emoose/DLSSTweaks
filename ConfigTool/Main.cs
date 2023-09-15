@@ -21,6 +21,8 @@ namespace DLSSTweaks.ConfigTool
             public bool IsDeletion => string.IsNullOrEmpty(NewKey);
         }
 
+        DrsSettings Drs = new DrsSettings();
+
         Dictionary<string, string> dllOverrides = new Dictionary<string, string>();
 
         string DefaultFormTitle = "DLSSTweaks"; // will be updated to actual text after InitializeComponent
@@ -37,9 +39,30 @@ namespace DLSSTweaks.ConfigTool
 
         static string HoverNvSigOverrideText = "Allows toggling the NVIDIA Signature Override registry key.\r\n\r\nWith the override enabled DLSSTweaks can be used in most DLSS2+ games by naming it as nvngx.dll.\r\n\r\n(this override only affects Nvidia related signature checks, not anything Windows related)\r\n\r\nChanging this requires Administrator privileges, an elevation prompt will appear if necessary.";
 
+        static string NvidiaGlobalsSectionName = "NvGlobalProfileSettings";
+
+        static string HoverNvidiaGlobalsDisclaimer = $"NOTE: applying changes to \"{NvidiaGlobalsSectionName}\" section requires ConfigTool to be ran as admin!\r\n\r\n";
+
+        static string HoverGlobalForceDLAAText = "GlobalForceDLAA: if set to true, all DLSS quality levels will be forced as DLAA instead, on all DLSS 3.1.11+ games (without DLSSTweaks needing to be setup on them).\r\n\r\nMay have compatibility issues with certain titles as this setting is handled by DLSS itself, not DLSSTweaks, so the compatibility workarounds used by DLSSTweaks can't be applied to it.";
+        static string HoverGlobalForcedScaleText = "GlobalForcedScale: if set, forces all DLSS quality levels to the specified render scale, on all DLSS 3.1.11+ games (without DLSSTweaks needing to be setup on them).\r\n\r\nValid range is 0.33 to 1.00.";
+        static string HoverGlobalForcedPresetText = "GlobalForcedPreset: if set, forces all DLSS quality levels to use the specified preset, on all DLSS 3.1.11+ games (without DLSSTweaks needing to be setup on them).\r\n\r\nMay come in useful if DLSSTweaks was unable to force a preset for some reason.";
+        static string HoverGlobalHudOverrideText = "GlobalHUDOverride: updates the registry key used by all DLSS games to know if the DLSS debug HUD should be activated.\r\n\r\nThe OverrideDlssHud setting included in DLSSTweaks can already enable the HUD for you, but this may still be useful if DLSSTweaks is unable to show the HUD for some reason.\r\n\r\n" +
+            "The (dev DLLs only) option will only enable the DLSS HUD on certain 'dev' versions of DLSS, while (all DLLs) will let it show on all versions of DLSS.";
+
         static string DllPathOverrideText = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nRight click on the override for options to rename/delete it.";
 
-        static string[] BooleanKeys = new[] { "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId", "EnableNvidiaSigOverride", "DynamicResolutionOverride" };
+
+        static string NvidiaGlobalsForceDLAAKey = "GlobalForceDLAA";
+        static string NvidiaGlobalsForcedScaleKey = "GlobalForcedScale";
+        static string NvidiaGlobalsForcedPresetKey = "GlobalForcedPreset";
+        static string NvidiaGlobalsHudOverrideKey = "GlobalHudOverride";
+        static string NvidiaGlobalsSigOverrideKey = "EnableNvidiaSigOverride";
+
+        static string NvidiaHudOverrideEnabledDevValue = "Enabled (dev DLLs only)";
+        static string NvidiaHudOverrideEnabledAllValue = "Enabled (all DLLs)";
+        static string NvidiaHudOverrideDisabledValue = "Disabled";
+
+        static string[] BooleanKeys = new[] { "GlobalForceDLAA", "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId", "EnableNvidiaSigOverride", "DynamicResolutionOverride" };
         
         static string[] OverrideKeys = new[] { "OverrideAutoExposure", "OverrideDlssHud" };
         static string[] OverrideValues = new[] { "Default", "Force disable", "Force enable" }; // 0, -1, 1
@@ -241,6 +264,9 @@ namespace DLSSTweaks.ConfigTool
             var formTitle = $"{DefaultFormTitle} - {IniFilename}";
             if (!string.IsNullOrEmpty(DlssTweaksDll))
                 formTitle += $" ({DlssTweaksDll})";
+            if (NvSigOverride.IsElevated())
+                formTitle += " (admin)";
+
             this.Text = formTitle;
 
             var userIni = new HackyIniParser();
@@ -250,11 +276,11 @@ namespace DLSSTweaks.ConfigTool
             defaultIni.Parse(Resources.DefaultINI.Split(new string[] { "\r\n" }, StringSplitOptions.None));
 
             // Copy across all comments from defaultIni to our userIni
-            foreach(var section in defaultIni.Entries)
+            foreach (var section in defaultIni.Entries)
             {
                 if (!userIni.Entries.ContainsKey(section.Key))
                     continue;
-                foreach(var entry in section.Value)
+                foreach (var entry in section.Value)
                 {
                     if (!userIni.Entries[section.Key].ContainsKey(entry.Key))
                         continue;
@@ -266,12 +292,12 @@ namespace DLSSTweaks.ConfigTool
 
             // Fetch default DLSSQualityLevels comment from our built-in INI
             string comment_DLSSQualityLevels = "";
-            foreach(var section in defaultIni.Entries)
+            foreach (var section in defaultIni.Entries)
             {
                 if (section.Key.ToLower() != "dlssqualitylevels")
                     continue;
 
-                foreach(var entry in section.Value)
+                foreach (var entry in section.Value)
                 {
                     if (entry.Key.ToLower() == "enable")
                         continue;
@@ -351,7 +377,7 @@ namespace DLSSTweaks.ConfigTool
             if (userIni.Entries.ContainsKey("DLLPathOverrides"))
             {
                 var keys = userIni.Entries["DLLPathOverrides"].Keys.ToArray();
-                foreach(var key in keys)
+                foreach (var key in keys)
                 {
                     var entry = userIni.Entries["DLLPathOverrides"][key];
                     entry.Comment = DllPathOverrideText;
@@ -405,33 +431,97 @@ namespace DLSSTweaks.ConfigTool
                         lvSettings.AddComboBoxCell(row, 1, OverrideValues);
                     else
                     {
-                        if (section == "DLSSPresets")
-                            lvSettings.AddComboBoxCell(row, 1, new string[] { "Default", "A", "B", "C", "D", "F" });
+                        if (section == "DLSSPresets" || key == "GlobalForcedPreset")
+                            lvSettings.AddComboBoxCell(row, 1, new string[] { "Default", "A", "B", "C", "D", "E", "F", "G" });
+                        else if (key == "GlobalHudOverride")
+                            lvSettings.AddComboBoxCell(row, 1, new string[] { NvidiaHudOverrideDisabledValue, NvidiaHudOverrideEnabledDevValue, NvidiaHudOverrideEnabledAllValue });
                         else
                             lvSettings.AddEditableCell(row, 1);
                     }
                 }
             }
 
-            // Add EnableNvidiaSigOverride psuedo-setting to list
-            if (userIni.Entries.ContainsKey("DLSS"))
+            // Add Global pseudo-settings to list
+            if (!userIni.Entries.ContainsKey(NvidiaGlobalsSectionName) && userIni.Entries.ContainsKey("DLSS"))
             {
-                var entry = new HackyIniParser.IniEntry()
+                var entries = new Dictionary<string, HackyIniParser.IniEntry>()
                 {
-                    Section = "DLSS",
-                    Key = "EnableNvidiaSigOverride",
-                    Comment = HoverNvSigOverrideText,
-                    Value = NvSigOverride.IsOverride() ? "True" : "False"
+                    {
+                        NvidiaGlobalsForceDLAAKey,
+                        new HackyIniParser.IniEntry()
+                        {
+                            Section = NvidiaGlobalsSectionName,
+                            Key = NvidiaGlobalsForceDLAAKey,
+                            Comment = HoverNvidiaGlobalsDisclaimer + HoverGlobalForceDLAAText,
+                            Value = Drs.OverrideForceDLAA ? "True" : "False"
+                        }
+                    },
+                    {
+                        NvidiaGlobalsForcedScaleKey,
+                        new HackyIniParser.IniEntry()
+                        {
+                            Section = NvidiaGlobalsSectionName,
+                            Key = NvidiaGlobalsForcedScaleKey,
+                            Comment = HoverNvidiaGlobalsDisclaimer + HoverGlobalForcedScaleText,
+                            Value = Drs.OverrideScaleRatio.ToString()
+                        }
+                    },
+                    {
+                        NvidiaGlobalsForcedPresetKey,
+                        new HackyIniParser.IniEntry()
+                        {
+                            Section = NvidiaGlobalsSectionName,
+                            Key = NvidiaGlobalsForcedPresetKey,
+                            Comment = HoverNvidiaGlobalsDisclaimer + HoverGlobalForcedPresetText,
+                            Value = Drs.OverrideRenderPreset == 0 ? "Default" : new string((char)('A' + (Drs.OverrideRenderPreset - 1)), 1)
+                        }
+                    },
+                    {
+                        NvidiaGlobalsHudOverrideKey,
+                        new HackyIniParser.IniEntry()
+                        {
+                            Section = NvidiaGlobalsSectionName,
+                            Key = NvidiaGlobalsHudOverrideKey,
+                            Comment = HoverNvidiaGlobalsDisclaimer + HoverGlobalHudOverrideText,
+                            Value = Drs.HudStatus == DrsSettings.NvHudStatus.Enabled ? NvidiaHudOverrideEnabledDevValue :
+                                (Drs.HudStatus == DrsSettings.NvHudStatus.EnabledAllDlls ? NvidiaHudOverrideEnabledAllValue : NvidiaHudOverrideDisabledValue)
+                        }
+                    },
+                    {
+                        NvidiaGlobalsSigOverrideKey,
+                        new HackyIniParser.IniEntry()
+                        {
+                            Section = NvidiaGlobalsSectionName,
+                            Key = NvidiaGlobalsSigOverrideKey,
+                            Comment = HoverNvSigOverrideText,
+                            Value = NvSigOverride.IsOverride() ? "True" : "False"
+                        }
+                    },
                 };
-                userIni.Entries["DLSS"].Add("EnableNvidiaSigOverride", entry);
+                userIni.Entries.Add(NvidiaGlobalsSectionName, entries);
             }
 
             // AddSetting must be called in the exact order of items to add
             // Can't AddSetting to an earlier section since that would break the hacky ListViewEx input boxes
             // So all entries should be prepared inside userIni.Entries first
-            foreach(var section in userIni.Entries)
+
+            var orderedSections = new Dictionary<string, Dictionary<string, HackyIniParser.IniEntry>>();
+
+            if (userIni.Entries.ContainsKey("DLSS"))
+                orderedSections.Add("DLSS", userIni.Entries["DLSS"]);
+            if (userIni.Entries.ContainsKey(NvidiaGlobalsSectionName))
+                orderedSections.Add(NvidiaGlobalsSectionName, userIni.Entries[NvidiaGlobalsSectionName]);
+
+            foreach (var section in userIni.Entries)
             {
-                foreach(var entry in section.Value)
+                if (section.Key == "DLSS" || section.Key == NvidiaGlobalsSectionName)
+                    continue;
+                orderedSections.Add(section.Key, section.Value);
+            }
+
+            foreach (var section in orderedSections)
+            {
+                foreach (var entry in section.Value)
                 {
                     AddSetting(entry.Value.Section, entry.Value.Key, entry.Value.Value, entry.Value.Comment);
                 }
@@ -480,8 +570,34 @@ namespace DLSSTweaks.ConfigTool
                 var key = item.Text;
                 var value = item.SubItems[1].Text;
 
-                if (section == "DLSS" && key == "EnableNvidiaSigOverride")
+                if (section == NvidiaGlobalsSectionName)
+                {
+                    if (key == NvidiaGlobalsForceDLAAKey)
+                        Drs.OverrideForceDLAA = bool.Parse(value);
+                    else if (key == NvidiaGlobalsForcedPresetKey)
+                    {
+                        Drs.OverrideRenderPreset = 0;
+                        if (value != "Default")
+                        {
+                            int presetNum = value[0] - 'A';
+                            Drs.OverrideRenderPreset = (uint)(presetNum + 1);
+                        }
+                    }
+                    else if (key == NvidiaGlobalsForcedScaleKey)
+                    {
+                        Drs.OverrideScaleRatio = float.Parse(value);
+                    }
+                    else if (key == NvidiaGlobalsHudOverrideKey)
+                    {
+                        Drs.HudStatus = DrsSettings.NvHudStatus.Disabled;
+                        if (value == NvidiaHudOverrideEnabledDevValue)
+                            Drs.HudStatus = DrsSettings.NvHudStatus.Enabled;
+                        else if (value == NvidiaHudOverrideEnabledAllValue)
+                            Drs.HudStatus = DrsSettings.NvHudStatus.EnabledAllDlls;
+                    }
+
                     continue;
+                }
 
                 if (OverrideKeys.Contains(key))
                 {
@@ -514,6 +630,26 @@ namespace DLSSTweaks.ConfigTool
 
             file.Persist();
 
+            // INI has been written, try writing any DRS settings if they've been changed
+            if (Drs.HasChanges())
+            {
+                try
+                {
+                    Drs.Write();
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+
+                    if (MessageBox.Show($"UnauthorizedAccessException: ConfigTool failed to write {NvidiaGlobalsSectionName}.\r\n\r\n" +
+                        $"Any DLSSTweaks INI changes have been saved, but {NvidiaGlobalsSectionName} changes failed to apply.\r\n\r\n" +
+                        "ConfigTool may need to be launched as administrator, do you want to relaunch ConfigTool as admin? (requires UAC prompt)", "Failed to write DRS settings", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                    {
+                        NvSigOverride.Elevate("", false);
+                        Process.GetCurrentProcess().Kill();
+                    }
+                }
+            }
+
             IniRead();
         }
 
@@ -537,6 +673,8 @@ namespace DLSSTweaks.ConfigTool
             loadToolStripMenuItem.ToolTipText = HoverLoadText;
             addDLLOverrideToolStripMenuItem.ToolTipText = HoverAddDLLOverrideText;
             installToGameFolderToolStripMenuItem.ToolTipText = HoverInstallDllText;
+
+            Drs.Read();
 
             var dlssTweaksDlls = SearchDlssTweaksDlls("");
             DlssTweaksDll = null;
@@ -585,11 +723,10 @@ namespace DLSSTweaks.ConfigTool
 
             if (!IniCheckPermissions())
             {
-                if(MessageBox.Show("DLSSTweaks ConfigTool is unable to write to DLSSTweaks.ini, the file may be protected, or ConfigTool may need to run as administrator." +
+                if (MessageBox.Show("DLSSTweaks ConfigTool is unable to write to DLSSTweaks.ini, the file may be protected, or ConfigTool may need to run as administrator." +
                     "\r\n\r\nDo you want to relaunch ConfigTool as admin? (requires UAC prompt)", "INI access denied", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                 {
                     NvSigOverride.Elevate("", false);
-                    Application.Exit();
                     Process.GetCurrentProcess().Kill();
                 }
             }
