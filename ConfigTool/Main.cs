@@ -134,7 +134,8 @@ namespace DLSSTweaks.ConfigTool
                     "dstorage",
                     "PhysX",
                     "NvBlast",
-                    "amd_"
+                    "amd_",
+                    "PeanutButter."
             };
 
             if (filesToCheck.Count <= 0)
@@ -273,6 +274,8 @@ namespace DLSSTweaks.ConfigTool
 
         public void IniRead()
         {
+            Drs.Read();
+
             lvSettings.Unfocus();
             lvSettings.Items.Clear();
             lvSettings.Groups.Clear();
@@ -758,8 +761,6 @@ namespace DLSSTweaks.ConfigTool
             addDLLOverrideToolStripMenuItem.ToolTipText = HoverAddDLLOverrideText;
             installToGameFolderToolStripMenuItem.ToolTipText = HoverInstallDllText;
 
-            Drs.Read();
-
             var dlssTweaksDlls = SearchDlssTweaksDlls("");
             DlssTweaksDll = null;
 
@@ -790,29 +791,32 @@ namespace DLSSTweaks.ConfigTool
             IniRead();
 
             // Alert user if this is being ran with no game EXE in current folder
-            var exePath = SearchForGameExe(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName));
-            if (string.IsNullOrEmpty(exePath))
+            if (!IniIsEmpty)
             {
-                if (!SkipLoadWarnings)
-                    MessageBox.Show("It looks like DLSSTweaks ConfigTool has been launched outside of a game directory (no game EXE found).\n\n" +
-                        "It's recommended to copy DLSSTweaks into a game folder first before configuring it.\n\n" +
-                        "You can let ConfigTool copy the necessary files for you via the \"Copy to game folder...\" command on top right.", "Game EXE not found!");
-            }
-            else
-            {
-                // We have a game EXE in this folder
-                // If user is setting up DLSSTweaks as nvngx.dll, check whether registry override is active, and alert them if not
-                if (!string.IsNullOrEmpty(DlssTweaksDll) && Path.GetFileName(DlssTweaksDll).ToLower() == "nvngx.dll")
+                var exePath = SearchForGameExe(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName));
+                if (string.IsNullOrEmpty(exePath))
                 {
-                    if (!NvSigOverride.IsOverride())
+                    if (!SkipLoadWarnings)
+                        MessageBox.Show("It looks like DLSSTweaks ConfigTool has been launched outside of a game directory (no game EXE found).\n\n" +
+                            "It's recommended to copy DLSSTweaks into a game folder first before configuring it.\n\n" +
+                            "You can let ConfigTool copy the necessary files for you via the \"Copy to game folder...\" command on top right.", "Game EXE not found!");
+                }
+                else
+                {
+                    // We have a game EXE in this folder
+                    // If user is setting up DLSSTweaks as nvngx.dll, check whether registry override is active, and alert them if not
+                    if (!string.IsNullOrEmpty(DlssTweaksDll) && Path.GetFileName(DlssTweaksDll).ToLower() == "nvngx.dll")
                     {
-                        if (!SkipLoadWarnings && MessageBox.Show("It appears that DLSSTweaks is loading in via the nvngx.dll wrapper method.\n\n" +
-                            "This method requires an Nvidia registry override to be set in order for the DLL to be loaded in.\n\n" +
-                            "This override currently doesn't seem to be active, do you want ConfigTool to apply it for you?\n" +
-                            "(this will require administrator permissions to apply, you will be prompted when continuing.)\n\n" +
-                            "You can also add/remove the override from the tool via the \"EnableNvidiaSigOverride\" setting.", "Registry override not active", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                        if (!NvSigOverride.IsOverride())
                         {
-                            NvSigOverride.SetOverride(true);
+                            if (!SkipLoadWarnings && MessageBox.Show("It appears that DLSSTweaks is loading in via the nvngx.dll wrapper method.\n\n" +
+                                "This method requires an Nvidia registry override to be set in order for the DLL to be loaded in.\n\n" +
+                                "This override currently doesn't seem to be active, do you want ConfigTool to apply it for you?\n" +
+                                "(this will require administrator permissions to apply, you will be prompted when continuing.)\n\n" +
+                                "You can also add/remove the override from the tool via the \"EnableNvidiaSigOverride\" setting.", "Registry override not active", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                            {
+                                NvSigOverride.SetOverride(true);
+                            }
                         }
                     }
                 }
