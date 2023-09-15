@@ -40,9 +40,10 @@ namespace DLSSTweaks.ConfigTool
 
         static string HoverNvSigOverrideText = "Allows toggling the NVIDIA Signature Override registry key.\r\n\r\nWith the override enabled DLSSTweaks can be used in most DLSS2+ games by naming it as nvngx.dll.\r\n\r\n(this override only affects Nvidia related signature checks, not anything Windows related)\r\n\r\nChanging this requires Administrator privileges, an elevation prompt will appear if necessary.";
 
-        static string NvidiaGlobalsSectionName = "NvGlobalProfileSettings";
+        static string NvidiaGlobalsSectionName = "NvGlobalProfileSettings (non-DLSSTweaks settings, DLSS 3.1.11+ only)";
+        static string NvidiaGlobalsSectionNameShort = "NvGlobalProfileSettings";
 
-        static string HoverNvidiaGlobalsDisclaimer = $"NOTE: applying changes to \"{NvidiaGlobalsSectionName}\" section requires ConfigTool to be ran as admin, you will be prompted to relaunch if necessary.\r\n\r\n";
+        static string HoverNvidiaGlobalsDisclaimer = $"{NvidiaGlobalsSectionNameShort} settings are checked by any games using DLSS 3.1.11+, and don't require DLSSTweaks to be setup for DLSS to use them.\r\n\r\nHowever, changes to the \"{NvidiaGlobalsSectionNameShort}\" section require ConfigTool to be ran as admin, if necessary you will be prompted to relaunch when saving.\r\n\r\n";
 
         static string HoverGlobalForceDLAAText = "GlobalForceDLAA: if set to true, all DLSS quality levels will be forced as DLAA instead, on all DLSS 3.1.11+ games (without DLSSTweaks needing to be setup on them).\r\n\r\nMay have compatibility issues with certain titles as this setting is handled by DLSS itself, not DLSSTweaks, so the compatibility workarounds used by DLSSTweaks can't be applied to it.";
         static string HoverGlobalForcedScaleText = "GlobalForcedScale: if set, forces all DLSS quality levels to the specified render scale, on all DLSS 3.1.11+ games (without DLSSTweaks needing to be setup on them).\r\n\r\nValid range is 0.33 to 1.00.";
@@ -689,8 +690,8 @@ namespace DLSSTweaks.ConfigTool
                 }
                 catch (UnauthorizedAccessException ex)
                 {
-                    if (MessageBox.Show($"UnauthorizedAccessException: ConfigTool failed to write {NvidiaGlobalsSectionName}.\r\n\r\n" +
-                        $"Any DLSSTweaks INI changes have been saved, but {NvidiaGlobalsSectionName} changes failed to apply.\r\n\r\n" +
+                    if (MessageBox.Show($"UnauthorizedAccessException: ConfigTool failed to write {NvidiaGlobalsSectionNameShort}.\r\n\r\n" +
+                        $"Any DLSSTweaks INI changes have been saved, but {NvidiaGlobalsSectionNameShort} changes failed to apply.\r\n\r\n" +
                         "ConfigTool may need to be launched as administrator, do you want to relaunch ConfigTool as admin? (requires UAC prompt)", "Failed to write DRS settings", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                     {
                         NvSigOverride.Elevate("", false);
