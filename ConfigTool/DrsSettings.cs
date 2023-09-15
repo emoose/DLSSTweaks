@@ -89,8 +89,8 @@ namespace DLSSTweaks.ConfigTool
 
             while (nvapi.EnumNvidiaDisplayHandle(displayIdx, ref displayHandle) == NvAPI_Status.NVAPI_OK)
             {
-                NVAPI_GetVideoStateEx state = new NVAPI_GetVideoStateEx();
-                state.version = 0x10080;
+                var state = new NVAPI_GetVideoStateEx();
+                state.version = nvapi.NVAPI_GetVideoStateEx_VER;
                 state.deviceNum = 0;
                 state.settingId = VIDEO_STATE_VIDEOSUPERRESOLUTION;
 
@@ -120,8 +120,8 @@ namespace DLSSTweaks.ConfigTool
                 if (nvapi.EnumNvidiaDisplayHandle(kvp.Key, ref displayHandle) != NvAPI_Status.NVAPI_OK)
                     continue;
 
-                NVAPI_SetVideoStateEx state = new NVAPI_SetVideoStateEx();
-                state.version = 0x10040;
+                var state = new NVAPI_SetVideoStateEx();
+                state.version = nvapi.NVAPI_SetVideoStateEx_VER;
                 state.deviceNum = 0;
                 state.settingId = VIDEO_STATE_VIDEOSUPERRESOLUTION;
                 state.enable = kvp.Value != 0 ? 1u : 0u;

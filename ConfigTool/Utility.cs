@@ -222,7 +222,7 @@ namespace DLSSTweaks.ConfigTool
 
         public HackyIniParser() { }
 
-        public Dictionary<string, Dictionary<string, IniEntry>> Entries;
+        public Dictionary<string, Dictionary<string, IniEntry>> Entries = new Dictionary<string, Dictionary<string, IniEntry>>();
 
         public void Parse(string[] lines)
         {

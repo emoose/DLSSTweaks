@@ -431,6 +431,9 @@ namespace nspector.Native.NVAPI2
         public const string D3DOGL_GPU_MAX_POWER_DEFAULTPOWER = "0";
         public const uint D3DOGL_GPU_MAX_POWER_NUM_VALUES = 1;
         public const string D3DOGL_GPU_MAX_POWER_DEFAULT = D3DOGL_GPU_MAX_POWER_DEFAULTPOWER;
+
+        public static uint NVAPI_GetVideoStateEx_VER = MAKE_NVAPI_VERSION<NVAPI_GetVideoStateEx>(1);
+        public static uint NVAPI_SetVideoStateEx_VER = MAKE_NVAPI_VERSION<NVAPI_SetVideoStateEx>(1);
         #endregion
 
 

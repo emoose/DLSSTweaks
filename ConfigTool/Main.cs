@@ -631,7 +631,7 @@ namespace DLSSTweaks.ConfigTool
                     hasPermission = true;
                 }
             }
-            catch (Exception ex)
+            catch
             {
                 hasPermission = false;
             }
@@ -652,7 +652,7 @@ namespace DLSSTweaks.ConfigTool
             {
                 IniWriteMain();
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
                 MessageBox.Show($"UnauthorizedAccessException: DLSSTweaks failed to write INI file to the following path:\r\n\r\n" + 
                     $"  {Path.GetFullPath(IniFilename)}\r\n\r\nYou may need to relaunch ConfigTool as administrator.", "Failed to write INI", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -761,7 +761,7 @@ namespace DLSSTweaks.ConfigTool
                 {
                     Drs.Write();
                 }
-                catch (UnauthorizedAccessException ex)
+                catch (UnauthorizedAccessException)
                 {
                     if (MessageBox.Show($"UnauthorizedAccessException: ConfigTool failed to write {NvidiaGlobalsSectionNameShort}.\r\n\r\n" +
                         $"Any DLSSTweaks INI changes have been saved, but {NvidiaGlobalsSectionNameShort} changes failed to apply.\r\n\r\n" +
