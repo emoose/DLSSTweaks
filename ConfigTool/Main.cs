@@ -45,7 +45,6 @@ namespace DLSSTweaks.ConfigTool
         static string HoverNvSigOverrideText = "EnableNvidiaSigOverride: allows toggling the NVIDIA Signature Override registry key.\r\n\r\nWith the override enabled the DLSSTweaks DLL can be used in most DLSS2+ games by naming it as nvngx.dll.\r\n\r\n" +
             $"(note that the settings listed under {NvidiaGlobalsSectionNameShort} don't require this, this setting is only needed if you're using the DLSSTweaks DLL in a game - this override also only affects Nvidia related signature checks, not anything Windows related)\r\n\r\nChanging this requires Administrator privileges, an elevation prompt will appear if necessary.";
 
-
         static string HoverNvidiaGlobalsDisclaimer = $"{NvidiaGlobalsSectionNameShort} settings are checked by any games using DLSS 3.1.11+, and don't require the DLSSTweaks DLL to be setup for DLSS to use them.\r\n\r\nHowever, changes to the \"{NvidiaGlobalsSectionNameShort}\" section require ConfigTool to be ran as admin, if necessary you will be prompted to relaunch when saving.\r\n\r\n";
 
         static string HoverGlobalForceDLAAText = "GlobalForceDLAA: if set to true, all DLSS quality levels will be forced as DLAA instead, on all DLSS 3.1.11+ games (without DLSSTweaks needing to be setup on them).\r\n\r\nMay have compatibility issues with certain titles as this setting is handled by DLSS itself, not DLSSTweaks, so the compatibility workarounds used by DLSSTweaks can't be applied to it.";
@@ -54,7 +53,10 @@ namespace DLSSTweaks.ConfigTool
         static string HoverGlobalHudOverrideText = "GlobalHudOverride: updates the registry key used by all DLSS games to know if the DLSS debug HUD should be activated.\r\n\r\nThe OverrideDlssHud setting included in DLSSTweaks can already enable the HUD for you, but this may still be useful if DLSSTweaks is unable to show the HUD for some reason.\r\n\r\n" +
             "The (dev DLLs only) option will only enable the DLSS HUD on certain 'dev' versions of DLSS, while (all DLLs) will let it show on all versions of DLSS.";
 
-        static string HoverGlobalVideoSuperResText = "VSRQuality ##(NUM): changes quality level for Nvidia VideoSuperResolution on monitor number #(NUM).\r\n\r\nWhen enabled VSR can improve the scaling applied to internet videos & certain video-playing apps.\r\n\r\nNvidia Control Panel can let you pick from quality 1 - 4, but the video setting itself allows choosing up to quality 5 - it's unknown whether this gives any image quality improvement (power draw seems the same as quality 4 at least).";
+        static string HoverGlobalVideoSuperResText = "VSRQuality ##(NUM): changes quality level for Nvidia VideoSuperResolution on monitor number #(NUM).\r\n\r\n" + 
+            "When enabled VSR can improve the scaling applied to internet videos & certain video-playing apps.\r\n\r\n" +
+            "\"With RTX VSR, GeForce RTX 40 and 30 Series GPU users can tap AI to upscale lower-resolution content up to 4K, matching their display resolution. The AI removes blocky compression artifacts and improves the video’s sharpness and clarity.\" - https://blogs.nvidia.com/blog/2023/02/28/rtx-video-super-resolution/\r\n\r\n" + 
+            "Nvidia Control Panel can let you pick from quality 1 - 4, but the video setting itself allows choosing up to quality 5 - it's unknown whether this gives any image quality improvement (power draw seems the same as quality 4 at least).";
 
         static string DllPathOverrideText = "DLLPathOverrides: allows overriding the path that a DLL will be loaded from based on the filename of it\r\n\r\nRight click on the override for options to rename/delete it.";
 
