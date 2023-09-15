@@ -1,3 +1,17 @@
+// NOTE: this code is pretty much freshly microwaved spaghetti
+// It does the job it needs to, but probably could have been handled much better if I'd known where I was going with it from the start
+//
+// So far this code has had several stages:
+// going from a quick test project to write out an INI ->
+//   something that can also read our INI settings ->
+//     reading INI settings & tracking a default INI file alongside it, copying over comments/missing settings as needed ->
+//       also supporting NvProfile/DRS settings, and NvAPI VideoState settings which aren't kept in DRS for some reason ->
+//           and finally, being able to work without reading/writing any INIs at all
+//
+// If you're reading this to try and learn more about NvProfile things the NvidiaProfileInspector codebase is much cleaner & better to learn from
+//   https://github.com/Orbmu2k/nvidiaProfileInspector
+// NvapiDrsWrapper.cs in this project originates there, though some extra NvAPI functions have been added here which may be useful
+
 using DLSSTweaks.ConfigTool.Properties;
 using System;
 using System.Collections.Generic;
@@ -318,7 +332,7 @@ namespace DLSSTweaks.ConfigTool
             }
             else
             {
-                lblIniPath.Text = $"Failed to load DLSSTweaks settings from INI, only showing Nvidia profile globals.";
+                lblIniPath.Text = $"DLSSTweaks settings INI not found, only displaying Nvidia profile globals.";
             }
 
             addDLLOverrideToolStripMenuItem.Enabled = !IniIsEmpty;
