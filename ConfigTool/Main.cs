@@ -81,6 +81,11 @@ namespace DLSSTweaks.ConfigTool
         public static string NvidiaGlobalsSigOverrideKey = "EnableNvidiaSigOverride";
         public static string NvidiaGlobalsVideoSuperResKey = "VSRQuality";
 
+        public static string[] ElevationRequiredKeys = new[]
+        {
+            NvidiaGlobalsForceDLAAKey, NvidiaGlobalsForcedScaleKey, NvidiaGlobalsForcedPresetKey, NvidiaGlobalsHudOverrideKey
+        };
+
         static string NvidiaHudOverrideEnabledDevValue = "Enabled (dev DLLs only)";
         static string NvidiaHudOverrideEnabledAllValue = "Enabled (all DLLs)";
         static string NvidiaHudOverrideDisabledValue = "Disabled";
@@ -885,17 +890,43 @@ namespace DLSSTweaks.ConfigTool
 
         private string CalculateResForScale(string scaleVal)
         {
+            var screen = Screen.FromControl(this);
+            int screenWidth = screen.Bounds.Width;
+            int screenHeight = screen.Bounds.Height;
+
+            var resSeperator = scaleVal.IndexOf('x');
+            if (resSeperator >= 0 && scaleVal.Length > resSeperator + 1)
+            {
+                // Calc ratio from users resolution choice
+                var widthStr = scaleVal.Substring(0, resSeperator);
+                var heightStr = scaleVal.Substring(resSeperator + 1);
+                float width = 0;
+                float height = 0;
+                if (float.TryParse(widthStr, out width) && float.TryParse(heightStr, out height))
+                {
+                    if(width > 0 && height > 0)
+                    {
+                        float widthRatio = width / screenWidth;
+                        float heightRatio = height / screenHeight;
+
+                        string ratioStr = $"{widthRatio}x";
+                        if (widthRatio != heightRatio)
+                            ratioStr = $"{widthRatio}x (width), {heightRatio}x (height)";
+
+                        return $"     {screenWidth}x{screenHeight} / {width}x{height}\r\n      = {ratioStr}";
+                    }
+                }
+            }
+
+            // Calc resolution from users ratio choice
             float scale = 0;
             if (!float.TryParse(scaleVal, out scale) || scale < 0)
                 return string.Empty;
 
-            var screen = Screen.FromControl(this);
-            int width = screen.Bounds.Width;
-            int height = screen.Bounds.Height;
-            int newWidth = (int)Math.Ceiling(scale * width);
-            int newHeight = (int)Math.Ceiling(scale * height);
+            int newWidth = (int)Math.Ceiling(scale * screenWidth);
+            int newHeight = (int)Math.Ceiling(scale * screenHeight);
 
-            return $"     {width}x{height} @ {scaleVal}x\r\n      = {newWidth}x{newHeight}";
+            return $"     {screenWidth}x{screenHeight} @ {scaleVal}x\r\n      = {newWidth}x{newHeight}";
         }
 
         private void lvSettings_ValueChanged(object sender, EventArgs e)
@@ -915,6 +946,10 @@ namespace DLSSTweaks.ConfigTool
                 if ((lvi.Text == NvidiaGlobalsForcedScaleKey) ||
                     (lvi.Group.Header.ToLower() == "dlssqualitylevels" && lvi.Text.ToLower() != "enable"))
                 {
+                    // If user added x to end of scale then remove it...
+                    if (lvi.SubItems[1].Text.EndsWith("x"))
+                        lvi.SubItems[1].Text = lvi.SubItems[1].Text.Substring(0, lvi.SubItems[1].Text.Length - 1);
+
                     lvi.ToolTipText = CalculateResForScale(lvi.SubItems[1].Text);
                 }
 
@@ -955,7 +990,7 @@ namespace DLSSTweaks.ConfigTool
             else if (hitTest.SubItem == item.SubItems[1])
             {
                 // Display the tooltip for the item under the mouse cursor
-                toolTip.Show(hitTest.Item.ToolTipText, lvSettings, e.Location);
+                toolTip.Show(hitTest.Item.ToolTipText, lvSettings, new Point(e.Location.X + 5, e.Location.Y));
                 return true;
             }
 
