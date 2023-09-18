@@ -600,22 +600,7 @@ namespace DLSSTweaks.ConfigTool
             // AddSetting must be called in the exact order of items to add
             // Can't AddSetting to an earlier section since that would break the hacky ListViewEx input boxes
             // So all entries should be prepared inside userIni.Entries first
-
-            var orderedSections = new Dictionary<string, Dictionary<string, HackyIniParser.IniEntry>>();
-
-            if (userIni.Entries.ContainsKey("DLSS"))
-                orderedSections.Add("DLSS", userIni.Entries["DLSS"]);
-            if (userIni.Entries.ContainsKey(NvidiaGlobalsSectionName))
-                orderedSections.Add(NvidiaGlobalsSectionName, userIni.Entries[NvidiaGlobalsSectionName]);
-
             foreach (var section in userIni.Entries)
-            {
-                if (section.Key == "DLSS" || section.Key == NvidiaGlobalsSectionName)
-                    continue;
-                orderedSections.Add(section.Key, section.Value);
-            }
-
-            foreach (var section in orderedSections)
             {
                 foreach (var entry in section.Value)
                 {
