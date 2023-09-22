@@ -7,7 +7,9 @@ namespace DLSSTweaks.ConfigTool
 {
     public static class NvSigOverride
     {
-        const string RegistryKeyPath = "SOFTWARE\\NVIDIA Corporation\\Global";
+        const string RegistryKeyPath1 = "SOFTWARE\\NVIDIA Corporation\\Global";
+        const string RegistryKeyPath2 = "SYSTEM\\ControlSet001\\Services\\nvlddmkm";
+
         const string RegistryKeyValueName = "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}";
 
         public static bool ProcessArgs()
@@ -35,7 +37,7 @@ namespace DLSSTweaks.ConfigTool
         {
             try
             {
-                RegistryKey key = Registry.LocalMachine.OpenSubKey(RegistryKeyPath, false);
+                RegistryKey key = Registry.LocalMachine.OpenSubKey(RegistryKeyPath1, false);
                 byte[] binaryValue = key.GetValue(RegistryKeyValueName) as byte[];
                 if (binaryValue == null || binaryValue.Length < 1)
                     return false;
@@ -59,25 +61,29 @@ namespace DLSSTweaks.ConfigTool
             try
             {
                 // Update the registry entry
-                RegistryKey key = Registry.LocalMachine.OpenSubKey(RegistryKeyPath, true);
-                if (key == null)
-                    key = Registry.LocalMachine.CreateSubKey(RegistryKeyPath, true);
-
-                byte[] binaryValue = new byte[] { 0 };
-                if (enableOverride)
-                    binaryValue[0] = 1;
-
-                key.SetValue(RegistryKeyValueName, binaryValue, RegistryValueKind.Binary);
-
-                if (!enableOverride)
+                var paths = new string[] { RegistryKeyPath1, RegistryKeyPath2 };
+                foreach(var path in paths)
                 {
-                    try
+                    RegistryKey key = Registry.LocalMachine.OpenSubKey(path, true);
+                    if (key == null)
+                        key = Registry.LocalMachine.CreateSubKey(path, true);
+
+                    byte[] binaryValue = new byte[] { 0 };
+                    if (enableOverride)
+                        binaryValue[0] = 1;
+
+                    key.SetValue(RegistryKeyValueName, binaryValue, RegistryValueKind.Binary);
+
+                    if (!enableOverride)
                     {
-                        // Try deleting key if we're disabling override, its fine if this part fails since above should have set to 0
-                        key.DeleteValue(RegistryKeyValueName);
-                    }
-                    catch
-                    {
+                        try
+                        {
+                            // Try deleting key if we're disabling override, its fine if this part fails since above should have set to 0
+                            key.DeleteValue(RegistryKeyValueName);
+                        }
+                        catch
+                        {
+                        }
                     }
                 }
 
