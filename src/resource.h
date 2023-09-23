@@ -12,3 +12,16 @@
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
+
+#define TWEAKS_VER_MAJOR 0
+#define TWEAKS_VER_MINOR 200
+#define TWEAKS_VER_BUILD 8
+#define TWEAKS_VER_REVISION 0
+
+#define STR(value) #value
+#define STRINGIZE(value) STR(value)
+#define TWEAKS_VER_STR \
+  STRINGIZE(TWEAKS_VER_MAJOR) "." \
+  STRINGIZE(TWEAKS_VER_MINOR) "." \
+  STRINGIZE(TWEAKS_VER_BUILD) "." \
+  STRINGIZE(TWEAKS_VER_REVISION)

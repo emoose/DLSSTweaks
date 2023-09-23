@@ -15,6 +15,8 @@
 #include "DLSSTweaks.hpp"
 #include "Proxy.hpp"
 
+#include "resource.h" // TWEAKS_VER_STR
+
 const wchar_t* NgxFileName = L"_nvngx.dll";
 const wchar_t* DlssFileName = L"nvngx_dlss.dll";
 const char* DlssFileNameA = "nvngx_dlss.dll";
@@ -480,17 +482,7 @@ unsigned int __stdcall InitThread(void* param)
 		spdlog::flush_on(spdlog::level::debug);
 	}
 
-	std::string version = "0.200.5";
-	try
-	{
-		std::string fileVersion = utility::ModuleVersion(DllPath);
-		version = std::move(fileVersion);
-	}
-	catch (const std::exception&)
-	{
-	}
-
-	spdlog::info("DLSSTweaks v{}, by emoose: {} wrapper loaded", version, DllPath.filename().string());
+	spdlog::info("DLSSTweaks v{}, by emoose: {} wrapper loaded", TWEAKS_VER_STR, DllPath.filename().string());
 	spdlog::info("Game path: {}", ExePath.string());
 	spdlog::info("DLL path: {}", DllPath.string());
 

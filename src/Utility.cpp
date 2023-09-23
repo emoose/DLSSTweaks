@@ -155,46 +155,4 @@ BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunctio
 	return FALSE;
 }
 
-// Based on code from https://github.com/neosmart/msvcrt.lib/blob/679d9aeddb20eb48aec3a58cf5ed99271cb09f68/GetFileVersionInfo/GetFileVersionInfo.c
-std::string ModuleVersion(const std::filesystem::path& module_path)
-{
-	DWORD unused = 0;
-	DWORD size = GetFileVersionInfoSizeExW(0 | FILE_VER_GET_NEUTRAL | FILE_VER_GET_LOCALISED, module_path.wstring().c_str(), &unused);
-	if (size == 0)
-		return "";
-
-	auto data = std::make_unique<BYTE[]>(size);
-	DWORD result = GetFileVersionInfoExW(0 | FILE_VER_GET_NEUTRAL | FILE_VER_GET_LOCALISED, module_path.wstring().c_str(), unused, size, data.get());
-	if (result == 0)
-		return "";
-
-	// Retrieve a list of valid localizations to query the version table against
-	struct Translation {
-		int16_t Language;
-		int16_t Codepage;
-	} *translations = NULL;
-	uint32_t translationLength = 0;
-	TCHAR blockBuffer[MAX_PATH];
-	_tcscpy_s(blockBuffer, _countof(blockBuffer), _T("\\VarFileInfo\\Translation"));
-	VerQueryValue(data.get(), blockBuffer, (LPVOID*)&translations, &translationLength);
-
-	for (size_t i = 0; i < (translationLength / sizeof(struct Translation)); i++)
-	{
-		TCHAR key[MAX_PATH] = { 0 };
-		_stprintf_s(key, _countof(key), _T("\\StringFileInfo\\%04x%04x\\FileVersion"), translations[i].Language, translations[i].Codepage);
-
-		const TCHAR* ffInfo = NULL;
-		uint32_t ffiLength = 0;
-
-		result = VerQueryValue(data.get(), key, (LPVOID*)&ffInfo, &ffiLength);
-		if (result != TRUE) {
-			continue;
-		}
-
-		return std::string(ffInfo);
-	}
-
-	return "";
-}
-
 };

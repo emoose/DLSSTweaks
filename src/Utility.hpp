@@ -33,7 +33,6 @@ inline bool exists_safe(const std::filesystem::path& path)
 
 BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction);
 
-std::string ModuleVersion(const std::filesystem::path& module_path);
 inline void* ModuleEntryPoint(HMODULE hmod)
 {
 	PIMAGE_DOS_HEADER dos_header = (PIMAGE_DOS_HEADER)hmod;
