@@ -271,7 +271,7 @@ void UserSettings::print_to_log()
 	}
 }
 
-bool UserSettings::read(const std::filesystem::path& iniPath)
+bool UserSettings::read(const std::filesystem::path& iniPath, int numInisRead)
 {
 	using namespace utility;
 
@@ -284,6 +284,26 @@ bool UserSettings::read(const std::filesystem::path& iniPath)
 
 	inih::INIReader ini(iniFile);
 	fclose(iniFile);
+
+	// [DLSSTweaks]
+
+	// BaseINI: specifies an INI file which will be read in before the rest of the INI
+	// acting as a sort of global config file if the path has been set up
+	auto baseIni = utility::ini_get_string_safe(ini, "DLSSTweaks", "BaseINI", "");
+	if (!baseIni.empty())
+	{
+		// make sure we aren't trying to read in the current INI that we're reading...
+		if (std::filesystem::absolute(iniPath) != std::filesystem::absolute(baseIni))
+		{
+			if (numInisRead > 10)
+				spdlog::error("BaseINI: followed too many base INIs, might be caught in a loop, skipping further base INIs..");
+			else
+			{
+				if (read(baseIni, numInisRead + 1))
+					spdlog::info("Config read from {}", baseIni);
+			}
+		}
+	}
 
 	// [DLSS]
 	forceDLAA = ini.Get<bool>("DLSS", "ForceDLAA", std::move(forceDLAA));

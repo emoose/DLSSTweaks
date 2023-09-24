@@ -73,7 +73,7 @@ struct UserSettings
 	int dynamicResolutionMinOffset = -1;
 	bool disableIniMonitoring = false;
 
-	bool read(const std::filesystem::path& iniPath);
+	bool read(const std::filesystem::path& iniPath, int numInisRead = 0);
 	void print_to_log();
 };
 
