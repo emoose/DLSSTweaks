@@ -102,6 +102,10 @@ namespace nvngx_dlssg
 void settings_changed();
 void init(HMODULE ngx_module);
 };
+namespace nvngx_dlssd
+{
+void init(HMODULE ngx_module);
+};
 
 // wrapper struct on top of SafetyHookInline
 // can either call the hook trampoline via SafetyHookInline, or call a specified function if dest_proc is set

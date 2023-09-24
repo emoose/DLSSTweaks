@@ -45,6 +45,7 @@ namespace nvngx_dlss
 {
 // Allow force enabling/disabling the DLSS debug display via RegQueryValueExW hook
 // (fallback method if we couldn't find the indicator value check pattern in the DLL)
+// NOTE: copy any changes to the nvngx_dlssd::RegQueryValueExW_Hook below!
 LSTATUS(__stdcall* RegQueryValueExW_Orig)(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData);
 LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
 {
@@ -66,6 +67,7 @@ LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD 
 }
 
 SafetyHookInline DLSS_GetIndicatorValue_Hook;
+// NOTE: copy any changes to the nvngx_dlssd::DLSS_GetIndicatorValue below!
 uint32_t __fastcall DLSS_GetIndicatorValue(void* thisptr, uint32_t* OutValue)
 {
 	auto ret = DLSS_GetIndicatorValue_Hook.thiscall<uint32_t>(thisptr, OutValue);
@@ -223,6 +225,7 @@ void CreateDlssInstance_PresetSelection(SafetyHookContext& ctx)
 }
 
 SafetyHookMid dlssIndicatorHudHook{};
+// NOTE: copy any changes to the nvngx_dlssd::hook below!
 bool hook(HMODULE ngx_module)
 {
 	// Search for & hook the function that overrides the DLSS presets with ones set by NV
@@ -483,6 +486,136 @@ void init(HMODULE ngx_module)
 	}
 	settings_changed();
 
+	dllmain = safetyhook::create_inline(utility::ModuleEntryPoint(ngx_module), hooked_dllmain);
+}
+};
+
+// NOTE: nvngx_dlssd namespace is pretty much a copy of nvngx_dlss atm...
+// Ideally we would reuse the same code between them, but since both DLLs are usually loaded at the same time it wouldn't be possible to use the same SafetyHookInline instance between them
+// our hook code also has no way to know which DLL we were called from, so wouldn't be able to add seperate instances for each DLL...
+// only solution I can see requires us to include seperate functions for both dlss & dlssd
+// unfortunately I don't know a good way of making them both share the same code yet, so would need to share changes between them manually :/
+namespace nvngx_dlssd
+{
+// Allow force enabling/disabling the DLSS debug display via RegQueryValueExW hook
+// (fallback method if we couldn't find the indicator value check pattern in the DLL)
+// NOTE: copy any changes to the nvngx_dlss::RegQueryValueExW_Hook above!
+LSTATUS(__stdcall* RegQueryValueExW_Orig)(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData);
+LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
+{
+	LSTATUS ret = RegQueryValueExW_Orig(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
+	if (settings.overrideDlssHud == 0 || _wcsicmp(lpValueName, L"ShowDlssIndicator") != 0)
+		return ret;
+
+	if (lpcbData && *lpcbData >= 4 && lpData)
+	{
+		DWORD* outData = (DWORD*)lpData;
+		if (settings.overrideDlssHud >= 1)
+			*outData = 0x400;
+		else if (settings.overrideDlssHud < 0)
+			*outData = 0;
+		return ERROR_SUCCESS; // always return success for DLSS to accept the result
+	}
+
+	return ret;
+}
+
+SafetyHookInline DLSS_GetIndicatorValue_Hook;
+// NOTE: copy any changes to the nvngx_dlss::DLSS_GetIndicatorValue above!
+uint32_t __fastcall DLSS_GetIndicatorValue(void* thisptr, uint32_t* OutValue)
+{
+	auto ret = DLSS_GetIndicatorValue_Hook.thiscall<uint32_t>(thisptr, OutValue);
+	if (settings.overrideDlssHud == 0)
+		return ret;
+	*OutValue = settings.overrideDlssHud > 0 ? 0x400 : 0;
+	return ret;
+}
+
+SafetyHookMid dlssIndicatorHudHook{};
+// NOTE: copy any changes to the nvngx_dlss::hook above!
+bool hook(HMODULE ngx_module)
+{
+	// OverrideDlssHud hooks
+	// This pattern finds 2 matches in latest DLSS, but only 1 in older ones
+	// The one we're trying to find seems to always be first match
+	// TODO: scan for RegQueryValue call and grab the offset from that, use offset instead of wildcards below
+	auto indicatorValueCheck = hook::pattern((void*)ngx_module, "8B 81 ? ? ? ? 89 02 33 C0 C3");
+	if ((!settings.disableIniMonitoring || settings.overrideDlssHud == 2) && indicatorValueCheck.size())
+	{
+		if (!settings.disableIniMonitoring)
+			spdlog::debug("nvngx_dlssd: applying hud hook via vftable hook...");
+		else if (settings.overrideDlssHud == 2)
+			spdlog::debug("nvngx_dlssd: OverrideDlssHud == 2, applying hud hook via vftable hook...");
+
+		auto indicatorValueCheck_addr = indicatorValueCheck.get(0).get<void>();
+		DLSS_GetIndicatorValue_Hook = safetyhook::create_inline(indicatorValueCheck_addr, DLSS_GetIndicatorValue);
+
+		// Unfortunately it's not enough to just hook the function, HUD render code seems to have an optimization where it checks funcptr and inlines code if it matches
+		// So we also need to search for the address of the function, find vftable that holds it, and overwrite entry to point at our hook
+
+		// Ugly way of converting our address to a pattern string...
+		uint8_t* p = (uint8_t*)&indicatorValueCheck_addr;
+
+		std::stringstream ss;
+		ss << std::hex << std::setw(2) << std::setfill('0') << (int)p[0];
+		for (int i = 1; i < 8; ++i)
+			ss << " " << std::setw(2) << std::setfill('0') << (int)p[i];
+
+		auto pattern = ss.str();
+
+		auto indicatorValueCheckMemberVf = hook::pattern((void*)ngx_module, pattern);
+		for (int i = 0; i < indicatorValueCheckMemberVf.size(); i++)
+		{
+			auto vfAddr = indicatorValueCheckMemberVf.get(i).get<uintptr_t>(0);
+			UnprotectMemory unprotect{ (uintptr_t)vfAddr, sizeof(uintptr_t) };
+			*vfAddr = (uintptr_t)&DLSS_GetIndicatorValue;
+		}
+
+		spdlog::info("nvngx_dlssd: applied debug hud overlay hook via vftable hook");
+	}
+	else
+	{
+		// Failed to locate indicator value check inside DLSS
+		// Fallback to RegQueryValueExW hook so we can override the ShowDlssIndicator value
+		HMODULE advapi = GetModuleHandleA("advapi32.dll");
+		RegQueryValueExW_Orig = advapi ? (decltype(RegQueryValueExW_Orig))GetProcAddress(advapi, "RegQueryValueExW") : nullptr;
+		if (!RegQueryValueExW_Orig || !utility::HookIAT(ngx_module, "advapi32.dll", RegQueryValueExW_Orig, RegQueryValueExW_Hook))
+			spdlog::warn("nvngx_dlssd: failed to hook DLSS HUD functions, OverrideDlssHud might not be available.");
+		else
+			spdlog::info("nvngx_dlssd: applied debug hud overlay hook via registry");
+	}
+
+	return true;
+}
+
+void unhook(HMODULE ngx_module)
+{
+	dlssIndicatorHudHook.reset();
+
+	spdlog::debug("nvngx_dlssd: finished unhook");
+}
+
+SafetyHookInline dllmain;
+BOOL APIENTRY hooked_dllmain(HMODULE hModule, int ul_reason_for_call, LPVOID lpReserved)
+{
+	BOOL res = dllmain.stdcall<BOOL>(hModule, ul_reason_for_call, lpReserved);
+
+	if (ul_reason_for_call == DLL_PROCESS_DETACH)
+	{
+		unhook(hModule);
+		dllmain.reset();
+	}
+
+	return res;
+}
+
+// Installs DllMain hook onto nvngx_dlssd
+void init(HMODULE ngx_module)
+{
+	if (settings.disableAllTweaks)
+		return;
+
+	hook(ngx_module);
 	dllmain = safetyhook::create_inline(utility::ModuleEntryPoint(ngx_module), hooked_dllmain);
 }
 };
