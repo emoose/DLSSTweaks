@@ -7,8 +7,8 @@ namespace DLSSTweaks.ConfigTool
 {
     public static class NvSigOverride
     {
-        const string RegistryKeyPath1 = "SOFTWARE\\NVIDIA Corporation\\Global";
-        const string RegistryKeyPath2 = "SYSTEM\\ControlSet001\\Services\\nvlddmkm";
+        const string RegistryKeyPath1 = @"SOFTWARE\NVIDIA Corporation\Global";
+        const string RegistryKeyPath2 = @"SYSTEM\ControlSet001\Services\nvlddmkm";
 
         const string RegistryKeyValueName = "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}";
 
@@ -37,17 +37,24 @@ namespace DLSSTweaks.ConfigTool
         {
             try
             {
-                RegistryKey key = Registry.LocalMachine.OpenSubKey(RegistryKeyPath1, false);
-                byte[] binaryValue = key.GetValue(RegistryKeyValueName) as byte[];
-                if (binaryValue == null || binaryValue.Length < 1)
-                    return false;
-                return binaryValue[0] == 1;
+                var paths = new string[] { RegistryKeyPath1, RegistryKeyPath2 };
+                foreach (var path in paths)
+                {
+                    RegistryKey key = Registry.LocalMachine.OpenSubKey(path, false);
+                    byte[] binaryValue = key.GetValue(RegistryKeyValueName) as byte[];
+                    if (binaryValue == null || binaryValue.Length < 1)
+                        return false;
+                    if (binaryValue[0] != 1)
+                        return false;
+                }
+                return true;
             }
             catch
             {
                 return false;
             }
         }
+
         public static bool SetOverride(bool enableOverride, bool allowElevate = true)
         {
             // Elevate the current process via UAC
