@@ -719,7 +719,9 @@ void init_from_proxy()
 	NVSDK_NGX_D3D12_EvaluateFeature_Hook = NVSDK_NGX_D3D12_EvaluateFeature_Orig;
 	NVSDK_NGX_D3D12_Init_Hook = NVSDK_NGX_D3D12_Init_Orig;
 	NVSDK_NGX_D3D12_Init_Ext_Hook = NVSDK_NGX_D3D12_Init_Ext_Orig;
+	NVSDK_NGX_VULKAN_Init_Ext2_Hook = NVSDK_NGX_VULKAN_Init_Ext2_Orig;
 	NVSDK_NGX_D3D12_Init_ProjectID_Hook = NVSDK_NGX_D3D12_Init_ProjectID_Orig;
+	NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Hook = NVSDK_NGX_VULKAN_Init_ProjectID_Ext_Orig;
 	NVSDK_NGX_VULKAN_EvaluateFeature_Hook = NVSDK_NGX_VULKAN_EvaluateFeature_Orig;
 	NVSDK_NGX_VULKAN_Init_Hook = NVSDK_NGX_VULKAN_Init_Orig;
 	NVSDK_NGX_VULKAN_Init_Ext_Hook = NVSDK_NGX_VULKAN_Init_Ext_Orig;
