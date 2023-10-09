@@ -2,11 +2,7 @@
 #include <Windows.h>
 #include <winternl.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-
 #include <filesystem>
-#include "Utility.hpp"
 #include "Proxy.hpp"
 
 // nvngx.dll
@@ -311,7 +307,7 @@ bool on_attach(HMODULE ourModule)
 
     wchar_t ngxCorePath[0x104];
     DWORD ngxCorePathSize = 0x104;
-    status = RegQueryValueExW(ngxCoreKey, L"NGXPath", 0i64, 0i64, (LPBYTE)ngxCorePath, &ngxCorePathSize);
+    status = RegQueryValueExW(ngxCoreKey, L"NGXPath", nullptr, nullptr, (LPBYTE)ngxCorePath, &ngxCorePathSize);
     if (status != ERROR_SUCCESS)
         return false;
 

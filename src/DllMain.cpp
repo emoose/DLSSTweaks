@@ -36,7 +36,7 @@ std::filesystem::path IniPath;
 
 UserSettings settings;
 
-const int qualityLevelCount = 5;
+constexpr int qualityLevelCount = 5;
 
 const char* qualityLevelNames[qualityLevelCount] = {
 	"Performance",
@@ -118,35 +118,34 @@ std::once_flag dlssOverrideMessage;
 HMODULE __stdcall LoadLibraryExW_Hook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
 	std::filesystem::path libPath = lpLibFileName;
-	auto filenameStr = libPath.filename().string();
+	const auto filenameStr = libPath.filename().string();
 
 	// Check if filename matches any DLL user has requested to override, change to the user-specified path if so
-	for (auto& pair : settings.dllPathOverrides)
+	for (auto& [overrideDllName, overridePath] : settings.dllPathOverrides)
 	{
-		if (_stricmp(filenameStr.c_str(), pair.first.c_str()) != 0)
+		if (_stricmp(filenameStr.c_str(), overrideDllName.c_str()) != 0)
 			continue;
 
-		if (!pair.second.empty())
+		if (!overridePath.empty())
 		{
-			spdlog::info("DLLPathOverrides: redirecting {} to new path {}", libPath.string(), pair.second.string());
+			spdlog::info("DLLPathOverrides: redirecting {} to new path {}", libPath.string(), overridePath.string());
 
-			if (utility::exists_safe(pair.second))
-				libPath = pair.second;
+			if (utility::exists_safe(overridePath))
+				libPath = overridePath;
 			else
-				spdlog::error("DLLPathOverrides: override DLL no longer exists, skipping... (path: {})", pair.second.string());
+				spdlog::error("DLLPathOverrides: override DLL no longer exists, skipping... (path: {})", overridePath.string());
 		}
 		break;
 	}
 
-	std::wstring libPathStr = libPath.wstring();
+	const std::wstring libPathStr = libPath.wstring();
 	return LoadLibraryExW_Orig.stdcall<HMODULE>(libPathStr.c_str(), hFile, dwFlags);
 }
 
 HMODULE __stdcall LoadLibraryExA_Hook(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
-	std::filesystem::path libPath = lpLibFileName;
-	auto libPathStr = libPath.wstring();
-
+	const std::filesystem::path libPath = lpLibFileName;
+	const auto libPathStr = libPath.wstring();
 	return LoadLibraryExW_Hook(libPathStr.c_str(), hFile, dwFlags);
 }
 
@@ -175,15 +174,15 @@ void __stdcall LoaderNotificationCallback(unsigned long notification_reason, con
 		std::wstring dlssgName = DlssgFileName;
 		std::wstring dlssdName = DlssdFileName;
 
-		if (settings.dllPathOverrides.count(DlssFileNameA))
+		if (settings.dllPathOverrides.contains(DlssFileNameA))
 			dlssName = settings.dllPathOverrides[DlssFileNameA].filename().wstring();
-		if (settings.dllPathOverrides.count(DlssgFileNameA))
+		if (settings.dllPathOverrides.contains(DlssgFileNameA))
 			dlssgName = settings.dllPathOverrides[DlssgFileNameA].filename().wstring();
-		if (settings.dllPathOverrides.count(DlssdFileNameA))
+		if (settings.dllPathOverrides.contains(DlssdFileNameA))
 			dlssdName = settings.dllPathOverrides[DlssdFileNameA].filename().wstring();
 
 		// A module was loaded in, check if NGX/DLSS and apply hooks if so
-		std::wstring dllName(notification_data->Loaded.BaseDllName->Buffer, notification_data->Loaded.BaseDllName->Length / sizeof(WCHAR));
+		const std::wstring dllName(notification_data->Loaded.BaseDllName->Buffer, notification_data->Loaded.BaseDllName->Length / sizeof(WCHAR));
 		if (!_wcsicmp(dllName.c_str(), NgxFileName))
 		{
 			nvngx::init((HMODULE)notification_data->Loaded.DllBase);
@@ -259,7 +258,7 @@ void UserSettings::print_to_log()
 		spdlog::info(" - DLSSPresets: default");
 	}
 
-	if (settings.dllPathOverrides.size())
+	if (!settings.dllPathOverrides.empty())
 	{
 		spdlog::info(" - DLLPathOverrides:");
 		for (auto& pair : settings.dllPathOverrides)
@@ -275,7 +274,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath, int numInisRead)
 {
 	using namespace utility;
 
-	std::wstring iniPathStr = iniPath.wstring();
+	const std::wstring iniPathStr = iniPath.wstring();
 
 	// Read INI via FILE* since INIReader doesn't support wstring
 	FILE* iniFile;
@@ -382,7 +381,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath, int numInisRead)
 			auto value = utility::ini_get_string_safe(ini, "DLSSQualityLevels", curLevel, std::move(qualityLevelStrings[level]));
 
 			// Remove any quotes from around the value
-			if (value.size() > 0)
+			if (!value.empty())
 			{
 				if (value[0] == '"')
 					value = value.substr(1);
@@ -391,7 +390,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath, int numInisRead)
 			}
 
 			// Try parsing users string as a resolution
-			auto res = utility::ParseResolution(value);
+			const auto res = utility::ParseResolution(value);
 			if (utility::ValidResolution(res))
 			{
 				qualityLevelResolutions[level] = res;
@@ -460,7 +459,7 @@ unsigned int __stdcall InitThread(void* param)
 	if (settings.disableAllTweaks)
 	{
 		// Try warning user via error log file
-		// (this used to use a Win32 MessageBox too, but some fullscreen games had issues when MessageBox showed, even in seperate thread, so that was cut)
+		// (this used to use a Win32 MessageBox too, but some fullscreen games had issues when MessageBox showed, even in separate thread, so that was cut)
 		std::string warningText =
 			"Warning: multiple versions of DLSSTweaks have attempted to load into the game process.\n\nIf you recently tried to update the DLL, an older version may still be present & loaded in.\n\nCheck your game folder for files such as dxgi.dll / xinput1_3.dll / nvngx.dll and remove any extra versions.";
 
@@ -551,7 +550,7 @@ unsigned int __stdcall InitThread(void* param)
 		spdlog::info("Wrapped system DLL, watching for DLSS module load");
 
 	// Register notification so we can learn of DLL loads/unloads
-	LdrRegisterDllNotificationFunc LdrRegisterDllNotification =
+	auto LdrRegisterDllNotification =
 		(LdrRegisterDllNotificationFunc)GetProcAddress(GetModuleHandle("ntdll.dll"), "LdrRegisterDllNotification");
 	if (LdrRegisterDllNotification &&
 		LdrRegisterDllNotification(0, &LoaderNotificationCallback, nullptr, &dll_notification_cookie) == STATUS_SUCCESS)
@@ -564,7 +563,7 @@ unsigned int __stdcall InitThread(void* param)
 	}
 
 	// Hook LoadLibrary so we can override DLSS path if desired
-	if (settings.dllPathOverrides.size())
+	if (!settings.dllPathOverrides.empty())
 	{
 		spdlog::debug("LoadLibrary hook set");
 
@@ -642,13 +641,12 @@ unsigned int __stdcall InitThread(void* param)
 	while (success)
 	{
 		DWORD result = WaitForSingleObject(overlapped.hEvent, INFINITE);
-
 		if (result == WAIT_OBJECT_0)
 		{
 			DWORD bytes_transferred;
 			GetOverlappedResult(file, &overlapped, &bytes_transferred, FALSE);
 
-			FILE_NOTIFY_INFORMATION* evt = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(change_buf);
+			auto* evt = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(change_buf);
 
 			for (;;)
 			{
@@ -675,7 +673,7 @@ unsigned int __stdcall InitThread(void* param)
 
 				// Any more events to handle?
 				if (evt->NextEntryOffset)
-					*((uint8_t**)&evt) += evt->NextEntryOffset;
+					*(uint8_t**)&evt += evt->NextEntryOffset;
 				else
 					break;
 			}

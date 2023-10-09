@@ -43,38 +43,52 @@ void DlssNvidiaPresetOverrides::zero_customized_values()
 
 namespace nvngx_dlss
 {
-// Allow force enabling/disabling the DLSS debug display via RegQueryValueExW hook
-// (fallback method if we couldn't find the indicator value check pattern in the DLL)
-// NOTE: copy any changes to the nvngx_dlssd::RegQueryValueExW_Hook below!
+	// Hooks shared between both dlss & dlssd
+	namespace shared
+	{
+		// Allow force enabling/disabling the DLSS debug display via RegQueryValueExW hook
+		// (fallback method if we couldn't find the indicator value check pattern in the DLL)
+		inline LSTATUS RegQueryValueExW_Hook(LSTATUS origRetValue, HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
+		{
+			const LSTATUS ret = origRetValue;
+			if (settings.overrideDlssHud == 0 || _wcsicmp(lpValueName, L"ShowDlssIndicator") != 0)
+				return ret;
+
+			if (lpcbData && *lpcbData >= 4 && lpData)
+			{
+				DWORD* outData = (DWORD*)lpData;
+				if (settings.overrideDlssHud >= 1)
+					*outData = 0x400;
+				else if (settings.overrideDlssHud < 0)
+					*outData = 0;
+				return ERROR_SUCCESS;
+			}
+
+			return ret;
+		}
+
+		inline uint32_t DLSS_GetIndicatorValue_Hook(uint32_t origRetValue, void* thisptr, uint32_t* OutValue)
+		{
+			const auto ret = origRetValue;
+			if (settings.overrideDlssHud == 0)
+				return ret;
+			*OutValue = settings.overrideDlssHud > 0 ? 0x400 : 0;
+			return ret;
+		}
+	};
+
 LSTATUS(__stdcall* RegQueryValueExW_Orig)(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData);
 LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
 {
 	LSTATUS ret = RegQueryValueExW_Orig(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
-	if (settings.overrideDlssHud == 0 || _wcsicmp(lpValueName, L"ShowDlssIndicator") != 0)
-		return ret;
-
-	if (lpcbData && *lpcbData >= 4 && lpData)
-	{
-		DWORD* outData = (DWORD*)lpData;
-		if (settings.overrideDlssHud >= 1)
-			*outData = 0x400;
-		else if (settings.overrideDlssHud < 0)
-			*outData = 0;
-		return ERROR_SUCCESS; // always return success for DLSS to accept the result
-	}
-
-	return ret;
+	return nvngx_dlss::shared::RegQueryValueExW_Hook(ret, hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
 }
 
-SafetyHookInline DLSS_GetIndicatorValue_Hook;
-// NOTE: copy any changes to the nvngx_dlssd::DLSS_GetIndicatorValue below!
-uint32_t __fastcall DLSS_GetIndicatorValue(void* thisptr, uint32_t* OutValue)
+SafetyHookInline DLSS_GetIndicatorValue;
+uint32_t __fastcall DLSS_GetIndicatorValue_Hook(void* thisptr, uint32_t* OutValue)
 {
-	auto ret = DLSS_GetIndicatorValue_Hook.thiscall<uint32_t>(thisptr, OutValue);
-	if (settings.overrideDlssHud == 0)
-		return ret;
-	*OutValue = settings.overrideDlssHud > 0 ? 0x400 : 0;
-	return ret;
+	const auto ret = DLSS_GetIndicatorValue.thiscall<uint32_t>(thisptr, OutValue);
+	return nvngx_dlss::shared::DLSS_GetIndicatorValue_Hook(ret, thisptr, OutValue);
 }
 
 // Hooks that allow us to override the NV-provided DLSS3.1 presets, without needing us to override the whole AppID for the game
@@ -95,7 +109,7 @@ int8_t DlssPresetOverrideFunc_MovOffset1 = -0x38;
 int8_t DlssPresetOverrideFunc_MovOffset2 = -0x3C;
 void DlssPresetOverrideFunc_LaterVersion(SafetyHookContext& ctx)
 {
-	// Code that we overwrote
+	// Code that our hook overwrote
 	*(uint64_t*)(ctx.rbp + DlssPresetOverrideFunc_MovOffset1) = ctx.rdi;
 	*(uint32_t*)(ctx.rbp + DlssPresetOverrideFunc_MovOffset2) = uint32_t(ctx.rcx);
 
@@ -108,7 +122,7 @@ void DlssPresetOverrideFunc_LaterVersion(SafetyHookContext& ctx)
 SafetyHookMid DlssPresetOverrideFunc_EarlyVersion_Hook;
 void DlssPresetOverrideFunc_Version3_1_2(SafetyHookContext& ctx)
 {
-	// Code that we overwrote
+	// Code that our hook overwrote
 	*(uint32_t*)(ctx.rbx + 0x1C) = uint32_t(ctx.rcx);
 	ctx.rax = *(uint64_t*)ctx.rdi;
 
@@ -117,7 +131,7 @@ void DlssPresetOverrideFunc_Version3_1_2(SafetyHookContext& ctx)
 }
 void DlssPresetOverrideFunc_Version3_1_1(SafetyHookContext& ctx)
 {
-	// Code that we overwrote
+	// Code that our hook overwrote
 	*(uint32_t*)(ctx.rdi + 0x1C) = uint32_t(ctx.rcx);
 	//ctx.rax = *(uint64_t*)ctx.rsi;
 
@@ -162,7 +176,7 @@ void CreateDlssInstance_PresetSelection(SafetyHookContext& ctx)
 	if (!dlssStruct)
 		return;
 
-	// Code that we overwrote (TODO: does safetyhook midhook even require this?)
+	// Code that the hook overwrote (TODO: does safetyhook midhook even require this?)
 	*(uint32_t*)(dlssStruct + CreateDlssInstance_PresetSelection_OrigInsnOffset) = 3;
 
 	if (!settings.overrideQualityLevels)
@@ -176,15 +190,13 @@ void CreateDlssInstance_PresetSelection(SafetyHookContext& ctx)
 	std::optional<unsigned int> presetValue;
 	presetValue.reset();
 
-	for (auto kvp : qualityLevelResolutionsCurrent)
+	for (const auto& [preset, presetResolution] : qualityLevelResolutionsCurrent)
 	{
 		// Check that both height & width are within 1 pixel of each other either way
-		bool widthIsClose = abs(kvp.second.first - dlssWidth) <= 1;
-		bool heightIsClose = abs(kvp.second.second - dlssHeight) <= 1;
+		bool widthIsClose = abs(presetResolution.first - dlssWidth) <= 1;
+		bool heightIsClose = abs(presetResolution.second - dlssHeight) <= 1;
 		if (widthIsClose && heightIsClose)
 		{
-			auto preset = kvp.first;
-
 			if (preset == NVSDK_NGX_PerfQuality_Value_MaxPerf && settings.presetPerformance)
 				presetValue = settings.presetPerformance;
 			else if (preset == NVSDK_NGX_PerfQuality_Value_Balanced && settings.presetBalanced)
@@ -225,7 +237,6 @@ void CreateDlssInstance_PresetSelection(SafetyHookContext& ctx)
 }
 
 SafetyHookMid dlssIndicatorHudHook{};
-// NOTE: copy any changes to the nvngx_dlssd::hook below!
 bool hook(HMODULE ngx_module)
 {
 	// Search for & hook the function that overrides the DLSS presets with ones set by NV
@@ -233,7 +244,7 @@ bool hook(HMODULE ngx_module)
 	// (if OverrideAppId is set there shouldn't be any need for this)
 	if (!settings.overrideAppId)
 	{
-		auto pattern = hook::pattern((void*)ngx_module, "41 0F 45 CE 48 89 7D ? 89 4D ? 48 8D 0D");
+		auto pattern = hook::pattern(ngx_module, "41 0F 45 CE 48 89 7D ? 89 4D ? 48 8D 0D");
 		if (pattern.size())
 		{
 			uint8_t* match = pattern.count(1).get_first<uint8_t>();
@@ -248,7 +259,7 @@ bool hook(HMODULE ngx_module)
 		else
 		{
 			// 3.1.30 hook
-			pattern = hook::pattern((void*)ngx_module, "49 8B CA 48 8D 15 ? ? ? ? 49 8B F9");
+			pattern = hook::pattern(ngx_module, "49 8B CA 48 8D 15 ? ? ? ? 49 8B F9");
 			if (pattern.size())
 			{
 				uint8_t* func_3_1_30 = pattern.get(0).get<uint8_t>(-0x23);
@@ -264,7 +275,7 @@ bool hook(HMODULE ngx_module)
 				// Couldn't find the preset override func, seems it might be inlined inside earlier DLLs...
 				// Search for & hook the inlined code instead
 				// (unfortunately registers changed between 3.1.1 & 3.1.2, and probably the ones between 3.1.2 and 3.1.11 too, ugh)
-				pattern = hook::pattern((void*)ngx_module, "89 4D ? 8B 08 89 ? 1C 48 8B ?");
+				pattern = hook::pattern(ngx_module, "89 4D ? 8B 08 89 ? 1C 48 8B ?");
 				if (!pattern.size())
 					spdlog::warn("nvngx_dlss: failed to apply DLSS preset override hooks, recommend enabling OverrideAppId instead");
 				else
@@ -293,7 +304,7 @@ bool hook(HMODULE ngx_module)
 
 	// Hook to override the preset DLSS picks based on ratio, so we can check against users customized ratios/resolutions instead
 	bool presetSelectPatternSuccess = false;
-	auto presetSelectPattern = hook::pattern((void*)ngx_module, "8B ? ? C7 ? ? ? 00 00 03 00 00 00");
+	auto presetSelectPattern = hook::pattern(ngx_module, "8B ? ? C7 ? ? ? 00 00 03 00 00 00");
 	if (presetSelectPattern.size())
 	{
 		uint8_t* match = presetSelectPattern.count(1).get_first<uint8_t>(3);
@@ -330,8 +341,11 @@ bool hook(HMODULE ngx_module)
 	// This pattern finds 2 matches in latest DLSS, but only 1 in older ones
 	// The one we're trying to find seems to always be first match
 	// TODO: scan for RegQueryValue call and grab the offset from that, use offset instead of wildcards below
-	auto indicatorValueCheck = hook::pattern((void*)ngx_module, "8B 81 ? ? ? ? 89 02 33 C0 C3");
-	if ((!settings.disableIniMonitoring || settings.overrideDlssHud == 2) && indicatorValueCheck.size())
+	auto indicatorValueCheck = hook::pattern(ngx_module, "8B 81 ? ? ? ? 89 02 33 C0 C3");
+
+	// If INI monitoring is enabled, or OverrideDlssHud is 2, we'll try setting up the realtime vftable hook
+	// allowing the HUD overlay to be toggled at runtime
+	if (indicatorValueCheck.size() && (!settings.disableIniMonitoring || settings.overrideDlssHud == 2))
 	{
 		if (!settings.disableIniMonitoring)
 			spdlog::debug("nvngx_dlss: applying hud hook via vftable hook...");
@@ -339,7 +353,7 @@ bool hook(HMODULE ngx_module)
 			spdlog::debug("nvngx_dlss: OverrideDlssHud == 2, applying hud hook via vftable hook...");
 
 		auto indicatorValueCheck_addr = indicatorValueCheck.get(0).get<void>();
-		DLSS_GetIndicatorValue_Hook = safetyhook::create_inline(indicatorValueCheck_addr, DLSS_GetIndicatorValue);
+		DLSS_GetIndicatorValue = safetyhook::create_inline(indicatorValueCheck_addr, DLSS_GetIndicatorValue_Hook);
 
 		// Unfortunately it's not enough to just hook the function, HUD render code seems to have an optimization where it checks funcptr and inlines code if it matches
 		// So we also need to search for the address of the function, find vftable that holds it, and overwrite entry to point at our hook
@@ -354,12 +368,12 @@ bool hook(HMODULE ngx_module)
 
 		auto pattern = ss.str();
 
-		auto indicatorValueCheckMemberVf = hook::pattern((void*)ngx_module, pattern);
+		auto indicatorValueCheckMemberVf = hook::pattern(ngx_module, pattern);
 		for (int i = 0; i < indicatorValueCheckMemberVf.size(); i++)
 		{
 			auto vfAddr = indicatorValueCheckMemberVf.get(i).get<uintptr_t>(0);
 			UnprotectMemory unprotect{ (uintptr_t)vfAddr, sizeof(uintptr_t) };
-			*vfAddr = (uintptr_t)&DLSS_GetIndicatorValue;
+			*vfAddr = (uintptr_t)&DLSS_GetIndicatorValue_Hook;
 		}
 
 		spdlog::info("nvngx_dlss: applied debug hud overlay hook via vftable hook");
@@ -414,9 +428,9 @@ void init(HMODULE ngx_module)
 namespace nvngx_dlssg
 {
 std::mutex module_handle_mtx;
-HMODULE module_handle = NULL;
+HMODULE module_handle = nullptr;
 
-// Currently only patches out watermark text on select builds
+// Currently just nulls the watermark text included in certain DLSSG builds
 void settings_changed()
 {
 	std::scoped_lock lock{ module_handle_mtx };
@@ -424,21 +438,21 @@ void settings_changed()
 	if (!module_handle)
 		return;
 
-	char patch = settings.disableDevWatermark ? 0 : 0x4E;
+	const char patch = settings.disableDevWatermark ? 0 : 0x4E;
 
 	// Search for DLSSG watermark text and null it if found
-	auto pattern = hook::pattern((void*)module_handle,
+	auto pattern = hook::pattern(module_handle,
 		"56 49 44 49 41 20 43 4F 4E 46 49 44 45 4E 54 49 41 4C 20 2D 20");
 
-	int count = pattern.size();
-	if (!count)
+	size_t numWatermarkStrings = pattern.size();
+	if (!numWatermarkStrings)
 	{
 		spdlog::warn("nvngx_dlssg: DisableDevWatermark failed, couldn't locate watermark string inside module");
 		return;
 	}
 
 	int changed = 0;
-	for (int i = 0; i < count; i++)
+	for (size_t i = 0; i < numWatermarkStrings; i++)
 	{
 		char* result = pattern.get(i).get<char>(-1);
 
@@ -451,7 +465,7 @@ void settings_changed()
 	}
 
 	if (changed)
-		spdlog::info("nvngx_dlssg: DisableDevWatermark patch {} ({}/{} strings patched)", settings.disableDevWatermark ? "applied" : "removed", changed, count);
+		spdlog::info("nvngx_dlssg: DisableDevWatermark patch {} ({}/{} strings patched)", settings.disableDevWatermark ? "applied" : "removed", changed, numWatermarkStrings);
 }
 	
 SafetyHookInline dllmain;
@@ -468,7 +482,7 @@ BOOL APIENTRY hooked_dllmain(HMODULE hModule, int ul_reason_for_call, LPVOID lpR
 	if (ul_reason_for_call == DLL_PROCESS_DETACH)
 	{
 		std::scoped_lock lock{module_handle_mtx};
-		module_handle = NULL;
+		module_handle = nullptr;
 		dllmain.reset();
 	}
 
@@ -492,43 +506,24 @@ void init(HMODULE ngx_module)
 
 // NOTE: nvngx_dlssd namespace is pretty much a copy of nvngx_dlss atm...
 // Ideally we would reuse the same code between them, but since both DLLs are usually loaded at the same time it wouldn't be possible to use the same SafetyHookInline instance between them
-// our hook code also has no way to know which DLL we were called from, so wouldn't be able to add seperate instances for each DLL...
-// only solution I can see requires us to include seperate functions for both dlss & dlssd
-// unfortunately I don't know a good way of making them both share the same code yet, so would need to share changes between them manually :/
+// our hook code also has no way to know which DLL we were called from, so wouldn't be able to add separate instances for each DLL...
+// only solution I can see requires us to include separate functions for both dlss & dlssd
 namespace nvngx_dlssd
 {
 // Allow force enabling/disabling the DLSS debug display via RegQueryValueExW hook
 // (fallback method if we couldn't find the indicator value check pattern in the DLL)
-// NOTE: copy any changes to the nvngx_dlss::RegQueryValueExW_Hook above!
 LSTATUS(__stdcall* RegQueryValueExW_Orig)(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData);
 LSTATUS __stdcall RegQueryValueExW_Hook(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
 {
-	LSTATUS ret = RegQueryValueExW_Orig(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
-	if (settings.overrideDlssHud == 0 || _wcsicmp(lpValueName, L"ShowDlssIndicator") != 0)
-		return ret;
-
-	if (lpcbData && *lpcbData >= 4 && lpData)
-	{
-		DWORD* outData = (DWORD*)lpData;
-		if (settings.overrideDlssHud >= 1)
-			*outData = 0x400;
-		else if (settings.overrideDlssHud < 0)
-			*outData = 0;
-		return ERROR_SUCCESS; // always return success for DLSS to accept the result
-	}
-
-	return ret;
+	const auto ret = RegQueryValueExW_Orig(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
+	return nvngx_dlss::shared::RegQueryValueExW_Hook(ret, hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
 }
 
-SafetyHookInline DLSS_GetIndicatorValue_Hook;
-// NOTE: copy any changes to the nvngx_dlss::DLSS_GetIndicatorValue above!
-uint32_t __fastcall DLSS_GetIndicatorValue(void* thisptr, uint32_t* OutValue)
+SafetyHookInline DLSS_GetIndicatorValue;
+uint32_t __fastcall DLSS_GetIndicatorValue_Hook(void* thisptr, uint32_t* OutValue)
 {
-	auto ret = DLSS_GetIndicatorValue_Hook.thiscall<uint32_t>(thisptr, OutValue);
-	if (settings.overrideDlssHud == 0)
-		return ret;
-	*OutValue = settings.overrideDlssHud > 0 ? 0x400 : 0;
-	return ret;
+	const auto ret = DLSS_GetIndicatorValue.thiscall<uint32_t>(thisptr, OutValue);
+	return nvngx_dlss::shared::DLSS_GetIndicatorValue_Hook(ret, thisptr, OutValue);
 }
 
 SafetyHookMid dlssIndicatorHudHook{};
@@ -539,8 +534,11 @@ bool hook(HMODULE ngx_module)
 	// This pattern finds 2 matches in latest DLSS, but only 1 in older ones
 	// The one we're trying to find seems to always be first match
 	// TODO: scan for RegQueryValue call and grab the offset from that, use offset instead of wildcards below
-	auto indicatorValueCheck = hook::pattern((void*)ngx_module, "8B 81 ? ? ? ? 89 02 33 C0 C3");
-	if ((!settings.disableIniMonitoring || settings.overrideDlssHud == 2) && indicatorValueCheck.size())
+	auto indicatorValueCheck = hook::pattern(ngx_module, "8B 81 ? ? ? ? 89 02 33 C0 C3");
+
+	// If INI monitoring is enabled, or OverrideDlssHud is 2, we'll try setting up the realtime vftable hook
+	// allowing the HUD overlay to be toggled at runtime
+	if (indicatorValueCheck.size() && (!settings.disableIniMonitoring || settings.overrideDlssHud == 2))
 	{
 		if (!settings.disableIniMonitoring)
 			spdlog::debug("nvngx_dlssd: applying hud hook via vftable hook...");
@@ -548,13 +546,13 @@ bool hook(HMODULE ngx_module)
 			spdlog::debug("nvngx_dlssd: OverrideDlssHud == 2, applying hud hook via vftable hook...");
 
 		auto indicatorValueCheck_addr = indicatorValueCheck.get(0).get<void>();
-		DLSS_GetIndicatorValue_Hook = safetyhook::create_inline(indicatorValueCheck_addr, DLSS_GetIndicatorValue);
+		DLSS_GetIndicatorValue = safetyhook::create_inline(indicatorValueCheck_addr, DLSS_GetIndicatorValue_Hook);
 
 		// Unfortunately it's not enough to just hook the function, HUD render code seems to have an optimization where it checks funcptr and inlines code if it matches
 		// So we also need to search for the address of the function, find vftable that holds it, and overwrite entry to point at our hook
 
 		// Ugly way of converting our address to a pattern string...
-		uint8_t* p = (uint8_t*)&indicatorValueCheck_addr;
+		auto* p = (uint8_t*)&indicatorValueCheck_addr;
 
 		std::stringstream ss;
 		ss << std::hex << std::setw(2) << std::setfill('0') << (int)p[0];
@@ -563,12 +561,12 @@ bool hook(HMODULE ngx_module)
 
 		auto pattern = ss.str();
 
-		auto indicatorValueCheckMemberVf = hook::pattern((void*)ngx_module, pattern);
+		auto indicatorValueCheckMemberVf = hook::pattern(ngx_module, pattern);
 		for (int i = 0; i < indicatorValueCheckMemberVf.size(); i++)
 		{
 			auto vfAddr = indicatorValueCheckMemberVf.get(i).get<uintptr_t>(0);
 			UnprotectMemory unprotect{ (uintptr_t)vfAddr, sizeof(uintptr_t) };
-			*vfAddr = (uintptr_t)&DLSS_GetIndicatorValue;
+			*vfAddr = (uintptr_t)&DLSS_GetIndicatorValue_Hook;
 		}
 
 		spdlog::info("nvngx_dlssd: applied debug hud overlay hook via vftable hook");

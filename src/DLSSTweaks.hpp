@@ -7,7 +7,6 @@
 #include <nvsdk_ngx_params.h>
 
 // Certain settings which aren't currently included in DLSS SDK, but do seem checked by DLSS 3.1+ DLL files.
-// (added EXT_ to start so we don't conflict once/if SDK adds them...)
 #ifndef NVSDK_NGX_Parameter_Disable_Watermark
 #define NVSDK_NGX_Parameter_Disable_Watermark "Disable.Watermark"
 #endif
@@ -33,7 +32,7 @@ struct DlssSettings
 	std::string projectId;
 
 	// app ID displayed by DLSS overlay is xored for some reason
-	unsigned long long appIdDlss()
+	unsigned long long appIdDlss() const
 	{
 		return appId ^ 0xE658703;
 	}
@@ -116,7 +115,7 @@ struct HookOrigFn
 
 	std::recursive_mutex m_mutex{};
 
-	// only resets inline hook, as unsetting both hook & dest_proc would leave this with no function to call, causing issues
+	// only resets inline hook, as resetting both hook & dest_proc would leave this with no function to call, causing issues
 	void reset()
 	{
 		hook.reset();

@@ -1,5 +1,4 @@
 #pragma once
-#include <SafetyHook.hpp>
 #include <filesystem>
 #include <ini.h>
 
@@ -31,12 +30,12 @@ inline bool exists_safe(const std::filesystem::path& path)
 	return exists;
 }
 
-BOOL HookIAT(HMODULE callerModule, char const* targetModule, void* targetFunction, void* detourFunction);
+BOOL HookIAT(HMODULE callerModule, char const* targetModule, const void* targetFunction, void* detourFunction);
 
 inline void* ModuleEntryPoint(HMODULE hmod)
 {
-	PIMAGE_DOS_HEADER dos_header = (PIMAGE_DOS_HEADER)hmod;
-	PIMAGE_NT_HEADERS nt_headers = (PIMAGE_NT_HEADERS)((PBYTE)hmod + dos_header->e_lfanew);
+	const auto dos_header = (PIMAGE_DOS_HEADER)hmod;
+	const auto nt_headers = (PIMAGE_NT_HEADERS)((PBYTE)hmod + dos_header->e_lfanew);
 	return (PBYTE)hmod + nt_headers->OptionalHeader.AddressOfEntryPoint;
 }
 };

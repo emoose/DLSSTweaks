@@ -41,6 +41,7 @@ void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
 	// - We haven't looked at it before
 	// - Game has switched from non-null texture to null
 	// - Game has switched from null texture to non-null
+	// If game is switching from non-null texture to a different non-null texture we'll ignore it
 	if (!prevExposureTexture.has_value() || 
 		(*prevExposureTexture != nullptr && pInExposureTexture == nullptr) ||
 		(*prevExposureTexture == nullptr && pInExposureTexture != nullptr))
@@ -240,9 +241,8 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_AutoExposure)
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_AutoExposure (use \"OverrideAutoExposure = -1\" to force disable)");
 
-		const int lastKnownFlag = NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
-		auto remainder = settings.dlss.featureCreateFlags & ~((lastKnownFlag << 1) - 1);
-		if (remainder)
+		constexpr int lastKnownFlag = NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
+		if (auto remainder = settings.dlss.featureCreateFlags & ~((lastKnownFlag << 1) - 1))
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - unknown flags: 0x{:X}", remainder);
 
 		if (settings.overrideAutoExposure != 0)
@@ -287,7 +287,7 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 		// So we'll just tell DLSS to use MaxQuality instead, while keeping UltraQuality stored in prevQualityValue
 		if (prevQualityValue == NVSDK_NGX_PerfQuality_Value_UltraQuality)
 		{
-			auto& res = qualityLevelResolutions[NVSDK_NGX_PerfQuality_Value_UltraQuality];
+			const auto& res = qualityLevelResolutions[NVSDK_NGX_PerfQuality_Value_UltraQuality];
 			if (utility::ValidResolution(res) || qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality] > 0.f)
 				InValue = int(NVSDK_NGX_PerfQuality_Value_MaxQuality);
 		}
@@ -322,7 +322,7 @@ void __cdecl NVSDK_NGX_Parameter_SetUI(NVSDK_NGX_Parameter* InParameter, const c
 SafetyHookInline NVSDK_NGX_Parameter_GetUI_Hook;
 NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParameter, const char* InName, unsigned int* OutValue)
 {
-	NVSDK_NGX_Result ret = NVSDK_NGX_Parameter_GetUI_Hook.call<NVSDK_NGX_Result>(InParameter, InName, OutValue);
+	auto ret = NVSDK_NGX_Parameter_GetUI_Hook.call<NVSDK_NGX_Result>(InParameter, InName, OutValue);
 	if (ret != NVSDK_NGX_Result_Success)
 		return ret;
 
@@ -371,7 +371,7 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 			
 		unsigned int renderWidth = 0;
 		unsigned int renderHeight = 0;
-		if (qualityLevelRatios.count(prevQualityValue))
+		if (qualityLevelRatios.contains(prevQualityValue))
 		{
 			auto ratio = qualityLevelRatios[prevQualityValue];
 
@@ -379,10 +379,10 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 			renderWidth = unsigned int(roundf(float(targetWidth) * ratio));
 			renderHeight = unsigned int(roundf(float(targetHeight) * ratio));
 		}
-		if (qualityLevelResolutions.count(prevQualityValue))
+		if (qualityLevelResolutions.contains(prevQualityValue))
 		{
 			// if custom res is set for this level, override it with that
-			auto& res = qualityLevelResolutions[prevQualityValue];
+			const auto& res = qualityLevelResolutions[prevQualityValue];
 			if (utility::ValidResolution(res))
 			{
 				renderWidth = res.first;
@@ -440,7 +440,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_AllocateParameters(NVSDK_NGX
 {
 	WaitForInitThread();
 
-	NVSDK_NGX_Result ret = NVSDK_NGX_D3D12_AllocateParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
+	auto ret = NVSDK_NGX_D3D12_AllocateParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -451,7 +451,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_GetCapabilityParameters(NVSD
 {
 	WaitForInitThread();
 
-	NVSDK_NGX_Result ret = NVSDK_NGX_D3D12_GetCapabilityParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
+	auto ret = NVSDK_NGX_D3D12_GetCapabilityParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -462,7 +462,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D12_GetParameters(NVSDK_NGX_Para
 {
 	WaitForInitThread();
 
-	NVSDK_NGX_Result ret = NVSDK_NGX_D3D12_GetParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
+	auto ret = NVSDK_NGX_D3D12_GetParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -474,7 +474,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_AllocateParameters(NVSDK_NGX
 {
 	WaitForInitThread();
 
-	NVSDK_NGX_Result ret = NVSDK_NGX_D3D11_AllocateParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
+	auto ret = NVSDK_NGX_D3D11_AllocateParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -485,7 +485,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_GetCapabilityParameters(NVSD
 {
 	WaitForInitThread();
 
-	NVSDK_NGX_Result ret = NVSDK_NGX_D3D11_GetCapabilityParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
+	auto ret = NVSDK_NGX_D3D11_GetCapabilityParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -496,7 +496,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_D3D11_GetParameters(NVSDK_NGX_Para
 {
 	WaitForInitThread();
 
-	NVSDK_NGX_Result ret = NVSDK_NGX_D3D11_GetParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
+	auto ret = NVSDK_NGX_D3D11_GetParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -508,7 +508,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_AllocateParameters(NVSDK_NG
 {
 	WaitForInitThread();
 
-	NVSDK_NGX_Result ret = NVSDK_NGX_VULKAN_AllocateParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
+	auto ret = NVSDK_NGX_VULKAN_AllocateParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -519,7 +519,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_GetCapabilityParameters(NVS
 {
 	WaitForInitThread();
 
-	NVSDK_NGX_Result ret = NVSDK_NGX_VULKAN_GetCapabilityParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
+	auto ret = NVSDK_NGX_VULKAN_GetCapabilityParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -530,7 +530,7 @@ PLUGIN_API NVSDK_NGX_Result __cdecl NVSDK_NGX_VULKAN_GetParameters(NVSDK_NGX_Par
 {
 	WaitForInitThread();
 
-	NVSDK_NGX_Result ret = NVSDK_NGX_VULKAN_GetParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
+	auto ret = NVSDK_NGX_VULKAN_GetParameters_Hook.call<NVSDK_NGX_Result>(OutParameters);
 
 	if (*OutParameters)
 		hook_params(*OutParameters);
@@ -548,7 +548,7 @@ void hook_params(NVSDK_NGX_Parameter* params)
 	if (NVSDK_NGX_Parameter_SetF_Hook && NVSDK_NGX_Parameter_SetI_Hook && NVSDK_NGX_Parameter_SetUI_Hook && NVSDK_NGX_Parameter_GetUI_Hook)
 		return;
 
-	NVSDK_NGX_Parameter_vftable** vftable = (NVSDK_NGX_Parameter_vftable**)params;
+	auto** vftable = (NVSDK_NGX_Parameter_vftable**)params;
 
 	if (!vftable || !*vftable)
 		return;
