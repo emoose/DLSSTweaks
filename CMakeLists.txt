@@ -96,11 +96,12 @@ target_include_directories(spdlog PUBLIC
 # Target: dlsstweaks
 set(dlsstweaks_SOURCES
 	"src/DllMain.cpp"
-	"src/HooksNvngx.cpp"
-	"src/HooksNvngxDlss.cpp"
 	"src/Proxy.cpp"
 	"src/ProxyNvngx.cpp"
 	"src/Utility.cpp"
+	"src/module_hooks/nvngx.cpp"
+	"src/module_hooks/nvngx_dlss.cpp"
+	"src/module_hooks/nvngx_dlssg.cpp"
 	"src/Proxy.def"
 	"src/Resource.rc"
 	"external/ModUtils/Patterns.cpp"

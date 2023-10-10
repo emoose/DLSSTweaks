@@ -13,7 +13,7 @@ const char* projectIdOverride = "24480451-f00d-face-1304-0308dabad187";
 const unsigned long long appIdOverride = 0x24480451;
 
 // the hooks defined below can work using two different methods
-// method 0: if we were loaded in via nvngx wrapper (requires reg edit), the hooks below are exported as the nvngx functions themselveswhich do our work and then call back to original DLL
+// method 0: if we were loaded in via nvngx wrapper (requires reg edit), the hooks below are exported as the nvngx functions themselves which do our work and then call back to original DLL
 // method 1: if we were loaded in via other DLL wrapper (dxgi etc), then _nvngx.dll is hooked to call these functions instead, and call back to _nvngx via safetyhook unsafe_call
 // these are handled via either nvngx::hook or nvngx::init setting up the HookOrigFn structs for each function
 
