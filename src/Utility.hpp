@@ -77,6 +77,7 @@ private:
 	DWORD m_protect{};
 };
 
+#ifdef _WINTERNL_ // only include LdrRegisterDllNotificationFunc if winternl.h had been included beforehand
 // defs below from chromium: https://source.chromium.org/chromium/chromium/src/+/main:chrome/common/conflicts/module_watcher_win.cc
 
 // These structures and functions are documented in MSDN, see
@@ -143,3 +144,4 @@ NTSTATUS(NTAPI*)(ULONG flags,
 	PVOID context,
 	PVOID* cookie);
 using LdrUnregisterDllNotificationFunc = NTSTATUS(NTAPI*)(PVOID cookie);
+#endif

@@ -74,9 +74,10 @@ struct UserSettings
 
 	bool read(const std::filesystem::path& iniPath, int numInisRead = 0);
 	void print_to_log();
+	void watch_for_changes(const std::filesystem::path& iniPath);
 };
 
-// DllMain.cpp
+// DllMain.cpp / UserSettings.cpp
 extern UserSettings settings;
 extern std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios;
 extern std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLevelResolutions;
@@ -91,7 +92,7 @@ void init_from_proxy();
 void init(HMODULE ngx_module);
 };
 
-// HooksNvngxDlss.cpp
+// module_hooks/*
 namespace nvngx_dlss
 {
 void init(HMODULE ngx_module);

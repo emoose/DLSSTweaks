@@ -98,6 +98,7 @@ set(dlsstweaks_SOURCES
 	"src/DllMain.cpp"
 	"src/Proxy.cpp"
 	"src/ProxyNvngx.cpp"
+	"src/UserSettings.cpp"
 	"src/Utility.cpp"
 	"src/module_hooks/nvngx.cpp"
 	"src/module_hooks/nvngx_dlss.cpp"
