@@ -14,6 +14,9 @@
 #define NVSDK_NGX_Parameter_DLSS_Get_Dynamic "DLSS.Get.Dynamic."
 #endif
 
+constexpr float DLSS_MinScale = 0.0f;
+constexpr float DLSS_MaxScale = 1.0f;
+
 struct DlssNvidiaPresetOverrides
 {
 	uint32_t overrideDLAA;
@@ -24,8 +27,39 @@ struct DlssNvidiaPresetOverrides
 	
 	void zero_customized_values();
 };
+
+struct QualityLevel
+{
+	std::string name;
+	float scalingRatio;
+	std::pair<int, int> resolution = { 0,0 };
+
+	// The last resolution we told game about for the this level, so we can check against it later on
+	// (based on either `scalingRatio` or `resolution` set by the user)
+	std::pair<int, int> currentResolution = { 0,0 };
+
+	std::string lastUserValue = "";
+};
+
 struct DlssSettings
 {
+	std::unordered_map<NVSDK_NGX_PerfQuality_Value, QualityLevel> qualities =
+	{
+		{NVSDK_NGX_PerfQuality_Value_UltraPerformance, {"UltraPerformance", 0.33333334f}},
+		{NVSDK_NGX_PerfQuality_Value_MaxPerf, {"Performance", 0.5f}},
+		{NVSDK_NGX_PerfQuality_Value_Balanced, {"Balanced", 0.58f}},
+		{NVSDK_NGX_PerfQuality_Value_MaxQuality, {"Quality", 0.66666667f}},
+		{NVSDK_NGX_PerfQuality_Value_DLAA, {"DLAA", 1.0f}},
+
+		// note: if NVSDK_NGX_PerfQuality_Value_UltraQuality is non-zero, some games may detect that we're passing a valid resolution and show an Ultra Quality option as a result
+		// very few games support this though, and right now DLSS seems to refuse to render if UltraQuality gets passed to it
+		// our SetI hook in HooksNvngx can override the quality passed to DLSS if this gets used by the game, letting it think this is MaxQuality instead
+		// but we'll only do that if user has overridden this in the INI to a non-zero value
+		{NVSDK_NGX_PerfQuality_Value_UltraQuality, {"UltraQuality", 0.f}},
+	};
+	NVSDK_NGX_PerfQuality_Value prevQualityLevel; // the last quality level setting that game requested
+	std::optional<ID3D12Resource*> prevExposureTexture;
+
 	int featureCreateFlags = 0;
 	std::optional<DlssNvidiaPresetOverrides> nvidiaOverrides;
 	unsigned long long appId = 0;
@@ -37,9 +71,9 @@ struct DlssSettings
 		return appId ^ 0xE658703;
 	}
 };
+
 struct UserSettings
 {
-	DlssSettings dlss; // DLSS related settings, setup by game or DLSS itself
 	bool disableAllTweaks = false; // not exposed in INI, is set if a serious error is detected (eg. two versions loaded at once)
 
 	bool forceDLAA = false;
@@ -53,13 +87,6 @@ struct UserSettings
 	bool verboseLogging = false;
 	std::unordered_map<std::string, std::filesystem::path> dllPathOverrides;
 	bool overrideQualityLevels = false;
-	std::string qualityLevelStrings[5] = { 
-		"0.5", 
-		"0.58", 
-		"0.66666667",
-		"0.33333334",
-		"0"
-	};
 	unsigned int presetDLAA = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 	unsigned int presetQuality = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 	unsigned int presetBalanced = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
@@ -79,9 +106,7 @@ struct UserSettings
 
 // DllMain.cpp / UserSettings.cpp
 extern UserSettings settings;
-extern std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios;
-extern std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLevelResolutions;
-extern std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLevelResolutionsCurrent;
+extern DlssSettings dlss;
 void WaitForInitThread();
 
 // HooksNvngx.cpp

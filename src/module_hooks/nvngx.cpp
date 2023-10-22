@@ -1,5 +1,4 @@
 #define WIN32_LEAN_AND_MEAN
-#include <ntstatus.h>
 #define WIN32_NO_STATUS
 #include <Windows.h>
 #include <winternl.h>
@@ -24,9 +23,6 @@ const unsigned long long appIdOverride = 0x24480451;
 // (https://github.com/emoose/DLSSTweaks/issues/44#issuecomment-1468518380 for more info... if anyone has any idea for a better fix I'd be happy to hear it)
 namespace nvngx
 {
-NVSDK_NGX_PerfQuality_Value prevQualityValue; // the last quality level setting that game requested
-std::optional<ID3D12Resource*> prevExposureTexture;
-
 void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
 {
 	// Check the current ExposureTexture value and see if game has set one or not
@@ -42,9 +38,9 @@ void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
 	// - Game has switched from non-null texture to null
 	// - Game has switched from null texture to non-null
 	// If game is switching from non-null texture to a different non-null texture we'll ignore it
-	if (!prevExposureTexture.has_value() || 
-		(*prevExposureTexture != nullptr && pInExposureTexture == nullptr) ||
-		(*prevExposureTexture == nullptr && pInExposureTexture != nullptr))
+	if (!dlss.prevExposureTexture.has_value() || 
+		(*dlss.prevExposureTexture != nullptr && pInExposureTexture == nullptr) ||
+		(*dlss.prevExposureTexture == nullptr && pInExposureTexture != nullptr))
 	{
 		// if we recommended user to change settings previously, make sure that we _always_ log later exposure changes into game log...
 		// in case game changed exposure settings after the first recommendation
@@ -55,7 +51,7 @@ void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
 			spdlog::log(userBeenWarned ? spdlog::level::warn : spdlog::level::debug, 
 				"NVSDK_NGX_EvaluateFeature: pInExposureTexture changed to texture at {}, game using custom exposure value", (void*)pInExposureTexture);
 
-			if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_AutoExposure)
+			if (dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_AutoExposure)
 			{
 				spdlog::warn("NVSDK_NGX_EvaluateFeature: game is using custom exposure value, but is also setting AutoExposure flag itself - changing OverrideAutoExposure to -1 may be beneficial");
 				userBeenWarned = true;
@@ -72,7 +68,7 @@ void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
 			spdlog::log(userBeenWarned ? spdlog::level::warn : spdlog::level::debug,
 				"NVSDK_NGX_EvaluateFeature: pInExposureTexture set to 0, game might not be using custom exposure value");
 
-			if (settings.overrideAutoExposure <= 0 && !(settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_AutoExposure))
+			if (settings.overrideAutoExposure <= 0 && !(dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_AutoExposure))
 			{
 				spdlog::warn("NVSDK_NGX_EvaluateFeature: game not using custom exposure value or AutoExposure, recommend setting OverrideAutoExposure to 1!");
 				userBeenWarned = true;
@@ -80,20 +76,20 @@ void on_evaluate_feature(const NVSDK_NGX_Parameter* InParameters)
 		}
 	}
 
-	prevExposureTexture = pInExposureTexture;
+	dlss.prevExposureTexture = pInExposureTexture;
 }
 
 void on_init_appid(unsigned long long& appId)
 {
-	settings.dlss.appId = appId;
-	spdlog::debug("on_init_appid: 0x{:X} (0x{:X})", appId, settings.dlss.appIdDlss());
+	dlss.appId = appId;
+	spdlog::debug("on_init_appid: 0x{:X} (0x{:X})", appId, dlss.appIdDlss());
 	if (settings.overrideAppId)
 		appId = appIdOverride;
 }
 
 void on_init_projectid(const char*& projectId)
 {
-	settings.dlss.projectId = projectId;
+	dlss.projectId = projectId;
 	spdlog::debug("on_init_projectid: {}", projectId);
 	if (settings.overrideAppId)
 		projectId = projectIdOverride;
@@ -224,25 +220,25 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 {
 	if (!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags))
 	{
-		settings.dlss.featureCreateFlags = InValue;
-		spdlog::debug("NVSDK_NGX_Parameter_SetI: FeatureCreateFlags = 0x{:X}", settings.dlss.featureCreateFlags);
-		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_IsHDR)
+		dlss.featureCreateFlags = InValue;
+		spdlog::debug("NVSDK_NGX_Parameter_SetI: FeatureCreateFlags = 0x{:X}", dlss.featureCreateFlags);
+		if (dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_IsHDR)
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_IsHDR");
-		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes)
+		if (dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes)
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_MVLowRes");
-		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_MVJittered)
+		if (dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_MVJittered)
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_MVJittered");
-		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_DepthInverted)
+		if (dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_DepthInverted)
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_DepthInverted");
-		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_Reserved_0)
+		if (dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_Reserved_0)
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_Reserved_0");
-		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_DoSharpening)
+		if (dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_DoSharpening)
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_DoSharpening (use \"OverrideSharpening = disable\" to force disable)");
-		if (settings.dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_AutoExposure)
+		if (dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_AutoExposure)
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_AutoExposure (use \"OverrideAutoExposure = -1\" to force disable)");
 
 		constexpr int lastKnownFlag = NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
-		if (auto remainder = settings.dlss.featureCreateFlags & ~((lastKnownFlag << 1) - 1))
+		if (auto remainder = dlss.featureCreateFlags & ~((lastKnownFlag << 1) - 1))
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - unknown flags: 0x{:X}", remainder);
 
 		if (settings.overrideAutoExposure != 0)
@@ -280,15 +276,15 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 	// Cache the chosen quality value so we can make decisions on it later on
 	if (!_stricmp(InName, NVSDK_NGX_Parameter_PerfQualityValue))
 	{
-		prevQualityValue = NVSDK_NGX_PerfQuality_Value(InValue);
+		dlss.prevQualityLevel = NVSDK_NGX_PerfQuality_Value(InValue);
 
 		// Some games may expose an UltraQuality option if we returned a valid resolution for it
 		// DLSS usually doesn't like being asked to use UltraQuality though, and will break rendering/crash altogether if set
 		// So we'll just tell DLSS to use MaxQuality instead, while keeping UltraQuality stored in prevQualityValue
-		if (prevQualityValue == NVSDK_NGX_PerfQuality_Value_UltraQuality)
+		if (dlss.prevQualityLevel == NVSDK_NGX_PerfQuality_Value_UltraQuality)
 		{
-			const auto& res = qualityLevelResolutions[NVSDK_NGX_PerfQuality_Value_UltraQuality];
-			if (utility::ValidResolution(res) || qualityLevelRatios[NVSDK_NGX_PerfQuality_Value_UltraQuality] > 0.f)
+			const auto& ultraQuality = dlss.qualities[NVSDK_NGX_PerfQuality_Value_UltraQuality];
+			if (utility::ValidResolution(ultraQuality.resolution) || ultraQuality.scalingRatio > 0.f)
 				InValue = int(NVSDK_NGX_PerfQuality_Value_MaxQuality);
 		}
 	}
@@ -328,7 +324,7 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 
 	auto OutValueOrig = *OutValue;
 
-	bool isDynamicRes = (settings.dynamicResolutionOverride && strstr(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic) == InName);
+	bool isDynamicRes = settings.dynamicResolutionOverride && strstr(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic) == InName;
 
 	bool isOutWidth = !_stricmp(InName, NVSDK_NGX_Parameter_OutWidth) ||
 		(isDynamicRes && (
@@ -371,38 +367,35 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 			
 		unsigned int renderWidth = 0;
 		unsigned int renderHeight = 0;
-		if (qualityLevelRatios.contains(prevQualityValue))
+		if (dlss.qualities.contains(dlss.prevQualityLevel))
 		{
-			auto ratio = qualityLevelRatios[prevQualityValue];
+			auto& quality = dlss.qualities[dlss.prevQualityLevel];
 
 			// calculate width/height from custom ratio
-			renderWidth = unsigned int(roundf(float(targetWidth) * ratio));
-			renderHeight = unsigned int(roundf(float(targetHeight) * ratio));
-		}
-		if (qualityLevelResolutions.contains(prevQualityValue))
-		{
-			// if custom res is set for this level, override it with that
-			const auto& res = qualityLevelResolutions[prevQualityValue];
-			if (utility::ValidResolution(res))
+			renderWidth = unsigned int(roundf(float(targetWidth) * quality.scalingRatio));
+			renderHeight = unsigned int(roundf(float(targetHeight) * quality.scalingRatio));
+
+			// ..but if custom res is set for this level, override it with that
+			if (utility::ValidResolution(quality.resolution))
 			{
-				renderWidth = res.first;
-				renderHeight = res.second;
+				renderWidth = quality.resolution.first;
+				renderHeight = quality.resolution.second;
 			}
-		}
 
-		if (renderWidth >= targetWidth)
-		{
-			renderWidth = targetWidth; // DLSS can't render above the target res
-			renderWidth += settings.resolutionOffset; // apply resolutionOffset compatibility hack
-		}
-		if (renderHeight >= targetHeight)
-		{
-			renderHeight = targetHeight; // DLSS can't render above the target res
-			renderHeight += settings.resolutionOffset; // apply resolutionOffset compatibility hack
-		}
+			if (renderWidth >= targetWidth)
+			{
+				renderWidth = targetWidth; // DLSS can't render above the target res
+				renderWidth += settings.resolutionOffset; // apply resolutionOffset compatibility hack
+			}
+			if (renderHeight >= targetHeight)
+			{
+				renderHeight = targetHeight; // DLSS can't render above the target res
+				renderHeight += settings.resolutionOffset; // apply resolutionOffset compatibility hack
+			}
 
-		if (renderWidth != 0 && renderHeight != 0)
-			qualityLevelResolutionsCurrent[prevQualityValue] = std::pair<int, int>(renderWidth, renderHeight);
+			if (renderWidth != 0 && renderHeight != 0)
+				quality.currentResolution = std::pair<int, int>(renderWidth, renderHeight);
+		}
 
 		if (isOutWidth)
 		{
@@ -421,8 +414,8 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 		if (isDynamicRes)
 		{
 			bool isDynamicMin =
-				(!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Width) ||
-					!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Height));
+				!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Width) ||
+				!_stricmp(InName, NVSDK_NGX_Parameter_DLSS_Get_Dynamic_Min_Render_Height);
 			if (isDynamicMin && *OutValue > 0)
 			{
 				*OutValue = *OutValue + settings.dynamicResolutionMinOffset;

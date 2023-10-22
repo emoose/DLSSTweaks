@@ -35,6 +35,7 @@ std::filesystem::path LogPath;
 std::filesystem::path IniPath;
 
 UserSettings settings;
+DlssSettings dlss;
 
 std::mutex initThreadFinishedMutex;
 std::condition_variable initThreadFinishedVar;

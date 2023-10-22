@@ -9,38 +9,6 @@
 
 #include "DLSSTweaks.hpp"
 
-void DlssNvidiaPresetOverrides::zero_customized_values()
-{
-	// DlssNvidiaPresetOverrides struct we change seems to last the whole lifetime of the game
-	// So we'll back up the orig values in case user later decides to set them back to default
-	if (!settings.dlss.nvidiaOverrides.has_value())
-	{
-		settings.dlss.nvidiaOverrides = *this;
-
-		if (overrideDLAA || overrideQuality || overrideBalanced || overridePerformance || overrideUltraPerformance)
-		{
-			spdlog::debug("NVIDIA default presets for current app:");
-			if (overrideDLAA)
-				spdlog::debug(" - DLAA: {}", utility::DLSS_PresetEnumToName(overrideDLAA));
-			if (overrideQuality)
-				spdlog::debug(" - Quality: {}", utility::DLSS_PresetEnumToName(overrideQuality));
-			if (overrideBalanced)
-				spdlog::debug(" - Balanced: {}", utility::DLSS_PresetEnumToName(overrideBalanced));
-			if (overridePerformance)
-				spdlog::debug(" - Performance: {}", utility::DLSS_PresetEnumToName(overridePerformance));
-			if (overrideUltraPerformance)
-				spdlog::debug(" - UltraPerformance: {}", utility::DLSS_PresetEnumToName(overrideUltraPerformance));
-		}
-	}
-
-	// Then zero out NV-provided override if user has set their own override for that level
-	overrideDLAA = settings.presetDLAA ? 0 : settings.dlss.nvidiaOverrides->overrideDLAA;
-	overrideQuality = settings.presetQuality ? 0 : settings.dlss.nvidiaOverrides->overrideQuality;
-	overrideBalanced = settings.presetBalanced ? 0 : settings.dlss.nvidiaOverrides->overrideBalanced;
-	overridePerformance = settings.presetPerformance ? 0 : settings.dlss.nvidiaOverrides->overridePerformance;
-	overrideUltraPerformance = settings.presetUltraPerformance ? 0 : settings.dlss.nvidiaOverrides->overrideUltraPerformance;
-}
-
 namespace nvngx_dlss
 {
 	// Hooks shared between both dlss & dlssd
@@ -190,22 +158,22 @@ void CreateDlssInstance_PresetSelection(SafetyHookContext& ctx)
 	std::optional<unsigned int> presetValue;
 	presetValue.reset();
 
-	for (const auto& [preset, presetResolution] : qualityLevelResolutionsCurrent)
+	for (const auto& kvp : dlss.qualities)
 	{
 		// Check that both height & width are within 1 pixel of each other either way
-		bool widthIsClose = abs(presetResolution.first - dlssWidth) <= 1;
-		bool heightIsClose = abs(presetResolution.second - dlssHeight) <= 1;
+		bool widthIsClose = abs(kvp.second.currentResolution.first - dlssWidth) <= 1;
+		bool heightIsClose = abs(kvp.second.currentResolution.second - dlssHeight) <= 1;
 		if (widthIsClose && heightIsClose)
 		{
-			if (preset == NVSDK_NGX_PerfQuality_Value_MaxPerf && settings.presetPerformance)
+			if (kvp.first == NVSDK_NGX_PerfQuality_Value_MaxPerf && settings.presetPerformance)
 				presetValue = settings.presetPerformance;
-			else if (preset == NVSDK_NGX_PerfQuality_Value_Balanced && settings.presetBalanced)
+			else if (kvp.first == NVSDK_NGX_PerfQuality_Value_Balanced && settings.presetBalanced)
 				presetValue = settings.presetBalanced;
-			else if (preset == NVSDK_NGX_PerfQuality_Value_MaxQuality && settings.presetQuality)
+			else if (kvp.first == NVSDK_NGX_PerfQuality_Value_MaxQuality && settings.presetQuality)
 				presetValue = settings.presetQuality;
-			else if (preset == NVSDK_NGX_PerfQuality_Value_UltraPerformance && settings.presetUltraPerformance)
+			else if (kvp.first == NVSDK_NGX_PerfQuality_Value_UltraPerformance && settings.presetUltraPerformance)
 				presetValue = settings.presetUltraPerformance;
-			else if (preset == NVSDK_NGX_PerfQuality_Value_UltraQuality && settings.presetUltraQuality)
+			else if (kvp.first == NVSDK_NGX_PerfQuality_Value_UltraQuality && settings.presetUltraQuality)
 				presetValue = settings.presetUltraQuality;
 
 			break;

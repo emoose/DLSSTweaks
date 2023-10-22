@@ -3,62 +3,6 @@
 
 #include "DLSSTweaks.hpp"
 
-constexpr int qualityLevelCount = 5;
-
-const char* qualityLevelNames[qualityLevelCount] = {
-	"Performance",
-	"Balanced",
-	"Quality",
-	"UltraPerformance",
-	"UltraQuality"
-};
-
-NVSDK_NGX_PerfQuality_Value qualityLevels[qualityLevelCount] = {
-	NVSDK_NGX_PerfQuality_Value_UltraPerformance,
-	NVSDK_NGX_PerfQuality_Value_MaxPerf,
-	NVSDK_NGX_PerfQuality_Value_Balanced,
-	NVSDK_NGX_PerfQuality_Value_MaxQuality,
-	NVSDK_NGX_PerfQuality_Value_UltraQuality
-};
-
-std::unordered_map<NVSDK_NGX_PerfQuality_Value, float> qualityLevelRatios =
-{
-	{NVSDK_NGX_PerfQuality_Value_UltraPerformance, 0.33333334f},
-	{NVSDK_NGX_PerfQuality_Value_MaxPerf, 0.5f},
-	{NVSDK_NGX_PerfQuality_Value_Balanced, 0.58f},
-	{NVSDK_NGX_PerfQuality_Value_MaxQuality, 0.66666667f},
-
-	// note: if NVSDK_NGX_PerfQuality_Value_UltraQuality is non-zero, some games may detect that we're passing a valid resolution and show an Ultra Quality option as a result
-	// very few games support this though, and right now DLSS seems to refuse to render if UltraQuality gets passed to it
-	// our SetI hook in HooksNvngx can override the quality passed to DLSS if this gets used by the game, letting it think this is MaxQuality instead
-	// but we'll only do that if user overrides this in the INI to a non-zero value
-	{NVSDK_NGX_PerfQuality_Value_UltraQuality, 0.f},
-};
-
-std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLevelResolutions =
-{
-	{NVSDK_NGX_PerfQuality_Value_UltraPerformance, {0,0}},
-	{NVSDK_NGX_PerfQuality_Value_MaxPerf, {0,0}},
-	{NVSDK_NGX_PerfQuality_Value_Balanced, {0,0}},
-	{NVSDK_NGX_PerfQuality_Value_MaxQuality, {0,0}},
-
-	// see note about UltraQuality in qualityLevelRatios section above
-	{NVSDK_NGX_PerfQuality_Value_UltraQuality, {0,0}},
-};
-
-// The values that we told game about for each quality level, so we can easily look them up later on
-// Based on either qualityLevelRatios or qualityLevelResolutions value set by the user
-std::unordered_map<NVSDK_NGX_PerfQuality_Value, std::pair<int, int>> qualityLevelResolutionsCurrent =
-{
-	{NVSDK_NGX_PerfQuality_Value_UltraPerformance, {0,0}},
-	{NVSDK_NGX_PerfQuality_Value_MaxPerf, {0,0}},
-	{NVSDK_NGX_PerfQuality_Value_Balanced, {0,0}},
-	{NVSDK_NGX_PerfQuality_Value_MaxQuality, {0,0}},
-
-	// see note about UltraQuality in qualityLevelRatios section above
-	{NVSDK_NGX_PerfQuality_Value_UltraQuality, {0,0}},
-};
-
 void UserSettings::print_to_log()
 {
 	using namespace utility;
@@ -82,14 +26,13 @@ void UserSettings::print_to_log()
 
 	if (overrideQualityLevels)
 	{
-		for (int i = 0; i < qualityLevelCount; i++)
+		for(const auto& quality : dlss.qualities)
 		{
-			auto level = qualityLevels[i];
-			auto& res = qualityLevelResolutions[level];
+			auto& res = quality.second.resolution;
 			if (utility::ValidResolution(res))
-				spdlog::info("  - {} resolution: {}x{}", qualityLevelNames[level], res.first, res.second);
+				spdlog::info("  - {} resolution: {}x{}", quality.second.name, res.first, res.second);
 			else
-				spdlog::info("  - {} ratio: {}", qualityLevelNames[level], qualityLevelRatios[level]);
+				spdlog::info("  - {} ratio: {}", quality.second.name, quality.second.scalingRatio);
 		}
 	}
 
@@ -229,47 +172,37 @@ bool UserSettings::read(const std::filesystem::path& iniPath, int numInisRead)
 	// [DLSSQualityLevels]
 	overrideQualityLevels = ini.Get<bool>("DLSSQualityLevels", "Enable", std::move(overrideQualityLevels));
 	if (overrideQualityLevels)
-	{		
-		for (int i = 0; i < qualityLevelCount; i++)
+	{
+		for(auto& kvp : dlss.qualities)
 		{
-			auto level = qualityLevels[i];
-			auto& curLevel = qualityLevelNames[level];
+			auto& quality = kvp.second;
 
-			auto value = utility::ini_get_string_safe(ini, "DLSSQualityLevels", curLevel, std::move(qualityLevelStrings[level]));
-
-			// Remove any quotes from around the value
-			if (!value.empty())
-			{
-				if (value[0] == '"')
-					value = value.substr(1);
-				if (value[value.length() - 1] == '"')
-					value = value.substr(0, value.length() - 1);
-			}
+			auto value = utility::ini_get_string_safe(ini, "DLSSQualityLevels", quality.name, std::move(quality.lastUserValue));
 
 			// Try parsing users string as a resolution
 			const auto res = utility::ParseResolution(value);
 			if (utility::ValidResolution(res))
 			{
-				qualityLevelResolutions[level] = res;
-				qualityLevelStrings[level] = value;
+				quality.resolution = res;
+				quality.lastUserValue = value;
 				continue;
 			}
-
+			 
 			// Not a resolution, try parsing as float
 			try
 			{
-				float float_value = utility::stof_nolocale(value, true);
-				qualityLevelRatios[level] = float_value;
-				qualityLevelStrings[level] = value;
+				float floatValue = utility::stof_nolocale(value, true);
+				quality.scalingRatio = floatValue;
+				quality.lastUserValue = value;
 			}
 			catch (const std::exception&)
 			{
-				spdlog::error("DLSSQualityLevels: level \"{}\" has invalid value \"{}\" specified, leaving value as {}", curLevel, value, qualityLevelRatios[level]);
+				spdlog::error(R"(DLSSQualityLevels: level "{}" has invalid value "{}" specified, leaving value as {})", quality.name, value, quality.scalingRatio);
 				continue;
 			}
 
 			// Clamp value between 0.0 - 1.0
-			qualityLevelRatios[level] = std::clamp(qualityLevelRatios[level], 0.0f, 1.0f);
+			quality.scalingRatio = std::clamp(quality.scalingRatio, DLSS_MinScale, DLSS_MaxScale);
 		}
 	}
 
@@ -371,7 +304,7 @@ void UserSettings::watch_for_changes(const std::filesystem::path& iniPath)
 						int attempts = 3;
 						while (attempts--)
 						{
-							if (settings.read(iniPath))
+							if (read(iniPath))
 							{
 								spdlog::info("Config updated from {}", iniPath.string());
 								break;
@@ -399,4 +332,36 @@ void UserSettings::watch_for_changes(const std::filesystem::path& iniPath)
 	}
 
 	CloseHandle(file);
+}
+
+void DlssNvidiaPresetOverrides::zero_customized_values()
+{
+	// DlssNvidiaPresetOverrides struct we change seems to last the whole lifetime of the game
+	// So we'll back up the orig values in case user later decides to set them back to default
+	if (!dlss.nvidiaOverrides.has_value())
+	{
+		dlss.nvidiaOverrides = *this;
+
+		if (overrideDLAA || overrideQuality || overrideBalanced || overridePerformance || overrideUltraPerformance)
+		{
+			spdlog::debug("NVIDIA default presets for current app:");
+			if (overrideDLAA)
+				spdlog::debug(" - DLAA: {}", utility::DLSS_PresetEnumToName(overrideDLAA));
+			if (overrideQuality)
+				spdlog::debug(" - Quality: {}", utility::DLSS_PresetEnumToName(overrideQuality));
+			if (overrideBalanced)
+				spdlog::debug(" - Balanced: {}", utility::DLSS_PresetEnumToName(overrideBalanced));
+			if (overridePerformance)
+				spdlog::debug(" - Performance: {}", utility::DLSS_PresetEnumToName(overridePerformance));
+			if (overrideUltraPerformance)
+				spdlog::debug(" - UltraPerformance: {}", utility::DLSS_PresetEnumToName(overrideUltraPerformance));
+		}
+	}
+
+	// Then zero out NV-provided override if user has set their own override for that level
+	overrideDLAA = settings.presetDLAA ? 0 : dlss.nvidiaOverrides->overrideDLAA;
+	overrideQuality = settings.presetQuality ? 0 : dlss.nvidiaOverrides->overrideQuality;
+	overrideBalanced = settings.presetBalanced ? 0 : dlss.nvidiaOverrides->overrideBalanced;
+	overridePerformance = settings.presetPerformance ? 0 : dlss.nvidiaOverrides->overridePerformance;
+	overrideUltraPerformance = settings.presetUltraPerformance ? 0 : dlss.nvidiaOverrides->overrideUltraPerformance;
 }
