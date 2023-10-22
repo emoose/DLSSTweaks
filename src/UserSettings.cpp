@@ -26,7 +26,7 @@ void UserSettings::print_to_log()
 
 	if (overrideQualityLevels)
 	{
-		for(const auto& quality : dlss.qualities)
+		for(const auto& quality : settings.qualities)
 		{
 			auto& res = quality.second.resolution;
 			if (utility::ValidResolution(res))
@@ -37,21 +37,26 @@ void UserSettings::print_to_log()
 	}
 
 	// only print presets if any of them have been changed
-	if (presetDLAA || presetQuality || presetBalanced || presetPerformance || presetUltraPerformance || presetUltraQuality)
+	bool changed = false;
+	for (const auto& [level, quality] : qualities)
+	{
+		if (quality.preset != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
+		{
+			changed = true;
+			break;
+		}
+	}
+
+	if (changed)
 	{
 		spdlog::info(" - DLSSPresets:");
-		if (presetDLAA)
-			spdlog::info("  - DLAA: {}", DLSS_PresetEnumToName(presetDLAA));
-		if (presetQuality)
-			spdlog::info("  - Quality: {}", DLSS_PresetEnumToName(presetQuality));
-		if (presetBalanced)
-			spdlog::info("  - Balanced: {}", DLSS_PresetEnumToName(presetBalanced));
-		if (presetPerformance)
-			spdlog::info("  - Performance: {}", DLSS_PresetEnumToName(presetPerformance));
-		if (presetUltraPerformance)
-			spdlog::info("  - UltraPerformance: {}", DLSS_PresetEnumToName(presetUltraPerformance));
-		if (presetUltraQuality)
-			spdlog::info("  - UltraQuality: {}", DLSS_PresetEnumToName(presetUltraQuality));
+		for (const auto& kvp : qualities)
+		{
+			if(kvp.second.preset != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
+			{
+				spdlog::info("  - {}: {}", kvp.second.name, DLSS_PresetEnumToName(kvp.second.preset));
+			}
+		}
 	}
 	else
 	{
@@ -173,7 +178,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath, int numInisRead)
 	overrideQualityLevels = ini.Get<bool>("DLSSQualityLevels", "Enable", std::move(overrideQualityLevels));
 	if (overrideQualityLevels)
 	{
-		for(auto& kvp : dlss.qualities)
+		for(auto& kvp : settings.qualities)
 		{
 			auto& quality = kvp.second;
 
@@ -207,12 +212,10 @@ bool UserSettings::read(const std::filesystem::path& iniPath, int numInisRead)
 	}
 
 	// [DLSSPresets]
-	presetDLAA = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "DLAA", DLSS_PresetEnumToName(presetDLAA)));
-	presetQuality = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "Quality", DLSS_PresetEnumToName(presetQuality)));
-	presetBalanced = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "Balanced", DLSS_PresetEnumToName(presetBalanced)));
-	presetPerformance = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "Performance", DLSS_PresetEnumToName(presetPerformance)));
-	presetUltraPerformance = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "UltraPerformance", DLSS_PresetEnumToName(presetUltraPerformance)));
-	presetUltraQuality = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", "UltraQuality", DLSS_PresetEnumToName(presetUltraQuality)));
+	for (auto& kvp : qualities)
+	{
+		kvp.second.preset = DLSS_PresetNameToEnum(utility::ini_get_string_safe(ini, "DLSSPresets", kvp.second.name, DLSS_PresetEnumToName(kvp.second.preset)));
+	}
 
 	// [Compatibility]
 	resolutionOffset = ini.Get<int>("Compatibility", "ResolutionOffset", std::move(resolutionOffset));
@@ -359,9 +362,9 @@ void DlssNvidiaPresetOverrides::zero_customized_values()
 	}
 
 	// Then zero out NV-provided override if user has set their own override for that level
-	overrideDLAA = settings.presetDLAA ? 0 : dlss.nvidiaOverrides->overrideDLAA;
-	overrideQuality = settings.presetQuality ? 0 : dlss.nvidiaOverrides->overrideQuality;
-	overrideBalanced = settings.presetBalanced ? 0 : dlss.nvidiaOverrides->overrideBalanced;
-	overridePerformance = settings.presetPerformance ? 0 : dlss.nvidiaOverrides->overridePerformance;
-	overrideUltraPerformance = settings.presetUltraPerformance ? 0 : dlss.nvidiaOverrides->overrideUltraPerformance;
+	overrideDLAA = settings.qualities[NVSDK_NGX_PerfQuality_Value_DLAA].preset ? 0 : dlss.nvidiaOverrides->overrideDLAA;
+	overrideQuality = settings.qualities[NVSDK_NGX_PerfQuality_Value_MaxQuality].preset ? 0 : dlss.nvidiaOverrides->overrideQuality;
+	overrideBalanced = settings.qualities[NVSDK_NGX_PerfQuality_Value_Balanced].preset ? 0 : dlss.nvidiaOverrides->overrideBalanced;
+	overridePerformance = settings.qualities[NVSDK_NGX_PerfQuality_Value_MaxPerf].preset ? 0 : dlss.nvidiaOverrides->overridePerformance;
+	overrideUltraPerformance = settings.qualities[NVSDK_NGX_PerfQuality_Value_UltraPerformance].preset ? 0 : dlss.nvidiaOverrides->overrideUltraPerformance;
 }

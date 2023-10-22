@@ -283,7 +283,7 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 		// So we'll just tell DLSS to use MaxQuality instead, while keeping UltraQuality stored in prevQualityValue
 		if (dlss.prevQualityLevel == NVSDK_NGX_PerfQuality_Value_UltraQuality)
 		{
-			const auto& ultraQuality = dlss.qualities[NVSDK_NGX_PerfQuality_Value_UltraQuality];
+			const auto& ultraQuality = settings.qualities[NVSDK_NGX_PerfQuality_Value_UltraQuality];
 			if (utility::ValidResolution(ultraQuality.resolution) || ultraQuality.scalingRatio > 0.f)
 				InValue = int(NVSDK_NGX_PerfQuality_Value_MaxQuality);
 		}
@@ -297,18 +297,28 @@ void __cdecl NVSDK_NGX_Parameter_SetUI(NVSDK_NGX_Parameter* InParameter, const c
 {
 	NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, InName, InValue);
 
-	if (settings.presetDLAA != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
-		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA, settings.presetDLAA);
-	if (settings.presetQuality != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
-		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality, settings.presetQuality);
-	if (settings.presetBalanced != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
-		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced, settings.presetBalanced);
-	if (settings.presetPerformance != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
-		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance, settings.presetPerformance);
-	if (settings.presetUltraPerformance != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
-		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance, settings.presetUltraPerformance);
-	if (settings.presetUltraQuality != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
-		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality, settings.presetUltraQuality);
+
+	unsigned int presetDLAA = settings.qualities[NVSDK_NGX_PerfQuality_Value_DLAA].preset;
+	unsigned int presetQuality = settings.qualities[NVSDK_NGX_PerfQuality_Value_MaxQuality].preset;
+	unsigned int presetBalanced = settings.qualities[NVSDK_NGX_PerfQuality_Value_Balanced].preset;
+	unsigned int presetPerformance = settings.qualities[NVSDK_NGX_PerfQuality_Value_MaxPerf].preset;
+	unsigned int presetUltraPerformance = settings.qualities[NVSDK_NGX_PerfQuality_Value_UltraPerformance].preset;
+	unsigned int presetUltraQuality = settings.qualities[NVSDK_NGX_PerfQuality_Value_UltraQuality].preset;
+
+	if (presetDLAA != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
+		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA, presetDLAA);
+	if (presetQuality != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
+		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality, presetQuality);
+	if (presetBalanced != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
+		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced, presetBalanced);
+	if (presetPerformance != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
+		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance, presetPerformance);
+	if (presetUltraPerformance != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
+		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance, presetUltraPerformance);
+	if (presetUltraQuality != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
+		NVSDK_NGX_Parameter_SetUI_Hook.call(InParameter, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality, presetUltraQuality);
+
+
 	if (settings.overrideSharpening.has_value())
 		NVSDK_NGX_Parameter_SetF_Hook.call(InParameter, NVSDK_NGX_Parameter_Sharpness, *settings.overrideSharpening);
 
@@ -367,9 +377,9 @@ NVSDK_NGX_Result __cdecl NVSDK_NGX_Parameter_GetUI(NVSDK_NGX_Parameter* InParame
 			
 		unsigned int renderWidth = 0;
 		unsigned int renderHeight = 0;
-		if (dlss.qualities.contains(dlss.prevQualityLevel))
+		if (settings.qualities.contains(dlss.prevQualityLevel))
 		{
-			auto& quality = dlss.qualities[dlss.prevQualityLevel];
+			auto& quality = settings.qualities[dlss.prevQualityLevel];
 
 			// calculate width/height from custom ratio
 			renderWidth = unsigned int(roundf(float(targetWidth) * quality.scalingRatio));

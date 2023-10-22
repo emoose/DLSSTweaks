@@ -38,25 +38,13 @@ struct QualityLevel
 	// (based on either `scalingRatio` or `resolution` set by the user)
 	std::pair<int, int> currentResolution = { 0,0 };
 
+	unsigned int preset = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
+
 	std::string lastUserValue = "";
 };
 
 struct DlssSettings
 {
-	std::unordered_map<NVSDK_NGX_PerfQuality_Value, QualityLevel> qualities =
-	{
-		{NVSDK_NGX_PerfQuality_Value_UltraPerformance, {"UltraPerformance", 0.33333334f}},
-		{NVSDK_NGX_PerfQuality_Value_MaxPerf, {"Performance", 0.5f}},
-		{NVSDK_NGX_PerfQuality_Value_Balanced, {"Balanced", 0.58f}},
-		{NVSDK_NGX_PerfQuality_Value_MaxQuality, {"Quality", 0.66666667f}},
-		{NVSDK_NGX_PerfQuality_Value_DLAA, {"DLAA", 1.0f}},
-
-		// note: if NVSDK_NGX_PerfQuality_Value_UltraQuality is non-zero, some games may detect that we're passing a valid resolution and show an Ultra Quality option as a result
-		// very few games support this though, and right now DLSS seems to refuse to render if UltraQuality gets passed to it
-		// our SetI hook in HooksNvngx can override the quality passed to DLSS if this gets used by the game, letting it think this is MaxQuality instead
-		// but we'll only do that if user has overridden this in the INI to a non-zero value
-		{NVSDK_NGX_PerfQuality_Value_UltraQuality, {"UltraQuality", 0.f}},
-	};
 	NVSDK_NGX_PerfQuality_Value prevQualityLevel; // the last quality level setting that game requested
 	std::optional<ID3D12Resource*> prevExposureTexture;
 
@@ -76,6 +64,21 @@ struct UserSettings
 {
 	bool disableAllTweaks = false; // not exposed in INI, is set if a serious error is detected (eg. two versions loaded at once)
 
+	std::unordered_map<NVSDK_NGX_PerfQuality_Value, QualityLevel> qualities =
+	{
+		{NVSDK_NGX_PerfQuality_Value_UltraPerformance, {"UltraPerformance", 0.33333334f}},
+		{NVSDK_NGX_PerfQuality_Value_MaxPerf, {"Performance", 0.5f}},
+		{NVSDK_NGX_PerfQuality_Value_Balanced, {"Balanced", 0.58f}},
+		{NVSDK_NGX_PerfQuality_Value_MaxQuality, {"Quality", 0.66666667f}},
+		{NVSDK_NGX_PerfQuality_Value_DLAA, {"DLAA", 1.0f}},
+
+		// note: if NVSDK_NGX_PerfQuality_Value_UltraQuality is non-zero, some games may detect that we're passing a valid resolution and show an Ultra Quality option as a result
+		// very few games support this though, and right now DLSS seems to refuse to render if UltraQuality gets passed to it
+		// our SetI hook in HooksNvngx can override the quality passed to DLSS if this gets used by the game, letting it think this is MaxQuality instead
+		// but we'll only do that if user has overridden this in the INI to a non-zero value
+		{NVSDK_NGX_PerfQuality_Value_UltraQuality, {"UltraQuality", 0.f}},
+	};
+
 	bool forceDLAA = false;
 	int overrideAutoExposure = 0;
 	std::optional<float> overrideSharpening{};
@@ -87,12 +90,6 @@ struct UserSettings
 	bool verboseLogging = false;
 	std::unordered_map<std::string, std::filesystem::path> dllPathOverrides;
 	bool overrideQualityLevels = false;
-	unsigned int presetDLAA = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
-	unsigned int presetQuality = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
-	unsigned int presetBalanced = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
-	unsigned int presetPerformance = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
-	unsigned int presetUltraPerformance = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
-	unsigned int presetUltraQuality = NVSDK_NGX_DLSS_Hint_Render_Preset_Default;
 
 	int resolutionOffset = 0; // user-defined offset to apply to DLAA / full-res rendering (some titles don't like DLAA rendering at full res, so small offset is needed)
 	bool dynamicResolutionOverride = true;

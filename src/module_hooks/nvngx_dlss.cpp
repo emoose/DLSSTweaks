@@ -158,23 +158,19 @@ void CreateDlssInstance_PresetSelection(SafetyHookContext& ctx)
 	std::optional<unsigned int> presetValue;
 	presetValue.reset();
 
-	for (const auto& kvp : dlss.qualities)
+	unsigned int presetDLAA = 0;
+	for (const auto& [level, quality] : settings.qualities)
 	{
+		if (level == NVSDK_NGX_PerfQuality_Value_DLAA)
+			presetDLAA = quality.preset; // note down DLAA value for later since we're iterating here anyway...
+
 		// Check that both height & width are within 1 pixel of each other either way
-		bool widthIsClose = abs(kvp.second.currentResolution.first - dlssWidth) <= 1;
-		bool heightIsClose = abs(kvp.second.currentResolution.second - dlssHeight) <= 1;
+		bool widthIsClose = abs(quality.currentResolution.first - dlssWidth) <= 1;
+		bool heightIsClose = abs(quality.currentResolution.second - dlssHeight) <= 1;
 		if (widthIsClose && heightIsClose)
 		{
-			if (kvp.first == NVSDK_NGX_PerfQuality_Value_MaxPerf && settings.presetPerformance)
-				presetValue = settings.presetPerformance;
-			else if (kvp.first == NVSDK_NGX_PerfQuality_Value_Balanced && settings.presetBalanced)
-				presetValue = settings.presetBalanced;
-			else if (kvp.first == NVSDK_NGX_PerfQuality_Value_MaxQuality && settings.presetQuality)
-				presetValue = settings.presetQuality;
-			else if (kvp.first == NVSDK_NGX_PerfQuality_Value_UltraPerformance && settings.presetUltraPerformance)
-				presetValue = settings.presetUltraPerformance;
-			else if (kvp.first == NVSDK_NGX_PerfQuality_Value_UltraQuality && settings.presetUltraQuality)
-				presetValue = settings.presetUltraQuality;
+			if (quality.preset != NVSDK_NGX_DLSS_Hint_Render_Preset_Default)
+				presetValue = quality.preset;
 
 			break;
 		}
@@ -183,12 +179,12 @@ void CreateDlssInstance_PresetSelection(SafetyHookContext& ctx)
 	if (!presetValue.has_value())
 	{
 		// No match found for DLSS presets, check whether this could be DLAA
-		if (settings.presetDLAA)
+		if (presetDLAA)
 		{
 			bool widthIsClose = abs(displayWidth - dlssWidth) <= 1;
 			bool heightIsClose = abs(displayHeight - dlssHeight) <= 1;
 			if (widthIsClose && heightIsClose)
-				presetValue = settings.presetDLAA;
+				presetValue = presetDLAA;
 		}
 
 		// If no value override set, return now so DLSS will use whatever it was going to originally
