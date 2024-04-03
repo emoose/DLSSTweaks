@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2018-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: LicenseRef-NvidiaProprietary
  *
  * NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
@@ -24,8 +24,8 @@
 *     need to update drivers. Please note that application Id is provided
 *     by NVIDIA so if you do not have one please contact us.
 * 
-*  2) Call NVSDK_NGX_D3D11/D3D12/CUDA_GetCapabilityParameters to obtain pointer
-*     to interface used to pass parameters to SDK. Interface instance is 
+*  2) Call NVSDK_NGX_D3D11/D3D12/CUDA_GetCapabilityParameters to obtain pointer to 
+*     interface used to pass parameters to SDK. Interface instance is 
 *     allocated and released by SDK so there is no need to do any memory 
 *     management on client side.
 *    
@@ -394,7 +394,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_CONV NVSDK_NGX_CUDA_ReleaseFeature(NVSDK_NG
 // DESCRIPTION:
 //      Utility function used to identify system requirements to support a given NGX Feature
 //      on a system given its display device subsytem adapter information that will be subsequently used for creating the graphics device.
-//      The output parameter OutSupported will be populated with requirements and are valid  if and only if NVSDK_NGX_Result_Success is returned:
+//      The output parameter OutSupported will be populated with requirements and are valid if and only if NVSDK_NGX_Result_Success is returned:
 //          OutSupported::FeatureSupported: bitfield of bit shifted values specified in NVSDK_NGX_Feature_Support_Result. 0 if Feature is Supported.
 //          OutSupported::MinHWArchitecture: Returned HW Architecture value corresponding to NV_GPU_ARCHITECTURE_ID values defined in NvAPI GPU Framework.
 //          OutSupported::MinOSVersion: Value corresponding to minimum OS version required for NGX Feature Support
