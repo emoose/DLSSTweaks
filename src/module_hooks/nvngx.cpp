@@ -255,6 +255,20 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 			}
 		}
 
+		if (settings.overrideAlphaUpscaling != 0)
+		{
+			if (settings.overrideAlphaUpscaling >= 1) // force alpha-upscaling
+			{
+				spdlog::debug("OverrideAlphaUpscaling: force enabling flag NVSDK_NGX_DLSS_Feature_Flags_AlphaUpscaling");
+				InValue |= NVSDK_NGX_DLSS_Feature_Flags_AlphaUpscaling;
+			}
+			else if (settings.overrideAlphaUpscaling < 0) // force disable alpha-upscaling
+			{
+				spdlog::debug("OverrideAlphaUpscaling: force disabling flag NVSDK_NGX_DLSS_Feature_Flags_AlphaUpscaling");
+				InValue = InValue & ~NVSDK_NGX_DLSS_Feature_Flags_AlphaUpscaling;
+			}
+		}
+
 		if (settings.overrideSharpeningForceDisable)
 		{
 			if (InValue & NVSDK_NGX_DLSS_Feature_Flags_DoSharpening)

@@ -11,6 +11,7 @@ void UserSettings::print_to_log()
 	spdlog::info(" - VerboseLogging: {}", verboseLogging ? "true" : "false");
 	spdlog::info(" - ForceDLAA: {}{}", forceDLAA ? "true" : "false", overrideQualityLevels ? " (overridden by DLSSQualityLevels section)" : "");
 	spdlog::info(" - OverrideAutoExposure: {}", overrideAutoExposure == 0 ? "default" : (overrideAutoExposure > 0 ? "enable" : "disable"));
+	spdlog::info(" - OverrideAlphaUpscaling: {}", overrideAlphaUpscaling == 0 ? "default" : (overrideAlphaUpscaling > 0 ? "enable" : "disable"));
 	if (overrideSharpeningForceDisable)
 		spdlog::info(" - OverrideSharpening: disable (force disabling sharpness flag)");
 	else if (overrideSharpening.has_value())
@@ -112,6 +113,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath, int numInisRead)
 	// [DLSS]
 	forceDLAA = ini.Get<bool>("DLSS", "ForceDLAA", std::move(forceDLAA));
 	overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(overrideAutoExposure));
+	overrideAlphaUpscaling = ini.Get<int>("DLSS", "OverrideAlphaUpscaling", std::move(overrideAlphaUpscaling));
 
 	std::string sharpeningString = utility::ini_get_string_safe(ini, "DLSS", "OverrideSharpening", std::move(overrideSharpeningString));
 	if (!sharpeningString.length() || !_stricmp(sharpeningString.c_str(), "default") ||

@@ -1,7 +1,7 @@
 // NOTE: this code is pretty much freshly microwaved spaghetti
 // It does the job it needs to, but probably could have been handled much better if I'd known where I was going with it from the start
 //
-// So far this code has had several stages:
+// So far this code has been through several stages:
 // going from a quick test project to write out an INI ->
 //   something that can also read our INI settings ->
 //     reading INI settings & tracking a default INI file alongside it, copying over comments/missing settings as needed ->
@@ -92,7 +92,7 @@ namespace DLSSTweaks.ConfigTool
 
         static string[] BooleanKeys = new[] { "GlobalForceDLAA", "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId", "EnableNvidiaSigOverride", "DynamicResolutionOverride" };
         
-        static string[] OverrideKeys = new[] { "OverrideAutoExposure", "OverrideDlssHud" };
+        static string[] OverrideKeys = new[] { "OverrideAutoExposure", "OverrideAlphaUpscaling", "OverrideDlssHud" };
         static string[] OverrideValues = new[] { "Default", "Force disable", "Force enable" }; // 0, -1, 1
 
         string DlssTweaksDll = "";

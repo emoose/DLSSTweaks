@@ -81,6 +81,7 @@ struct UserSettings
 
 	bool forceDLAA = false;
 	int overrideAutoExposure = 0;
+	int overrideAlphaUpscaling = 0;
 	std::optional<float> overrideSharpening{};
 	std::string overrideSharpeningString = "ignore";
 	bool overrideSharpeningForceDisable = false;
