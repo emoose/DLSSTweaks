@@ -92,7 +92,7 @@ namespace DLSSTweaks.ConfigTool
 
         static string[] BooleanKeys = new[] { "GlobalForceDLAA", "ForceDLAA", "DisableDevWatermark", "VerboseLogging", "Enable", "DisableIniMonitoring", "OverrideAppId", "EnableNvidiaSigOverride", "DynamicResolutionOverride" };
         
-        static string[] OverrideKeys = new[] { "OverrideAutoExposure", "OverrideAlphaUpscaling", "OverrideDlssHud" };
+        static string[] OverrideKeys = new[] { "OverrideAutoExposure", "OverrideAlphaUpscaling", "OverrideDlssHud", "OverrideHDR" };
         static string[] OverrideValues = new[] { "Default", "Force disable", "Force enable" }; // 0, -1, 1
 
         string DlssTweaksDll = "";

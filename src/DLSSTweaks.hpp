@@ -87,6 +87,7 @@ struct UserSettings
 	bool overrideSharpeningForceDisable = false;
 	bool overrideAppId = false;
 	int overrideDlssHud = 0;
+	int overrideHDR = 0;
 	bool disableDevWatermark = false;
 	bool verboseLogging = false;
 	std::unordered_map<std::string, std::filesystem::path> dllPathOverrides;
