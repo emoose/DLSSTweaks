@@ -223,7 +223,7 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 		dlss.featureCreateFlags = InValue;
 		spdlog::debug("NVSDK_NGX_Parameter_SetI: FeatureCreateFlags = 0x{:X}", dlss.featureCreateFlags);
 		if (dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_IsHDR)
-			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_IsHDR");
+			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_IsHDR (use \"OverrideHDR = 1\" to force enable)");
 		if (dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes)
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - NVSDK_NGX_DLSS_Feature_Flags_MVLowRes");
 		if (dlss.featureCreateFlags & NVSDK_NGX_DLSS_Feature_Flags_MVJittered)
@@ -240,6 +240,20 @@ void __cdecl NVSDK_NGX_Parameter_SetI(NVSDK_NGX_Parameter* InParameter, const ch
 		constexpr int lastKnownFlag = NVSDK_NGX_DLSS_Feature_Flags_AutoExposure;
 		if (auto remainder = dlss.featureCreateFlags & ~((lastKnownFlag << 1) - 1))
 			spdlog::debug("NVSDK_NGX_Parameter_SetI: - unknown flags: 0x{:X}", remainder);
+
+		if (settings.overrideHDR != 0)
+		{
+			if (settings.overrideHDR >= 1) // force HDR
+			{
+				spdlog::debug("OverrideHDR: force enabling flag NVSDK_NGX_DLSS_Feature_Flags_IsHDR");
+				InValue |= NVSDK_NGX_DLSS_Feature_Flags_IsHDR;
+			}
+			else if (settings.overrideHDR < 0) // force disable HDR
+			{
+				spdlog::debug("OverrideHDR: force disabling flag NVSDK_NGX_DLSS_Feature_Flags_IsHDR");
+				InValue = InValue & ~NVSDK_NGX_DLSS_Feature_Flags_IsHDR;
+			}
+		}
 
 		if (settings.overrideAutoExposure != 0)
 		{

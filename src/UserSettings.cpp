@@ -18,6 +18,7 @@ void UserSettings::print_to_log()
 		spdlog::info(" - OverrideSharpening: {}", *overrideSharpening);
 	spdlog::info(" - OverrideAppId: {}", overrideAppId ? "true" : "false");
 	spdlog::info(" - OverrideDlssHud: {}", overrideDlssHud == 0 ? "default" : (overrideDlssHud > 0 ? "enable" : "disable"));
+	spdlog::info(" - OverrideHDR: {}", overrideHDR == 0 ? "default" : (overrideHDR > 0 ? "enable" : "disable"));
 	spdlog::info(" - DisableDevWatermark: {}", disableDevWatermark ? "true" : "false");
 	spdlog::info(" - ResolutionOffset: {}", resolutionOffset);
 	spdlog::info(" - DynamicResolutionOverride: {}", dynamicResolutionOverride ? "true" : "false");
@@ -114,6 +115,7 @@ bool UserSettings::read(const std::filesystem::path& iniPath, int numInisRead)
 	forceDLAA = ini.Get<bool>("DLSS", "ForceDLAA", std::move(forceDLAA));
 	overrideAutoExposure = ini.Get<int>("DLSS", "OverrideAutoExposure", std::move(overrideAutoExposure));
 	overrideAlphaUpscaling = ini.Get<int>("DLSS", "OverrideAlphaUpscaling", std::move(overrideAlphaUpscaling));
+	overrideHDR = ini.Get<int>("DLSS", "OverrideHDR", std::move(overrideHDR));
 
 	std::string sharpeningString = utility::ini_get_string_safe(ini, "DLSS", "OverrideSharpening", std::move(overrideSharpeningString));
 	if (!sharpeningString.length() || !_stricmp(sharpeningString.c_str(), "default") ||
